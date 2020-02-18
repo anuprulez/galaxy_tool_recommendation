@@ -6,7 +6,7 @@ Project name: Galaxy tool recommendation
 
 Project home page: https://github.com/anuprulez/galaxy_tool_recommendation
 
-Data: https://github.com/anuprulez/galaxy_tool_recommendation/data
+Data: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/data
 
 Operating system(s): Linux
 
