@@ -1,6 +1,6 @@
 """
 Predict next tools in the Galaxy workflows
-using machine learning (recurrent neural network)
+using machine learning (dense neural network)
 """
 
 import numpy as np
@@ -35,7 +35,7 @@ class PredictTool:
     @classmethod
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools):
         """
-        Define recurrent neural network and train sequential data
+        Define dense neural network and train sequential data
         """
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
@@ -45,7 +45,7 @@ class PredictTool:
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
         predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
 
-        callbacks_list = [predict_callback_test, early_stopping]
+        callbacks_list = [predict_callback_test] #early_stopping
 
         print("Start training on the best model...")
         train_performance = dict()
@@ -119,16 +119,14 @@ if __name__ == "__main__":
     arg_parser.add_argument("-vs", "--validation_share", required=True, help="share of data to be used for validation")
     # neural network parameters
     arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
-    arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden recurrent units")
+    arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden dense units")
     arg_parser.add_argument("-es", "--embedding_size", required=True, help="size of the fixed vector learned for each tool")
     arg_parser.add_argument("-dt", "--dropout", required=True, help="percentage of neurons to be dropped")
     arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
-    arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
-    arg_parser.add_argument("-ar", "--activation_recurrent", required=True, help="activation function for recurrent layers")
+    arg_parser.add_argument("-ad", "--activation_dense", required=True, help="activation function for dense layers")
     arg_parser.add_argument("-ao", "--activation_output", required=True, help="activation function for output layers")
     arg_parser.add_argument("-cpus", "--num_cpus", required=True, help="number of cpus for parallelism")
-
     # get argument values
     args = vars(arg_parser.parse_args())
     tool_usage_path = args["tool_usage_file"]
@@ -146,9 +144,8 @@ if __name__ == "__main__":
     embedding_size = args["embedding_size"]
     dropout = args["dropout"]
     spatial_dropout = args["spatial_dropout"]
-    recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
-    activation_recurrent = args["activation_recurrent"]
+    activation_dense = args["activation_dense"]
     activation_output = args["activation_output"]
     num_cpus = int(args["num_cpus"])
 
@@ -165,9 +162,8 @@ if __name__ == "__main__":
         'embedding_size': embedding_size,
         'dropout': dropout,
         'spatial_dropout': spatial_dropout,
-        'recurrent_dropout': recurrent_dropout,
         'learning_rate': learning_rate,
-        'activation_recurrent': activation_recurrent,
+        'activation_dense': activation_dense,
         'activation_output': activation_output
     }
 
@@ -188,6 +184,20 @@ if __name__ == "__main__":
     print(results_weighted["best_parameters"])
     print()
     utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights)
+    # save losses, precision and usage weights
+    np.savetxt("data/train_loss.txt", results_weighted["train_loss"])
+    if test_share > 0.0:
+        print("Validation loss")
+        print(results_weighted["validation_loss"])
+        np.savetxt("data/validation_loss.txt", results_weighted["validation_loss"])
+        print()
+        print("Precision")
+        print(results_weighted["precision"])
+        np.savetxt("data/precision.txt", results_weighted["precision"])
+        print()
+        print("Usage weights")
+        print(results_weighted["usage_weights"])
+        np.savetxt("data/usage_weights.txt", results_weighted["usage_weights"])
     end_time = time.time()
     print()
     print("Program finished in %s seconds" % str(end_time - start_time))
