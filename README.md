@@ -4,15 +4,15 @@
 
 Project name: Galaxy tool recommendation
 
-Project home page: https://github.com/anuprulez/galaxy_tool_recommendation
+Project home page: https://github.com/anuprulez/galaxy_tool_recommendation/tree/dnn_wc
 
-Data: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/data
+Data: https://github.com/anuprulez/galaxy_tool_recommendation/tree/dnn_wc/data
 
 Operating system(s): Linux
 
 Programming language: Python
 
-Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/scripts
+Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/dnn_wc/scripts
 
 Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.1.2,matplotlib=3.1.1
 
