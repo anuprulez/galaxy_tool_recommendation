@@ -1,4 +1,4 @@
-# Tool recommender system in Galaxy using deep learning
+# Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network)
 
 ## General information
 
@@ -21,13 +21,13 @@ License: MIT License
 
 ## How to execute the script
 
-1. Execute the script `extract_data.sh` to extract two tabular files - `tool-popularity.tsv` and `wf-connections.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity.tsv`) contains information about the usage of tools per month. The second file (`wf-connections.tsv`) contains workflows present as the connections of tools. Save these tabular files. 
+1. Execute the script `extract_data.sh` to extract two tabular files - `tool-popularity.tsv` and `wf-connections.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity.tsv`) contains information about the usage of tools per month. The second file (`wf-connections.tsv`) contains workflows present as the connections of tools. Save these tabular files. These tabular files are present under `/data` folder and can be used to run deep learning training by following steps.
 
 2. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction`
 
-3. Execute the file `train.sh`. It has some input parameters:
+3. Execute the file `train.sh`. (Note: if executed on the complete dataset `wf-connections.tsv`, then it will take a very long time (>24 hrs) to finish and needs large memory. We have provided a subset of this file to run the training at `data/wf-connections-subset.tsv`. Please replace the original workflows file with this smaller one). The training script has following input parameters:
 
     `python <main python script> -wf <path to workflow file> -tu <path to tool usage file> -om <path to the final model file> -cd <cutoff date> -pl <maximum length of tool path> -ep <number of training iterations> -oe <number of iterations to optimise hyperparamters> -me <maximum number of evaluation to optimise hyperparameters> -ts <fraction of test data> -vs <fraction of validation data> -bs <range of batch sizes> -ut <range of hidden units> -es <range of embedding sizes> -dt <range of dropout> -sd <range of spatial dropout> -rd <range of recurrent dropout> -lr <range of learning rates> -ar <name of recurrent activation> -ao <name of output activation> -cpus <number of CPUs>`
     
@@ -75,6 +75,8 @@ License: MIT License
     An example command: `python scripts/main.py -wf data/workflow-connections-19-09.tsv -tu data/tool-popularity-19-09.tsv -om data/trained_model_sample.hdf5 -cd '2017-12-01' -pl 25 -ep 20 -oe 20 -me 50 -ts 0.0 -vs 0.2 -bs '1,512' -ut '1,512' -es '1,512' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -ar 'elu' -ao 'sigmoid' -cpus 4`
 
 4. The training of the neural network takes a long time (> 24 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
+
+## The following steps are only necessary for deploying on Galaxy server.
 
 5. Place the new model in the Galaxy repository at `galaxy/database/trained_model.hdf5`. 
 
