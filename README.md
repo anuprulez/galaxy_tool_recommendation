@@ -27,7 +27,11 @@ License: MIT License
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction`
 
-3. Execute the file `train.sh`. (Note: if executed on the complete dataset `wf-connections.tsv`, then it will take a very long time (>24 hrs) to finish and needs large memory. We have provided a subset of this file to run the training at `data/wf-connections-subset.tsv`. Please replace the original workflows file with this smaller one). The training script has following input parameters:
+3. Execute the file `train.sh`.
+
+Note: if executed on complete dataset `wf-connections.tsv`, it will take a long time (>24 hrs) to finish and needs a large memory. A subset of this file is provided to run the training at `data/wf-connections-subset.tsv`. Please replace the original workflow file with this smaller one. Once hyperparameter optimisation and actual training finish, a trained model is created at the path specified in `train.sh` script. Please know that this would be a scaled-down model. Trained model (`tool_recommendation_model.hdf5`) with complete data is present at `ipython_script/data/` which can be used to predict tool using the IPython notebook `ipython_script/tool_recommendation.ipynb`).
+
+The training script has following input parameters:
 
     `python <main python script> -wf <path to workflow file> -tu <path to tool usage file> -om <path to the final model file> -cd <cutoff date> -pl <maximum length of tool path> -ep <number of training iterations> -oe <number of iterations to optimise hyperparamters> -me <maximum number of evaluation to optimise hyperparameters> -ts <fraction of test data> -vs <fraction of validation data> -bs <range of batch sizes> -ut <range of hidden units> -es <range of embedding sizes> -dt <range of dropout> -sd <range of spatial dropout> -rd <range of recurrent dropout> -lr <range of learning rates> -ar <name of recurrent activation> -ao <name of output activation> -cpus <number of CPUs>`
     
