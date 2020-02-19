@@ -29,7 +29,7 @@ License: MIT License
 
 3. Execute the file `train.sh`.
 
-Note: if executed on complete dataset `wf-connections.tsv`, it will take a long time (>12 hrs) to finish and needs a large memory. A subset of this file is provided to run the training at `data/workflow-connections-subset.tsv`. Please replace the original workflow file with this smaller one. Once hyperparameter optimisation and actual training finish, a trained model is created at the path specified in `train.sh` script. Please know that this would be a scaled-down model. Trained model (`tool_recommendation_model.hdf5`) with complete data is present at `ipython_script/data/` which can be used to predict tool using the IPython notebook `ipython_script/tool_recommendation_dnn_wc.ipynb`).
+Note: if executed on complete dataset `wf-connections.tsv`, it will take a long time (> 12 hrs) to finish and needs a large memory. A subset of this file is provided to run the training at `data/workflow-connections-subset.tsv`. Please replace the original workflow file with this smaller one. Once hyperparameter optimisation and actual training finish, a trained model is created at the path specified in `train.sh` script. Please know that this would be a scaled-down model. Trained model (`tool_recommendation_model.hdf5`) with complete data is present at `ipython_script/data/` which can be used to predict tool using the IPython notebook `ipython_script/tool_recommendation_dnn_wc.ipynb`).
 
 The training script has following input parameters:
 
@@ -76,7 +76,7 @@ The training script has following input parameters:
 
   An example command: `python scripts/main.py -wf data/workflow-connections-subset.tsv -tu data/tool-popularity-19-09.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 20 -oe 5 -me 5 -ts 0.2 -vs 0.2 -bs '1,512' -ut '1,512' -es '1,512' -dt '0.0,0.5' -sd '0.0,0.5' -lr '0.00001,0.1' -ad 'elu' -ao 'sigmoid' -cpus 8`
 
-4. The training of the neural network takes a long time (> 24 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
+4. The training of the neural network takes a long time (> 12 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
 
 ## The following steps are only necessary for deploying on Galaxy server.
 
