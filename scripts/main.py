@@ -1,6 +1,6 @@
 """
 Predict next tools in the Galaxy workflows
-using machine learning (recurrent neural network)
+using machine learning (convolutional neural network)
 """
 
 import numpy as np
@@ -35,7 +35,7 @@ class PredictTool:
     @classmethod
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools):
         """
-        Define recurrent neural network and train sequential data
+        Define convolutional neural network and train sequential data
         """
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
@@ -45,7 +45,7 @@ class PredictTool:
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
         predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
 
-        callbacks_list = [predict_callback_test, early_stopping]
+        callbacks_list = [predict_callback_test] #early_stopping
 
         print("Start training on the best model...")
         train_performance = dict()
@@ -112,44 +112,48 @@ if __name__ == "__main__":
     # data parameters
     arg_parser.add_argument("-cd", "--cutoff_date", required=True, help="earliest date for taking tool usage")
     arg_parser.add_argument("-pl", "--maximum_path_length", required=True, help="maximum length of tool path")
+    # neural network parameters
     arg_parser.add_argument("-ep", "--n_epochs", required=True, help="number of iterations to run to create model")
     arg_parser.add_argument("-oe", "--optimize_n_epochs", required=True, help="number of iterations to run to find best model parameters")
     arg_parser.add_argument("-me", "--max_evals", required=True, help="maximum number of configuration evaluations")
     arg_parser.add_argument("-ts", "--test_share", required=True, help="share of data to be used for testing")
     arg_parser.add_argument("-vs", "--validation_share", required=True, help="share of data to be used for validation")
-    # neural network parameters
     arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
-    arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden recurrent units")
+    arg_parser.add_argument("-ds", "--dense_size", required=True, help="number of hidden units of dense layer")
+    arg_parser.add_argument("-fs", "--filter_size", required=True, help="filter size of the convolutional layer")
+    arg_parser.add_argument("-ks", "--kernel_size", required=True, help="kernel size of the convolutional layer")
     arg_parser.add_argument("-es", "--embedding_size", required=True, help="size of the fixed vector learned for each tool")
     arg_parser.add_argument("-dt", "--dropout", required=True, help="percentage of neurons to be dropped")
     arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
-    arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
-    arg_parser.add_argument("-ar", "--activation_recurrent", required=True, help="activation function for recurrent layers")
-    arg_parser.add_argument("-ao", "--activation_output", required=True, help="activation function for output layers")
+    arg_parser.add_argument("-da", "--dense_activation", required=True, help="activation function for dense layers")
+    arg_parser.add_argument("-oa", "--output_activation", required=True, help="activation function for output layers")
     arg_parser.add_argument("-cpus", "--num_cpus", required=True, help="number of cpus for parallelism")
 
     # get argument values
     args = vars(arg_parser.parse_args())
     tool_usage_path = args["tool_usage_file"]
     workflows_path = args["workflow_file"]
+    trained_model_path = args["output_model"]
+
     cutoff_date = args["cutoff_date"]
     maximum_path_length = int(args["maximum_path_length"])
-    trained_model_path = args["output_model"]
+
     n_epochs = int(args["n_epochs"])
     optimize_n_epochs = int(args["optimize_n_epochs"])
     max_evals = int(args["max_evals"])
     test_share = float(args["test_share"])
     validation_share = float(args["validation_share"])
     batch_size = args["batch_size"]
-    units = args["units"]
+    dense_size = args["dense_size"]
+    filter_size = args["filter_size"]
+    kernel_size = args["kernel_size"]
     embedding_size = args["embedding_size"]
     dropout = args["dropout"]
     spatial_dropout = args["spatial_dropout"]
-    recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
-    activation_recurrent = args["activation_recurrent"]
-    activation_output = args["activation_output"]
+    dense_activation = args["dense_activation"]
+    output_activation = args["output_activation"]
     num_cpus = int(args["num_cpus"])
 
     config = {
@@ -161,14 +165,15 @@ if __name__ == "__main__":
         'test_share': test_share,
         'validation_share': validation_share,
         'batch_size': batch_size,
-        'units': units,
+        'dense_size': dense_size,
+        'filter_size': filter_size,
+        'kernel_size': kernel_size,
         'embedding_size': embedding_size,
         'dropout': dropout,
         'spatial_dropout': spatial_dropout,
-        'recurrent_dropout': recurrent_dropout,
         'learning_rate': learning_rate,
-        'activation_recurrent': activation_recurrent,
-        'activation_output': activation_output
+        'dense_activation': dense_activation,
+        'output_activation': output_activation
     }
 
     # Extract and process workflows
@@ -188,6 +193,21 @@ if __name__ == "__main__":
     print(results_weighted["best_parameters"])
     print()
     utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights)
+
+    # save losses, precision and usage weights
+    np.savetxt("data/train_loss.txt", results_weighted["train_loss"])
+    if test_share > 0.0:
+        print("Validation loss")
+        print(results_weighted["validation_loss"])
+        np.savetxt("data/validation_loss.txt", results_weighted["validation_loss"])
+        print()
+        print("Precision")
+        print(results_weighted["precision"])
+        np.savetxt("data/precision.txt", results_weighted["precision"])
+        print()
+        print("Usage weights")
+        print(results_weighted["usage_weights"])
+        np.savetxt("data/usage_weights.txt", results_weighted["usage_weights"])
     end_time = time.time()
     print()
     print("Program finished in %s seconds" % str(end_time - start_time))
