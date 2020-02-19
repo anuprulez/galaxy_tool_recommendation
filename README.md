@@ -29,7 +29,7 @@ License: MIT License
 
 3. Execute the file `train.sh`.
 
-Note: if executed on complete dataset `wf-connections.tsv`, it will take a long time (>12 hrs) to finish and needs a large memory. A subset of this file is provided to run the training at `data/wf-connections-subset.tsv`. Please replace the original workflow file with this smaller one. Once hyperparameter optimisation and actual training finish, a trained model is created at the path specified in `train.sh` script. Please know that this would be a scaled-down model. Trained model (`tool_recommendation_model.hdf5`) with complete data is present at `ipython_script/data/` which can be used to predict tool using the IPython notebook `ipython_script/tool_recommendation.ipynb`).
+Note: if executed on complete dataset `wf-connections.tsv`, it will take a long time (>12 hrs) to finish and needs a large memory. A subset of this file is provided to run the training at `data/workflow-connections-subset.tsv`. Please replace the original workflow file with this smaller one. Once hyperparameter optimisation and actual training finish, a trained model is created at the path specified in `train.sh` script. Please know that this would be a scaled-down model. Trained model (`tool_recommendation_model.hdf5`) with complete data is present at `ipython_script/data/` which can be used to predict tool using the IPython notebook `ipython_script/tool_recommendation_dnn_wc.ipynb`).
 
 The training script has following input parameters:
 
