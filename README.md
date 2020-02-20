@@ -14,22 +14,38 @@ Programming language: Python
 
 Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/scripts
 
+iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/ipython_script/tool_recommendation_gru_wc.ipynb
+
 Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.1.2,matplotlib=3.1.1
+
+Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh
 
 License: MIT License
 
+## How to create a sample tool recommendation model
 
-## How to execute the script
+As the deep learning training time is high (> 24 hrs), the following steps should be used to create a sample tool recommendation model on a subset of workflows:
 
-1. Execute the script `extract_data.sh` to extract two tabular files - `tool-popularity.tsv` and `wf-connections.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity.tsv`) contains information about the usage of tools per month. The second file (`wf-connections.tsv`) contains workflows present as the connections of tools. Save these tabular files. These tabular files are present under `/data` folder and can be used to run deep learning training by following steps.
-
-2. Install the dependencies by executing the following lines:
+1. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
-    *    `conda activate tool_prediction`
+    *    `conda activate tool_prediction_gru_wc`
+    
+2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh).
 
-3. Execute the file `train.sh`.
+3. After successful finish (~2-3 minutes), a trained model is created at `data/tool_recommendation_model.hdf5`.
 
-Note: if executed on complete dataset `wf-connections.tsv`, it will take a long time (> 24 hrs) to finish and needs a large memory. A subset of this file is provided to run the training at `data/workflow-connections-subset.tsv`. Please replace the original workflow file with this smaller one. Once hyperparameter optimisation and actual training finish, a trained model is created at the path specified in `train.sh` script. Please know that this would be a scaled-down model. Trained model (`tool_recommendation_model.hdf5`) with complete data is present at `ipython_script/data/` which can be used to predict tool using the IPython notebook `ipython_script/tool_recommendation_gru_wc.ipynb`).
+4. A model trained on all workflows is present at `ipython_script/data/` which can be used to predict tools using the IPython notebook 
+`ipython_script/tool_recommendation_gru_wc.ipynb`
+
+## How to run the project on complete data to create tool recommendation model
+
+1. Execute data extraction script `extract_data.sh` to extract two tabular files - `tool-popularity-19-09.tsv` and `workflow-connections-19-09.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity-19-09.tsv`) contains information about the usage of tools per month. The second file (`workflow-connections-19-09.tsv`) contains workflows present as the connections of tools. Save these tabular files. These tabular files are present under `/data` folder and can be used to run deep learning training by following steps.
+
+2. Install the dependencies by executing the following lines if not done before:
+    *    `conda env create -f environment.yml`
+    *    `conda activate tool_prediction_gru_wc`
+
+3. Execute training script `train.sh`. Please check that the complete workflow file (`workflow-connections-19-09.tsv`) is being used in the training script.
 
 The training script has following input parameters:
 
@@ -38,9 +54,9 @@ The training script has following input parameters:
 ### Description of all parameters mentioned in the training script:
 
    - `<main python script>`: This script is the entry point of the entire analysis. It is present at `scripts/main.py`.
-   - `<path to workflow file>`: It is a path to a tabular file containing Galaxy workflows. E.g. `data/wf-connections.tsv`.
-   - `<path to tool popularity file>`: It is a path to a tabular file containing usage frequencies of Galaxy tools. E.g. `data/tool-popularity.tsv`.
-   - `<path to trained model file>`: It is a path of the final trained model (`h5` file). E.g. `data/trained_model.hdf5`.
+   - `<path to workflow file>`: It is a path to a tabular file containing Galaxy workflows. E.g. `data/workflow-connections-19-09.tsv`.
+   - `<path to tool popularity file>`: It is a path to a tabular file containing usage frequencies of Galaxy tools. E.g. `data/tool-popularity-19-09.tsv`.
+   - `<path to trained model file>`: It is a path of the final trained model (`h5` file). E.g. `data/tool_recommendation_model.hdf5`.
     
    - `<cutoff date>`: It is used to set the earliest date from which the usage frequencies of tools should be considered. The format of the date is YYYY-MM-DD. This date should be in the past. E.g. `2017-12-01`.
     
@@ -76,16 +92,16 @@ The training script has following input parameters:
     
    - `<number of CPUs>`: This takes the number of CPUs to be allocated to parallelise the training of the neural network. E.g. `4`.
 
-    An example command: `python scripts/main.py -wf data/workflow-connections-19-09.tsv -tu data/tool-popularity-19-09.tsv -om data/trained_model_sample.hdf5 -cd '2017-12-01' -pl 25 -ep 20 -oe 20 -me 50 -ts 0.0 -vs 0.2 -bs '1,512' -ut '1,512' -es '1,512' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -ar 'elu' -ao 'sigmoid' -cpus 4`
+    An example command: `python scripts/main.py -wf data/workflow-connections-19-09.tsv -tu data/tool-popularity-19-09.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 20 -oe 5 -me 5 -ts 0.2 -vs 0.2 -bs '1,512' -ut '1,512' -es '1,512' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -ar 'elu' -ao 'sigmoid' -cpus 8`
 
 4. The training of the neural network takes a long time (> 24 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
 
 ## The following steps are only necessary for deploying on Galaxy server.
 
-5. Place the new model in the Galaxy repository at `galaxy/database/trained_model.hdf5`. 
+5. Upload new model to: https://github.com/anuprulez/download_store/tree/tool_recommendation_model/tool_recommendation_model. 
 
-6. In the `galaxy.yml` config file, make the following changes:
-    - Enable and then set the property `enable_tool_recommendations` to `true`
-    - Enable and then set the property `tool_recommendation_model_path` to `database/trained_model.hdf5`
+6. In the `galaxy.yml.sample` config file, make the following changes:
+    - Enable and then set the property `enable_tool_recommendations` to `true`.
+    - Enable and then set the property `tool_recommendation_model_path` to `https://github.com/anuprulez/download_store/tree/tool_recommendation_model/tool_recommendation_model`.
 
 7. Now go to the workflow editor and choose any tool from the toolbox. Then, you can see a `right-arrow` in top-right of the tool. Click on it to see the recommended tools to be used after the previously chosen tool.

@@ -1,4 +1,4 @@
-name: tool_prediction
+name: tool_prediction_gru_wc
 channels:
 - conda-forge
 - bioconda
