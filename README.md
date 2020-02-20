@@ -29,7 +29,7 @@ As the deep learning training time is high (> 24 hrs), the following steps shoul
 1. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction_gru_wc`
-    
+
 2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh).
 
 3. After successful finish (~2-3 minutes), a trained model is created at `data/tool_recommendation_model.hdf5`.
