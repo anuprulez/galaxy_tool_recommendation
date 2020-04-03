@@ -14,7 +14,8 @@ import keras.callbacks as callbacks
 
 import extract_workflow_connections
 import prepare_data
-import optimise_hyperparameters
+#import optimise_hyperparameters
+import optimise_keras_tuner
 import utils
 
 
@@ -24,13 +25,13 @@ class PredictTool:
     def __init__(self, num_cpus):
         """ Init method. """
         # set the number of cpus
-        cpu_config = tf.ConfigProto(
+        '''cpu_config = tf.compat.v1.ConfigProto(
             device_count={"CPU": num_cpus},
             intra_op_parallelism_threads=num_cpus,
             inter_op_parallelism_threads=num_cpus,
             allow_soft_placement=True
         )
-        K.set_session(tf.Session(config=cpu_config))
+        K.set_session(tf.compat.v1.Session(config=cpu_config))'''
 
     @classmethod
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools):
@@ -38,8 +39,11 @@ class PredictTool:
         Define recurrent neural network and train sequential data
         """
         print("Start hyperparameter optimisation...")
-        hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
-        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights)
+        hyper_opt = optimise_keras_tuner.KerasTuneOptimisation()
+        hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, class_weights, usage_pred, compatible_next_tools)
+
+        import sys
+        sys.exit()
 
         # define callbacks
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
@@ -53,29 +57,29 @@ class PredictTool:
             trained_model = best_model.fit(
                 train_data,
                 train_labels,
-                batch_size=int(best_params["batch_size"]),
+                batch_size=16, #int(best_params["batch_size"]),
                 epochs=n_epochs,
                 verbose=2,
                 callbacks=callbacks_list,
                 shuffle="batch",
                 validation_data=(test_data, test_labels)
             )
-            train_performance["validation_loss"] = np.array(trained_model.history["val_loss"])
+            '''train_performance["validation_loss"] = np.array(trained_model.history["val_loss"])
             train_performance["precision"] = predict_callback_test.precision
-            train_performance["usage_weights"] = predict_callback_test.usage_weights
+            train_performance["usage_weights"] = predict_callback_test.usage_weights'''
         else:
             trained_model = best_model.fit(
                 train_data,
                 train_labels,
-                batch_size=int(best_params["batch_size"]),
+                batch_size=16, #int(best_params["batch_size"]),
                 epochs=n_epochs,
                 verbose=2,
                 callbacks=callbacks_list,
                 shuffle="batch"
             )
-        train_performance["train_loss"] = np.array(trained_model.history["loss"])
+        '''train_performance["train_loss"] = np.array(trained_model.history["loss"])
         train_performance["model"] = best_model
-        train_performance["best_parameters"] = best_params
+        train_performance["best_parameters"] = best_params'''
         return train_performance
 
 
