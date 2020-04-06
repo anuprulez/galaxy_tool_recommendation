@@ -102,14 +102,14 @@ class KerasTuneOptimisation:
         l_spatial_dropout = list(map(float, config["spatial_dropout"].split(",")))
         l_recurrent_dropout = list(map(float, config["recurrent_dropout"].split(",")))
 
+        n_epochs = int(config["n_epochs"])
         optimize_n_epochs = int(config["optimize_n_epochs"])
         validation_split = float(config["validation_share"])
-
+        max_evals = int(config["max_evals"])
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
         max_len = 25
         batch_size = 16
-        n_epochs = 5
         best_model_params = dict()
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-4)
         predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
@@ -141,7 +141,7 @@ class KerasTuneOptimisation:
 
             learning_rate = hp.Float('learning_rate', l_learning_rate[0], l_learning_rate[1], sampling='log')
             model.compile(
-                optimizer=tf.compat.v1.train.AdamOptimizer(learning_rate),
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
                 loss=utils.weighted_loss(class_weights),
             )
             return model
@@ -149,8 +149,10 @@ class KerasTuneOptimisation:
         tuner = kt.Hyperband(
             build_model,
             objective='val_loss',
-            max_epochs=n_epochs,
-            hyperband_iterations=optimize_n_epochs,
+            max_epochs=max_evals,
+            executions_per_trial=optimize_n_epochs,
+            directory='opt_trials',
+            project_name='tool_prediction'
         )
 
         tuner.search(
@@ -160,47 +162,11 @@ class KerasTuneOptimisation:
             batch_size=batch_size,
             validation_data=(test_data, test_labels),
             verbose=1,
-            callbacks=callbacks_list
+            #callbacks=callbacks_list
         )
+              
+        tuner.results_summary()
 
         best_model = tuner.get_best_models(1)[0]
         best_hyperparameters = tuner.get_best_hyperparameters(1)[0]
         print(best_hyperparameters)
-
-        '''def create_model(params):
-            model = Sequential()
-            model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(SpatialDropout1D(params["spatial_dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=True, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(Dense(dimensions, activation=params["activation_output"]))
-            optimizer_rms = RMSprop(lr=params["learning_rate"])
-            model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
-            model_fit = model.fit(
-                train_data,
-                train_labels,
-                batch_size=int(params["batch_size"]),
-                epochs=optimize_n_epochs,
-                shuffle="batch",
-                verbose=2,
-                validation_split=validation_split,
-                callbacks=[early_stopping]
-            )
-            return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
-        # minimize the objective function using the set of parameters above
-        trials = Trials()
-        learned_params = fmin(create_model, params, trials=trials, algo=tpe.suggest, max_evals=int(config["max_evals"]))
-        best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
-
-        # set the best params with respective values
-        for item in learned_params:
-            item_val = learned_params[item]
-            if item == 'activation_output':
-                best_model_params[item] = l_output_activations[item_val]
-            elif item == 'activation_recurrent':
-                best_model_params[item] = l_recurrent_activations[item_val]
-            else:
-                best_model_params[item] = item_val
-        return best_model_params, best_model'''

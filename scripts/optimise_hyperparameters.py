@@ -12,6 +12,18 @@ from keras.layers.core import SpatialDropout1D
 from keras.optimizers import RMSprop
 from keras.callbacks import EarlyStopping
 
+import tensorflow as tf
+from keras_preprocessing import sequence
+from tensorflow import keras
+from tensorflow.python.keras import Input
+from tensorflow.python.keras.layers import Concatenate
+from keras.layers import Layer
+import keras.backend as K
+import kerastuner as kt
+from keras import backend as K
+import keras.callbacks as callbacks
+
+import bahdanau_attention
 import utils
 
 
@@ -45,6 +57,7 @@ class HyperparameterOptimisation:
 
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
+        max_len = train_data.shape[1]
         best_model_params = dict()
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-4)
 
@@ -60,18 +73,35 @@ class HyperparameterOptimisation:
             "spatial_dropout": hp.uniform("spatial_dropout", l_spatial_dropout[0], l_spatial_dropout[1]),
             "recurrent_dropout": hp.uniform("recurrent_dropout", l_recurrent_dropout[0], l_recurrent_dropout[1])
         }
-
+        
         def create_model(params):
-            model = Sequential()
-            model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(SpatialDropout1D(params["spatial_dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=True, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(Dense(dimensions, activation=params["activation_output"]))
-            optimizer_rms = RMSprop(lr=params["learning_rate"])
-            model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
+            embedding_size = int(params["embedding_size"])
+            gru_units = int(params["units"])
+            sequence_input = tf.keras.layers.Input(shape=(max_len,), dtype='int32')
+            embedded_sequences = tf.keras.layers.Embedding(dimensions, embedding_size, input_length=max_len, mask_zero=True)(sequence_input)
+
+            gru = tf.keras.layers.GRU(gru_units,
+                return_sequences=True,
+                return_state=True,
+                activation='elu'
+            )
+
+            sample_output, sample_hidden = gru(embedded_sequences, initial_state=None)
+
+            attention = bahdanau_attention.BahdanauAttention(gru_units)
+            context_vector, attention_weights = attention(sample_hidden, sample_output)
+
+            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(context_vector)
+
+            model = tf.keras.Model(inputs=sequence_input, outputs=output)
+
+            print(model.summary())
+
+            learning_rate = params["learning_rate"]
+            model.compile(
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
+                loss=utils.weighted_loss(class_weights),
+            )
             model_fit = model.fit(
                 train_data,
                 train_labels,

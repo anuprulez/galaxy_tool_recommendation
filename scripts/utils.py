@@ -4,6 +4,7 @@ import json
 import h5py
 
 from keras import backend as K
+import bahdanau_attention
 
 
 def read_file(file_path):
@@ -39,28 +40,6 @@ def format_tool_id(tool_link):
     tool_id_split = tool_link.split("/")
     tool_id = tool_id_split[-2] if len(tool_id_split) > 1 else tool_link
     return tool_id
-
-
-def set_trained_model(dump_file, model_values):
-    """
-    Create an h5 file with the trained weights and associated dicts
-    """
-    hf_file = h5py.File(dump_file, 'w')
-    for key in model_values:
-        value = model_values[key]
-        if key == 'model_weights':
-            for idx, item in enumerate(value):
-                w_key = "weight_" + str(idx)
-                if w_key in hf_file:
-                    hf_file.modify(w_key, item)
-                else:
-                    hf_file.create_dataset(w_key, data=item)
-        else:
-            if key in hf_file:
-                hf_file.modify(key, json.dumps(value))
-            else:
-                hf_file.create_dataset(key, data=json.dumps(value))
-    hf_file.close()
 
 
 def remove_file(file_path):
@@ -125,6 +104,7 @@ def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, us
     """
     Verify the model on test data
     """
+    print()
     print("Evaluating performance on test data...")
     print("Test data size: %d" % len(y))
     size = y.shape[0]
@@ -142,19 +122,52 @@ def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, us
     return mean_precision, mean_usage
 
 
+def set_trained_model(dump_file, model_values):
+    """
+    Create an h5 file with the trained weights and associated dicts
+    """
+    hf_file = h5py.File(dump_file, 'w')
+    for key in model_values:
+        value = model_values[key]
+        if key == 'model_weights':
+            for idx, item in enumerate(value):
+                w_key = "weight_" + str(idx)
+                if w_key in hf_file:
+                    hf_file.modify(w_key, item)
+                else:
+                    hf_file.create_dataset(w_key, data=item)
+        else:
+            if key in hf_file:
+                hf_file.modify(key, json.dumps(value))
+            else:
+                hf_file.create_dataset(key, data=json.dumps(value))
+    hf_file.close()
+
+
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
     # save files
     trained_model = results["model"]
-    best_model_parameters = results["best_parameters"]
+    
     model_config = trained_model.to_json()
     model_weights = trained_model.get_weights()
-
+    print(model_config)
+    import tensorflow as tf
+    from tensorflow.keras.models import model_from_json
+    new_model = model_from_json(model_config, custom_objects={'BahdanauAttention': bahdanau_attention.BahdanauAttention, "W1": tf.keras.layers.Dense})
+    new_model.set_weights(weights)
+    '''for layer in trained_model.layers:
+        print(dir(layer))
+        print(layer.get_config())
+        print("===================")
+    
+    model_config = trained_model.to_json()
+    model_weights = trained_model.get_weights()
     model_values = {
         'data_dictionary': data_dictionary,
         'model_config': model_config,
-        'best_parameters': best_model_parameters,
         'model_weights': model_weights,
+        'best_parameters': results["best_parameters"],
         "compatible_tools": compatible_next_tools,
         "class_weights": class_weights
     }
-    set_trained_model(trained_model_path, model_values)
+    set_trained_model(trained_model_path, model_values)'''
