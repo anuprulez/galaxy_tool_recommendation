@@ -38,9 +38,9 @@ class PredictTool:
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
         predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
         filepath = "data/weights.{epoch:02d}-{val_loss:.2f}.hdf5"
-        cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, save_weights_only=True, verbose=1)
+        #cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, save_weights_only=True, verbose=1)
 
-        callbacks_list = [early_stopping, cp_callback]
+        callbacks_list = [early_stopping]
 
         print("Start training on the best model...")
         train_performance = dict()

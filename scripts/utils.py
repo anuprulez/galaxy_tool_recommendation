@@ -5,6 +5,7 @@ import h5py
 
 from keras import backend as K
 import bahdanau_attention
+import load_model
 
 
 def read_file(file_path):
@@ -150,21 +151,16 @@ def save_model(results, data_dictionary, compatible_next_tools, trained_model_pa
     
     model_config = trained_model.to_json()
     model_weights = trained_model.get_weights()
-    print(model_config)
-    import tensorflow as tf
-    from tensorflow.keras.models import model_from_json
-    new_model = model_from_json(model_config, custom_objects={'BahdanauAttention': bahdanau_attention.BahdanauAttention, "W1": tf.keras.layers.Dense})
-    new_model.set_weights(weights)
-    '''for layer in trained_model.layers:
-        print(dir(layer))
-        print(layer.get_config())
-        print("===================")
     
-    model_config = trained_model.to_json()
+    new_model = load_model.set_model(results["best_parameters"], class_weights)
+    new_model.set_weights(model_weights)
+    
+    print(new_model.summary())
+    
+    '''model_config = trained_model.to_json()
     model_weights = trained_model.get_weights()
     model_values = {
         'data_dictionary': data_dictionary,
-        'model_config': model_config,
         'model_weights': model_weights,
         'best_parameters': results["best_parameters"],
         "compatible_tools": compatible_next_tools,
