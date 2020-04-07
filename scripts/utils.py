@@ -3,7 +3,7 @@ import numpy as np
 import json
 import h5py
 
-from keras import backend as K
+from tensorflow.keras import backend as K
 
 
 def read_file(file_path):
@@ -123,41 +123,26 @@ def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, us
 
 def set_trained_model(dump_file, model_values):
     """
-    Create an h5 file with the trained weights and associated dicts
+    Append helper dictionaries to trained model h5 file
     """
-    hf_file = h5py.File(dump_file, 'w')
+    hf_file = h5py.File(dump_file, 'a')
     for key in model_values:
         value = model_values[key]
-        if key == 'model_weights':
-            for idx, item in enumerate(value):
-                w_key = "weight_" + str(idx)
-                if w_key in hf_file:
-                    hf_file.modify(w_key, item)
-                else:
-                    hf_file.create_dataset(w_key, data=item)
-        else:
-            if key in hf_file:
-                hf_file.modify(key, json.dumps(value))
-            else:
-                hf_file.create_dataset(key, data=json.dumps(value))
+        hf_file.create_dataset(key, data=json.dumps(value))   
     hf_file.close()
 
 
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
     # save files
     trained_model = results["model"]
+    trained_model.save(trained_model_path)
     parameters = results["best_parameters"]
     parameters["max_len"] = 25
     parameters["dimensions"] = len(class_weights)
     parameters["class_weights"] = class_weights
-    #new_model = load_model.ToolPredictionAttentionModel(parameters).create_model()
-    #new_model.set_weights(model_weights)
-    #print(new_model.summary())
     model_values = {
         'data_dictionary': data_dictionary,
-        'model_weights': trained_model.get_weights(),
-        'best_parameters': results["best_parameters"],
+        'parameters': parameters,
         "compatible_tools": compatible_next_tools,
-        "class_weights": class_weights
     }
     set_trained_model(trained_model_path, model_values)
