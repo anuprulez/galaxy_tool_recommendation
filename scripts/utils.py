@@ -4,8 +4,6 @@ import json
 import h5py
 
 from keras import backend as K
-import bahdanau_attention
-import load_model
 
 
 def read_file(file_path):
@@ -148,22 +146,18 @@ def set_trained_model(dump_file, model_values):
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
     # save files
     trained_model = results["model"]
-    
-    model_config = trained_model.to_json()
-    model_weights = trained_model.get_weights()
-    
-    new_model = load_model.set_model(results["best_parameters"], class_weights)
-    new_model.set_weights(model_weights)
-    
-    print(new_model.summary())
-    
-    '''model_config = trained_model.to_json()
-    model_weights = trained_model.get_weights()
+    parameters = results["best_parameters"]
+    parameters["max_len"] = 25
+    parameters["dimensions"] = len(class_weights)
+    parameters["class_weights"] = class_weights
+    #new_model = load_model.ToolPredictionAttentionModel(parameters).create_model()
+    #new_model.set_weights(model_weights)
+    #print(new_model.summary())
     model_values = {
         'data_dictionary': data_dictionary,
-        'model_weights': model_weights,
+        'model_weights': trained_model.get_weights(),
         'best_parameters': results["best_parameters"],
         "compatible_tools": compatible_next_tools,
         "class_weights": class_weights
     }
-    set_trained_model(trained_model_path, model_values)'''
+    set_trained_model(trained_model_path, model_values)
