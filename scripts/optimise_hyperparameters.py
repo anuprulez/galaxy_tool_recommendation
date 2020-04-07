@@ -5,23 +5,9 @@ Find the optimal combination of hyperparameters
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-from keras.models import Sequential
-from keras.layers import Dense, GRU, Dropout
-from keras.layers.embeddings import Embedding
-from keras.layers.core import SpatialDropout1D
-from keras.optimizers import RMSprop
-from keras.callbacks import EarlyStopping
-
 import tensorflow as tf
-from keras_preprocessing import sequence
-from tensorflow import keras
-from tensorflow.python.keras import Input
-from tensorflow.python.keras.layers import Concatenate
-from keras.layers import Layer
-import keras.backend as K
-import kerastuner as kt
-from keras import backend as K
-import keras.callbacks as callbacks
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras import backend as K
 
 import bahdanau_attention
 import utils
@@ -29,11 +15,9 @@ import utils
 
 class HyperparameterOptimisation:
 
-    @classmethod
     def __init__(self):
         """ Init method. """
 
-    @classmethod
     def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights):
         """
         Train a model and report accuracy

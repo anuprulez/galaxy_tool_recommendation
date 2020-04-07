@@ -1,6 +1,6 @@
 """
 Predict next tools in the Galaxy workflows
-using machine learning (recurrent neural network)
+using machine learning (recurrent neural network with attention)
 """
 
 import numpy as np
@@ -9,13 +9,11 @@ import time
 
 # machine learning library
 import tensorflow as tf
-from keras import backend as K
-import keras.callbacks as callbacks
+from tensorflow.keras import callbacks
 
 import extract_workflow_connections
 import prepare_data
 import optimise_hyperparameters
-#import optimise_keras_tuner
 import utils
 
 
