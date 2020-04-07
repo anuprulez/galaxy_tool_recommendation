@@ -132,12 +132,12 @@ def set_trained_model(dump_file, model_values):
     hf_file.close()
 
 
-def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
+def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, max_path_len):
     # save files
     trained_model = results["model"]
     trained_model.save(trained_model_path)
     parameters = results["best_parameters"]
-    parameters["max_len"] = 25
+    parameters["max_len"] = max_path_len
     parameters["dimensions"] = len(class_weights)
     parameters["class_weights"] = class_weights
     model_values = {
