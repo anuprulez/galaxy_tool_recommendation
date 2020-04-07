@@ -12,6 +12,4 @@ dependencies:
 - h5py=2.9.0
 - csvkit=1.0.4
 - hyperopt=0.2.3
-- matplotlib=3.1.1
 - nb_conda
-- keras-tuner=1.0.1
