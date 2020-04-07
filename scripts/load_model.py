@@ -20,16 +20,24 @@ class ToolPredictionAttentionModel():
     def create_model(self):
         sequence_input = tf.keras.layers.Input(shape=(self.max_len,), dtype='int32')
         embedded_sequences = tf.keras.layers.Embedding(self.dimensions, self.embedding_size, input_length=self.max_len, mask_zero=True)(sequence_input)
-        embedded_sequences_dropout = tf.keras.layers.SpatialDropout1D(self.spatial_dropout)(embedded_sequences)
-        gru = tf.keras.layers.GRU(self.gru_units,
+        embedded_sequences = tf.keras.layers.SpatialDropout1D(self.spatial_dropout)(embedded_sequences)
+        gru_1 = tf.keras.layers.GRU(self.gru_units,
+            return_sequences=True,
+            return_state=False,
+            activation='elu',
+            recurrent_dropout=self.recurrent_dropout
+        )
+        gru_2 = tf.keras.layers.GRU(self.gru_units,
             return_sequences=True,
             return_state=True,
             activation='elu',
             recurrent_dropout=self.recurrent_dropout
         )
-        sample_output, sample_hidden = gru(embedded_sequences_dropout, initial_state=None)
+        gru_output = gru_1(embedded_sequences)
+        gru_output = tf.keras.layers.Dropout(self.dropout)(gru_output)
+        gru_output, gru_hidden = gru_2(gru_output)
         attention = bahdanau_attention.BahdanauAttention(self.gru_units)
-        context_vector, attention_weights = attention(sample_hidden, sample_output)
+        context_vector, attention_weights = attention(gru_hidden, gru_output)
         dropout = tf.keras.layers.Dropout(self.dropout)(context_vector)
         output = tf.keras.layers.Dense(self.dimensions, activation='sigmoid')(dropout)
         model = tf.keras.Model(inputs=sequence_input, outputs=output)

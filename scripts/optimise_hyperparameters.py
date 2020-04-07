@@ -40,7 +40,7 @@ class HyperparameterOptimisation:
         dimensions = len(reverse_dictionary) + 1
         max_len = train_data.shape[1]
         best_model_params = dict()
-        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-4)
+        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
 
         # specify the search space for finding the best combination of parameters using Bayesian optimisation
         params = {
@@ -64,23 +64,34 @@ class HyperparameterOptimisation:
             
             embedded_sequences = tf.keras.layers.Embedding(dimensions, embedding_size, input_length=max_len, mask_zero=True)(sequence_input)
             
-            embedded_sequences_dropout = tf.keras.layers.SpatialDropout1D(spatial1d_dropout)(embedded_sequences)
+            embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial1d_dropout)(embedded_sequences)
             
-            gru = tf.keras.layers.GRU(gru_units,
+            gru_1 = tf.keras.layers.GRU(gru_units,
+                return_sequences=True,
+                return_state=False,
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
+            )
+            
+            gru_2 = tf.keras.layers.GRU(gru_units,
                 return_sequences=True,
                 return_state=True,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
             )
 
-            sample_output, sample_hidden = gru(embedded_sequences_dropout, initial_state=None)
+            gru_output = gru_1(embedded_sequences)
+            
+            gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+            
+            gru_output, gru_hidden = gru_2(gru_output)
 
             attention = bahdanau_attention.BahdanauAttention(gru_units)
-            context_vector, attention_weights = attention(sample_hidden, sample_output)
+            context_vector, attention_weights = attention(gru_hidden, gru_output)
 
-            dropout = tf.keras.layers.Dropout(dropout)(context_vector)
+            context_vector = tf.keras.layers.Dropout(dropout)(context_vector)
 
-            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(dropout)
+            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(context_vector)
 
             model = tf.keras.Model(inputs=sequence_input, outputs=output)
 
