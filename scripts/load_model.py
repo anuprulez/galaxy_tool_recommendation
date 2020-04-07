@@ -13,19 +13,25 @@ class ToolPredictionAttentionModel():
         self.dimensions = parameters["dimensions"]
         self.learning_rate = parameters["learning_rate"]
         self.class_weights = parameters["class_weights"]
+        self.spatial_dropout = parameters["spatial_dropout"]
+        self.recurrent_dropout = parameters["recurrent_dropout"]
+        self.dropout = parameters["dropout"]
 
     def create_model(self):
         sequence_input = tf.keras.layers.Input(shape=(self.max_len,), dtype='int32')
         embedded_sequences = tf.keras.layers.Embedding(self.dimensions, self.embedding_size, input_length=self.max_len, mask_zero=True)(sequence_input)
+        embedded_sequences_dropout = tf.keras.layers.SpatialDropout1D(self.spatial_dropout)(embedded_sequences)
         gru = tf.keras.layers.GRU(self.gru_units,
             return_sequences=True,
             return_state=True,
-            activation='elu'
+            activation='elu',
+            recurrent_dropout=self.recurrent_dropout
         )
-        sample_output, sample_hidden = gru(embedded_sequences, initial_state=None)
+        sample_output, sample_hidden = gru(embedded_sequences_dropout, initial_state=None)
         attention = bahdanau_attention.BahdanauAttention(self.gru_units)
         context_vector, attention_weights = attention(sample_hidden, sample_output)
-        output = tf.keras.layers.Dense(self.dimensions, activation='sigmoid')(context_vector)
+        dropout = tf.keras.layers.Dropout(self.dropout)(context_vector)
+        output = tf.keras.layers.Dense(self.dimensions, activation='sigmoid')(dropout)
         model = tf.keras.Model(inputs=sequence_input, outputs=output)
         model.compile(
             optimizer=tf.keras.optimizers.RMSprop(learning_rate=self.learning_rate),

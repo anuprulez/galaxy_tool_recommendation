@@ -38,9 +38,6 @@ class HyperparameterOptimisation:
         """
         Train a model and report accuracy
         """
-        l_recurrent_activations = config["activation_recurrent"].split(",")
-        l_output_activations = config["activation_output"].split(",")
-
         # convert items to integer
         l_batch_size = list(map(int, config["batch_size"].split(",")))
         l_embedding_size = list(map(int, config["embedding_size"].split(",")))
@@ -66,8 +63,6 @@ class HyperparameterOptimisation:
             "embedding_size": hp.quniform("embedding_size", l_embedding_size[0], l_embedding_size[1], 1),
             "units": hp.quniform("units", l_units[0], l_units[1], 1),
             "batch_size": hp.quniform("batch_size", l_batch_size[0], l_batch_size[1], 1),
-            "activation_recurrent": hp.choice("activation_recurrent", l_recurrent_activations),
-            "activation_output": hp.choice("activation_output", l_output_activations),
             "learning_rate": hp.loguniform("learning_rate", np.log(l_learning_rate[0]), np.log(l_learning_rate[1])),
             "dropout": hp.uniform("dropout", l_dropout[0], l_dropout[1]),
             "spatial_dropout": hp.uniform("spatial_dropout", l_spatial_dropout[0], l_spatial_dropout[1]),
@@ -77,21 +72,31 @@ class HyperparameterOptimisation:
         def create_model(params):
             embedding_size = int(params["embedding_size"])
             gru_units = int(params["units"])
+            spatial1d_dropout = float(params["spatial_dropout"])
+            dropout = float(params["dropout"])
+            recurrent_dropout = float(params["recurrent_dropout"])
+            
             sequence_input = tf.keras.layers.Input(shape=(max_len,), dtype='int32')
+            
             embedded_sequences = tf.keras.layers.Embedding(dimensions, embedding_size, input_length=max_len, mask_zero=True)(sequence_input)
-
+            
+            embedded_sequences_dropout = tf.keras.layers.SpatialDropout1D(spatial1d_dropout)(embedded_sequences)
+            
             gru = tf.keras.layers.GRU(gru_units,
                 return_sequences=True,
                 return_state=True,
-                activation='elu'
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
             )
 
-            sample_output, sample_hidden = gru(embedded_sequences, initial_state=None)
+            sample_output, sample_hidden = gru(embedded_sequences_dropout, initial_state=None)
 
             attention = bahdanau_attention.BahdanauAttention(gru_units)
             context_vector, attention_weights = attention(sample_hidden, sample_output)
 
-            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(context_vector)
+            dropout = tf.keras.layers.Dropout(dropout)(context_vector)
+
+            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(dropout)
 
             model = tf.keras.Model(inputs=sequence_input, outputs=output)
 
@@ -120,11 +125,5 @@ class HyperparameterOptimisation:
 
         # set the best params with respective values
         for item in learned_params:
-            item_val = learned_params[item]
-            if item == 'activation_output':
-                best_model_params[item] = l_output_activations[item_val]
-            elif item == 'activation_recurrent':
-                best_model_params[item] = l_recurrent_activations[item_val]
-            else:
-                best_model_params[item] = item_val
+            best_model_params[item] = learned_params[item]
         return best_model_params, best_model

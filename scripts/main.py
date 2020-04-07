@@ -40,7 +40,7 @@ class PredictTool:
         filepath = "data/weights.{epoch:02d}-{val_loss:.2f}.hdf5"
         #cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, save_weights_only=True, verbose=1)
 
-        callbacks_list = [early_stopping]
+        callbacks_list = [predict_callback_test, early_stopping]
 
         print("Start training on the best model...")
         train_performance = dict()
@@ -120,8 +120,6 @@ if __name__ == "__main__":
     arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
     arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
-    arg_parser.add_argument("-ar", "--activation_recurrent", required=True, help="activation function for recurrent layers")
-    arg_parser.add_argument("-ao", "--activation_output", required=True, help="activation function for output layers")
     arg_parser.add_argument("-cpus", "--num_cpus", required=True, help="number of cpus for parallelism")
 
     # get argument values
@@ -143,8 +141,6 @@ if __name__ == "__main__":
     spatial_dropout = args["spatial_dropout"]
     recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
-    activation_recurrent = args["activation_recurrent"]
-    activation_output = args["activation_output"]
     num_cpus = int(args["num_cpus"])
 
     config = {
@@ -162,8 +158,6 @@ if __name__ == "__main__":
         'spatial_dropout': spatial_dropout,
         'recurrent_dropout': recurrent_dropout,
         'learning_rate': learning_rate,
-        'activation_recurrent': activation_recurrent,
-        'activation_output': activation_output
     }
 
     # Extract and process workflows
