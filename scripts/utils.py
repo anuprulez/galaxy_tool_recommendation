@@ -60,7 +60,7 @@ def weighted_loss(class_weights):
     return weighted_binary_crossentropy
 
 
-def compute_precision(model, x, y, reverse_data_dictionary, next_compatible_tools, usage_scores, actual_classes_pos, topk):
+def compute_precision(model, x, reverse_data_dictionary, usage_scores, actual_classes_pos, topk):
     """
     Compute absolute and compatible precision
     """
@@ -82,24 +82,24 @@ def compute_precision(model, x, y, reverse_data_dictionary, next_compatible_tool
     topk_prediction_pos = [x for x in topk_prediction_pos if x > 0]
 
     # read tool names using reverse dictionary
-    actual_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in actual_classes_pos]
-    top_predicted_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in topk_prediction_pos]
+    #actual_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in actual_classes_pos]
+    #top_predicted_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in topk_prediction_pos]
 
     # compute the class weights of predicted tools
     mean_usg_score = 0
     usg_wt_scores = list()
     for t_id in topk_prediction_pos:
-        t_name = reverse_data_dictionary[int(t_id)]
-        if t_id in usage_scores and t_name in actual_next_tool_names:
+        #t_name = reverse_data_dictionary[int(t_id)]
+        if t_id in usage_scores and t_id in actual_classes_pos:
             usg_wt_scores.append(np.log(usage_scores[t_id] + 1.0))
     if len(usg_wt_scores) > 0:
             mean_usg_score = np.sum(usg_wt_scores) / float(topk)
-    false_positives = [tool_name for tool_name in top_predicted_next_tool_names if tool_name not in actual_next_tool_names]
+    false_positives = [t_id for t_id in topk_prediction_pos if t_id not in actual_classes_pos]
     absolute_precision = 1 - (len(false_positives) / float(topk))
     return mean_usg_score, absolute_precision
 
 
-def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, usage_scores, topk_list=[1, 2, 3]):
+def verify_model(model, x, y, reverse_data_dictionary, usage_scores, topk_list=[1, 2, 3]):
     """
     Verify the model on test data
     """
@@ -113,7 +113,7 @@ def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, us
     for i in range(size):
         actual_classes_pos = np.where(y[i] > 0)[0]
         for index, abs_topk in enumerate(topk_list):
-            abs_mean_usg_score, absolute_precision = compute_precision(model, x[i, :], y, reverse_data_dictionary, next_compatible_tools, usage_scores, actual_classes_pos, abs_topk)
+            abs_mean_usg_score, absolute_precision = compute_precision(model, x[i, :], reverse_data_dictionary, usage_scores, actual_classes_pos, abs_topk)
             precision[i][index] = absolute_precision
             usage_weights[i][index] = abs_mean_usg_score
     mean_precision = np.mean(precision, axis=0)

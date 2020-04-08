@@ -18,7 +18,7 @@ class HyperparameterOptimisation:
     def __init__(self):
         """ Init method. """
 
-    def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights):
+    def train_model(self, config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools):
         """
         Train a model and report accuracy
         """
@@ -121,4 +121,9 @@ class HyperparameterOptimisation:
         # set the best params with respective values
         for item in learned_params:
             best_model_params[item] = learned_params[item]
+        opt_results = {
+            "model": best_model,
+            "best_parameters": best_model_params,
+        }
+        utils.save_model(opt_results, data_dictionary, compatible_next_tools, config["trained_model_path"], class_weights, max_len)
         return best_model_params, best_model
