@@ -15,13 +15,15 @@ import utils
 
 class HyperparameterOptimisation:
 
-    def __init__(self):
+    def __init__(self, n_cpus):
         """ Init method. """
+        tf.config.threading.set_inter_op_parallelism_threads(n_cpus)
+        tf.config.threading.set_intra_op_parallelism_threads(n_cpus)
 
-    def train_model(self, config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools):
+    def optimise_parameters(self, config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools):
         """
-        Train a model and report accuracy
-        """
+        Optimise parameters of the neural network
+        """        
         # convert items to integer
         l_batch_size = list(map(int, config["batch_size"].split(",")))
         l_embedding_size = list(map(int, config["embedding_size"].split(",")))

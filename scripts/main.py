@@ -20,8 +20,10 @@ import utils
 class PredictTool:
 
     @classmethod
-    def __init__(self):
+    def __init__(self, n_cpus):
         """ Init method. """
+        tf.config.threading.set_inter_op_parallelism_threads(n_cpus)
+        tf.config.threading.set_intra_op_parallelism_threads(n_cpus)
 
     @classmethod
     def find_train_best_network(self, network_config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools):
@@ -29,8 +31,8 @@ class PredictTool:
         Define recurrent neural network and train sequential data
         """
         print("Start hyperparameter optimisation...")
-        hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
-        best_params, best_model = hyper_opt.train_model(network_config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools)
+        hyper_opt = optimise_hyperparameters.HyperparameterOptimisation(network_config["n_cpus"])
+        best_params, best_model = hyper_opt.optimise_parameters(network_config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools)
 
         # define callbacks
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
@@ -116,6 +118,7 @@ if __name__ == "__main__":
     arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
     arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
+    arg_parser.add_argument("-cp", "--n_cpus", required=True, help="number of CPUs")
 
     # get argument values
     args = vars(arg_parser.parse_args())
@@ -136,6 +139,7 @@ if __name__ == "__main__":
     spatial_dropout = args["spatial_dropout"]
     recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
+    n_cpus = int(args["n_cpus"])
 
     config = {
         'cutoff_date': cutoff_date,
@@ -152,7 +156,8 @@ if __name__ == "__main__":
         'spatial_dropout': spatial_dropout,
         'recurrent_dropout': recurrent_dropout,
         'learning_rate': learning_rate,
-        "trained_model_path": trained_model_path
+        "trained_model_path": trained_model_path,
+        "n_cpus": n_cpus
     }
 
     # Extract and process workflows
@@ -163,7 +168,7 @@ if __name__ == "__main__":
     data = prepare_data.PrepareData(maximum_path_length, test_share)
     train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools)
     # find the best model and start training
-    predict_tool = PredictTool()
+    predict_tool = PredictTool(n_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
     results_weighted = predict_tool.find_train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools)
