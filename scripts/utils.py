@@ -65,6 +65,8 @@ def compute_precision(model, x, reverse_data_dictionary, usage_scores, actual_cl
     Compute absolute and compatible precision
     """
     absolute_precision = 0.0
+    mean_usg_score = 0
+    usg_wt_scores = list()
     test_sample = np.reshape(x, (1, len(x)))
 
     # predict next tools for a test path
@@ -80,22 +82,21 @@ def compute_precision(model, x, reverse_data_dictionary, usage_scores, actual_cl
 
     # remove the wrong tool position from the predicted list of tool positions
     topk_prediction_pos = [x for x in topk_prediction_pos if x > 0]
-
-    # read tool names using reverse dictionary
-    #actual_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in actual_classes_pos]
-    #top_predicted_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in topk_prediction_pos]
+    intersection_pos = list(set(topk_prediction_pos).intersection(set(actual_classes_pos)))
 
     # compute the class weights of predicted tools
-    mean_usg_score = 0
-    usg_wt_scores = list()
-    for t_id in topk_prediction_pos:
-        #t_name = reverse_data_dictionary[int(t_id)]
-        if t_id in usage_scores and t_id in actual_classes_pos:
+    for t_id in intersection_pos:
+        try:
             usg_wt_scores.append(np.log(usage_scores[t_id] + 1.0))
-    if len(usg_wt_scores) > 0:
-            mean_usg_score = np.sum(usg_wt_scores) / float(topk)
-    false_positives = [t_id for t_id in topk_prediction_pos if t_id not in actual_classes_pos]
-    absolute_precision = 1 - (len(false_positives) / float(topk))
+        except Exception as exp:
+            print(exp)
+            continue
+    try:
+        mean_usg_score = np.sum(usg_wt_scores) / float(topk)
+    except Exception as exp:
+        print(exp)
+        pass
+    absolute_precision = len(intersection_pos) / float(topk)
     return mean_usg_score, absolute_precision
 
 
@@ -104,7 +105,7 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, topk_list=[
     Verify the model on test data
     """
     print()
-    print("Evaluating performance on test data...")
+    print("Evaluating performance on test data ...")
     print("Test data size: %d" % len(y))
     size = y.shape[0]
     precision = np.zeros([len(y), len(topk_list)])
