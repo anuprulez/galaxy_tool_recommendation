@@ -7,14 +7,13 @@ import numpy as np
 import argparse
 import time
 
-# machine learning library
 import tensorflow as tf
 from tensorflow.keras import callbacks
 
+import custom_callbacks
 import extract_workflow_connections
-import prepare_data
-import optimise_hyperparameters
 import optimise_keras_tuner
+import prepare_data
 import utils
 
 
@@ -27,7 +26,7 @@ class PredictTool:
         tf.config.threading.set_intra_op_parallelism_threads(n_cpus)
 
     @classmethod
-    def find_train_best_network(self, network_config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools):
+    def train_best_network(self, network_config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools):
         """
         Define recurrent neural network and train sequential data
         """
@@ -37,7 +36,7 @@ class PredictTool:
 
         # define callbacks
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
-        predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
+        predict_callback_test = custom_callbacks.PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
 
         callbacks_list = [predict_callback_test, early_stopping]
 
@@ -71,29 +70,6 @@ class PredictTool:
         train_performance["model"] = best_model
         train_performance["best_parameters"] = best_params
         return train_performance
-
-
-class PredictCallback(callbacks.Callback):
-    def __init__(self, test_data, test_labels, reverse_data_dictionary, n_epochs, next_compatible_tools, usg_scores):
-        self.test_data = test_data
-        self.test_labels = test_labels
-        self.reverse_data_dictionary = reverse_data_dictionary
-        self.precision = list()
-        self.usage_weights = list()
-        self.n_epochs = n_epochs
-        self.next_compatible_tools = next_compatible_tools
-        self.pred_usage_scores = usg_scores
-
-    def on_epoch_end(self, epoch, logs={}):
-        """
-        Compute absolute and compatible precision for test data
-        """
-        if len(self.test_data) > 0:
-            precision, usage_weights = utils.verify_model(self.model, self.test_data, self.test_labels, self.reverse_data_dictionary, self.pred_usage_scores)
-            self.precision.append(precision)
-            self.usage_weights.append(usage_weights)
-            print("Epoch %d precision: %s" % (epoch + 1, precision))
-            print("Epoch %d usage weights: %s" % (epoch + 1, usage_weights))
 
 
 if __name__ == "__main__":
@@ -172,7 +148,7 @@ if __name__ == "__main__":
     predict_tool = PredictTool(n_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
-    results_weighted = predict_tool.find_train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools)
+    results_weighted = predict_tool.train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, compatible_next_tools)
     print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])

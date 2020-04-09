@@ -16,6 +16,7 @@ class ToolPredictionAttentionModel():
         self.spatial_dropout = parameters["spatial_dropout"]
         self.recurrent_dropout = parameters["recurrent_dropout"]
         self.dropout = parameters["dropout"]
+        self.clip_norm = parameters["clip_norm"]
 
     def create_model(self):
         sequence_input = tf.keras.layers.Input(shape=(self.max_len,), dtype='int32')
@@ -42,7 +43,7 @@ class ToolPredictionAttentionModel():
         output = tf.keras.layers.Dense(self.dimensions, activation='sigmoid')(dropout)
         model = tf.keras.Model(inputs=sequence_input, outputs=output)
         model.compile(
-            optimizer=tf.keras.optimizers.RMSprop(learning_rate=self.learning_rate),
+            optimizer=tf.keras.optimizers.RMSprop(learning_rate=self.learning_rate, clipnorm=self.clip_norm, centered=True),
             loss=utils.weighted_loss(self.class_weights),
         )
         return model

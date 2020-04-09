@@ -1,6 +1,7 @@
 """
 Find the optimal combination of hyperparameters
 """
+import warnings
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import callbacks
@@ -8,6 +9,7 @@ from tensorflow.keras import backend as K
 import kerastuner as kt
 
 import bahdanau_attention
+import custom_callbacks
 import utils
 
 
@@ -47,9 +49,10 @@ class KerasTuneOptimisation:
         batch_size = l_batch_size[0]
         clip_norm = 0.5
         best_model_params = dict()
-        early_stopping = callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
+        early_stopping = callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
+        monitor_loss = custom_callbacks.MonitorLossCallback()
 
-        callbacks_list = [early_stopping]
+        callbacks_list = [monitor_loss, early_stopping]
         
         def build_model(hp):
             embedding_size = hp.Int('embedding_size', l_embedding_size[0], l_embedding_size[1], step=10)
@@ -125,7 +128,7 @@ class KerasTuneOptimisation:
         best_hyperparameters = tuner.get_best_hyperparameters(1)[0]
         best_hyperparameters = best_hyperparameters.get_config()["values"]
         best_hyperparameters["batch_size"] = batch_size
-        best_hyperparameters["clipnorm"] = clip_norm
+        best_hyperparameters["clip_norm"] = clip_norm
         opt_results = {
             "model": best_model,
             "best_parameters": best_hyperparameters
