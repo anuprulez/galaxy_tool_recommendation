@@ -100,13 +100,11 @@ class KerasTuneOptimisation:
                 loss=utils.weighted_loss(class_weights),
             )
             return model
-      
-        tuner = kt.Hyperband(
+        
+        tuner = kt.BayesianOptimization(
             build_model,
             objective='val_loss',
-            factor=2,
-            max_epochs=max_evals,
-            hyperband_iterations=optimize_n_epochs,
+            max_trials=max_evals,
             directory='opt_trials',
             project_name='tool_prediction'
         )
@@ -114,7 +112,7 @@ class KerasTuneOptimisation:
         tuner.search(
             train_data,
             train_labels,
-            epochs=n_epochs,
+            epochs=optimize_n_epochs,
             batch_size=batch_size,
             validation_split=0.2,
             verbose=1,

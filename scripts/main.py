@@ -32,7 +32,6 @@ class PredictTool:
         Define recurrent neural network and train sequential data
         """
         print("Start hyperparameter optimisation...")
-        #hyper_opt = optimise_hyperparameters.HyperparameterOptimisation(network_config["n_cpus"])
         hyper_opt = optimise_keras_tuner.KerasTuneOptimisation(network_config["n_cpus"])
         best_params, best_model = hyper_opt.optimise_parameters(network_config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools)
 
