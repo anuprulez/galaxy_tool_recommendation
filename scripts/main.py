@@ -14,6 +14,7 @@ from tensorflow.keras import callbacks
 import extract_workflow_connections
 import prepare_data
 import optimise_hyperparameters
+import optimise_keras_tuner
 import utils
 
 
@@ -31,7 +32,8 @@ class PredictTool:
         Define recurrent neural network and train sequential data
         """
         print("Start hyperparameter optimisation...")
-        hyper_opt = optimise_hyperparameters.HyperparameterOptimisation(network_config["n_cpus"])
+        #hyper_opt = optimise_hyperparameters.HyperparameterOptimisation(network_config["n_cpus"])
+        hyper_opt = optimise_keras_tuner.KerasTuneOptimisation(network_config["n_cpus"])
         best_params, best_model = hyper_opt.optimise_parameters(network_config, data_dictionary, reverse_dictionary, train_data, train_labels, class_weights, compatible_next_tools)
 
         # define callbacks
@@ -48,7 +50,7 @@ class PredictTool:
                 train_labels,
                 batch_size=int(best_params["batch_size"]),
                 epochs=n_epochs,
-                verbose=2,
+                verbose=1,
                 callbacks=callbacks_list,
                 shuffle="batch",
                 validation_data=(test_data, test_labels)
