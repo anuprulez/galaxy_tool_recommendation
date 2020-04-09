@@ -45,6 +45,7 @@ class KerasTuneOptimisation:
         dimensions = len(reverse_dictionary) + 1
         max_len = train_data.shape[1]
         batch_size = l_batch_size[0]
+        clip_norm = 0.5
         best_model_params = dict()
         early_stopping = callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
 
@@ -96,7 +97,7 @@ class KerasTuneOptimisation:
 
             learning_rate = hp.Float('learning_rate', l_learning_rate[0], l_learning_rate[1], sampling='log')
             model.compile(
-                optimizer=tf.keras.optimizers.RMSprop(learning_rate),
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate, clipnorm=clip_norm, centered=True),
                 loss=utils.weighted_loss(class_weights),
             )
             return model
@@ -124,6 +125,7 @@ class KerasTuneOptimisation:
         best_hyperparameters = tuner.get_best_hyperparameters(1)[0]
         best_hyperparameters = best_hyperparameters.get_config()["values"]
         best_hyperparameters["batch_size"] = batch_size
+        best_hyperparameters["clipnorm"] = clip_norm
         opt_results = {
             "model": best_model,
             "best_parameters": best_hyperparameters
