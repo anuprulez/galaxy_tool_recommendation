@@ -73,20 +73,9 @@ class KerasTuneOptimisation:
                 recurrent_dropout=recurrent_dropout
             ))(embedded_sequences)
             
-            '''gru_2 = tf.keras.layers.GRU(gru_units,
-                return_sequences=True,
-                return_state=True,
-                activation='elu',
-                recurrent_dropout=recurrent_dropout
-            )'''
-            
             gru_hidden = tf.keras.layers.Concatenate()([h_forward, h_backward])
-
-            #gru_output = gru_1(embedded_sequences)
             
             gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
-            
-            #gru_output, gru_hidden = gru_2(gru_output)
 
             attention = bahdanau_attention.BahdanauAttention(gru_units)
             context_vector, attention_weights = attention(gru_hidden, gru_output)
