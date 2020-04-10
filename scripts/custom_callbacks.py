@@ -1,27 +1,27 @@
 from tensorflow.keras import callbacks
+import numpy as np
 import warnings
 
 import utils
 
 
 class MonitorLossCallback(callbacks.Callback):
-    def __init__(self, monitor='loss', value=10000.0, verbose=1):
+    def __init__(self, monitor='loss', THRESHOLD=10000.0, verbose=1):
         super(callbacks.Callback, self).__init__()
         self.monitor = monitor
-        self.value = value
+        self.THRESHOLD = THRESHOLD
 
     def on_epoch_end(self, epoch, logs={}):
         """
         Monitor loss and stop training for very large values of loss
         """
         current_loss = logs.get(self.monitor)
-        if current_loss >= self.value:
-            warnings.warn("Training loss is too large", RuntimeWarning)
+        if current_loss >= self.THRESHOLD or np.isnan(current_loss):
             self.model.stop_training = True
-
 
 class PredictCallback(callbacks.Callback):
     def __init__(self, test_data, test_labels, reverse_data_dictionary, n_epochs, next_compatible_tools, usg_scores):
+        super(callbacks.Callback, self).__init__()
         self.test_data = test_data
         self.test_labels = test_labels
         self.reverse_data_dictionary = reverse_data_dictionary

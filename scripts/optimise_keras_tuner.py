@@ -47,12 +47,11 @@ class KerasTuneOptimisation:
         dimensions = len(reverse_dictionary) + 1
         max_len = train_data.shape[1]
         batch_size = l_batch_size[0]
-        clip_norm = 0.5
         best_model_params = dict()
-        early_stopping = callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
+        early_stopping = callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
         monitor_loss = custom_callbacks.MonitorLossCallback()
 
-        callbacks_list = [monitor_loss, early_stopping]
+        callbacks_list = [early_stopping, monitor_loss]
         
         def build_model(hp):
             embedding_size = hp.Int('embedding_size', l_embedding_size[0], l_embedding_size[1], step=10)
@@ -67,25 +66,27 @@ class KerasTuneOptimisation:
             
             embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial_dropout)(embedded_sequences)
             
-            gru_1 = tf.keras.layers.GRU(gru_units,
-                return_sequences=True,
-                return_state=False,
-                activation='elu',
-                recurrent_dropout=recurrent_dropout
-            )
-            
-            gru_2 = tf.keras.layers.GRU(gru_units,
+            gru_output, h_forward, h_backward = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_units,
                 return_sequences=True,
                 return_state=True,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
-            )
+            ))(embedded_sequences)
+            
+            '''gru_2 = tf.keras.layers.GRU(gru_units,
+                return_sequences=True,
+                return_state=True,
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
+            )'''
+            
+            gru_hidden = tf.keras.layers.Concatenate()([h_forward, h_backward])
 
-            gru_output = gru_1(embedded_sequences)
+            #gru_output = gru_1(embedded_sequences)
             
             gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
             
-            gru_output, gru_hidden = gru_2(gru_output)
+            #gru_output, gru_hidden = gru_2(gru_output)
 
             attention = bahdanau_attention.BahdanauAttention(gru_units)
             context_vector, attention_weights = attention(gru_hidden, gru_output)
@@ -100,7 +101,7 @@ class KerasTuneOptimisation:
 
             learning_rate = hp.Float('learning_rate', l_learning_rate[0], l_learning_rate[1], sampling='log')
             model.compile(
-                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate, clipnorm=clip_norm, centered=True),
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
                 loss=utils.weighted_loss(class_weights),
             )
             return model
@@ -118,7 +119,7 @@ class KerasTuneOptimisation:
             train_labels,
             epochs=optimize_n_epochs,
             batch_size=batch_size,
-            validation_split=0.2,
+            validation_split=validation_split,
             verbose=1,
             callbacks=callbacks_list
         )
@@ -128,7 +129,6 @@ class KerasTuneOptimisation:
         best_hyperparameters = tuner.get_best_hyperparameters(1)[0]
         best_hyperparameters = best_hyperparameters.get_config()["values"]
         best_hyperparameters["batch_size"] = batch_size
-        best_hyperparameters["clip_norm"] = clip_norm
         opt_results = {
             "model": best_model,
             "best_parameters": best_hyperparameters
