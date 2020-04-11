@@ -136,14 +136,17 @@ def set_trained_model(dump_file, model_values):
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, max_path_len):
     # save files
     trained_model = results["model"]
+    model_config = trained_model.to_json()
     trained_model.save(trained_model_path)
-    parameters = results["best_parameters"]
-    parameters["max_len"] = max_path_len
-    parameters["dimensions"] = len(class_weights)
-    parameters["class_weights"] = class_weights
+    trained_model.save(trained_model_path)
+    best_model_parameters = results["best_parameters"]
+    best_model_parameters["max_len"] = max_path_len
+    best_model_parameters["dimensions"] = len(class_weights)
     model_values = {
         'data_dictionary': data_dictionary,
-        'parameters': parameters,
+        'model_config': model_config,
+        'best_parameters': best_model_parameters,
         "compatible_tools": compatible_next_tools,
+        "class_weights": class_weights
     }
     set_trained_model(trained_model_path, model_values)

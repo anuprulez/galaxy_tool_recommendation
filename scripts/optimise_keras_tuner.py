@@ -66,23 +66,16 @@ class KerasTuneOptimisation:
             
             embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial_dropout)(embedded_sequences)
             
-            gru_in = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_units,
-                return_sequences=True,
-                return_state=False,
-                activation='elu',
-                recurrent_dropout=recurrent_dropout
-            ))(embedded_sequences)
-            
             gru_output, h_forward, h_backward = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_units,
                 return_sequences=True,
                 return_state=True,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
-            ))(gru_in)
+            ))(embedded_sequences)
             
             gru_hidden = tf.keras.layers.Concatenate()([h_forward, h_backward])
             
-            gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+            gru_hidden = tf.keras.layers.Dropout(dropout)(gru_hidden)
 
             output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(gru_hidden)
 
@@ -92,7 +85,7 @@ class KerasTuneOptimisation:
 
             learning_rate = hp.Float('learning_rate', l_learning_rate[0], l_learning_rate[1], sampling='log')
             model.compile(
-                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate),
                 loss=utils.weighted_loss(class_weights),
             )
             return model
