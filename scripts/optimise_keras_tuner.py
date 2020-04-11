@@ -51,7 +51,7 @@ class KerasTuneOptimisation:
         early_stopping = callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
         monitor_loss = custom_callbacks.MonitorLossCallback()
 
-        callbacks_list = [early_stopping, monitor_loss]
+        callbacks_list = [early_stopping]
         
         def build_model(hp):
             embedding_size = hp.Int('embedding_size', l_embedding_size[0], l_embedding_size[1], step=10)
