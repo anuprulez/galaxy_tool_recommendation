@@ -66,21 +66,14 @@ class KerasTuneOptimisation:
             
             embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial_dropout)(embedded_sequences)
             
-            rnn_in = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(rnn_units,
-                return_sequences=True,
-                return_state=False,
-                activation='elu',
-                recurrent_dropout=recurrent_dropout
-            ))(embedded_sequences)
-            
-            rnn_in = tf.keras.layers.Dropout(dropout)(rnn_in)
+            #rnn_in = tf.keras.layers.Dropout(dropout)(rnn_in)
             
             rnn_output, forward_h, backward_h = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(rnn_units,
                 return_sequences=True,
                 return_state=True,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
-            ))(rnn_in)
+            ))(embedded_sequences)
             
             rnn_concat = tf.keras.layers.Concatenate()([forward_h, backward_h])
 
