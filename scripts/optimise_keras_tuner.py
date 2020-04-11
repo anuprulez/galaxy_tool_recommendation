@@ -55,7 +55,7 @@ class KerasTuneOptimisation:
         
         def build_model(hp):
             embedding_size = hp.Int('embedding_size', l_embedding_size[0], l_embedding_size[1], step=10)
-            gru_units = hp.Int('gru_units', l_units[0], l_units[1], step=10)
+            rnn_units = hp.Int('rnn_units', l_units[0], l_units[1], step=10)
             spatial_dropout = hp.Float('spatial_dropout', l_spatial_dropout[0], l_spatial_dropout[1], step=0.05)
             dropout = hp.Float('dropout', l_dropout[0], l_dropout[1], step=0.05)
             recurrent_dropout = hp.Float('recurrent_dropout', l_recurrent_dropout[0], l_recurrent_dropout[1], step=0.05)
@@ -66,18 +66,25 @@ class KerasTuneOptimisation:
             
             embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial_dropout)(embedded_sequences)
             
-            gru_output, h_forward, h_backward = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(gru_units,
+            rnn_in = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(rnn_units,
                 return_sequences=True,
-                return_state=True,
+                return_state=False,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
             ))(embedded_sequences)
             
-            gru_hidden = tf.keras.layers.Concatenate()([h_forward, h_backward])
+            rnn_in = tf.keras.layers.Dropout(dropout)(rnn_in)
             
-            gru_hidden = tf.keras.layers.Dropout(dropout)(gru_hidden)
+            rnn_output, forward_h, backward_h = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(rnn_units,
+                return_sequences=True,
+                return_state=True,
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
+            ))(rnn_in)
+            
+            rnn_concat = tf.keras.layers.Concatenate()([forward_h, backward_h])
 
-            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(gru_hidden)
+            output = tf.keras.layers.Dense(dimensions, activation='sigmoid')(rnn_concat)
 
             model = tf.keras.Model(inputs=sequence_input, outputs=output)
 
