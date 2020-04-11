@@ -42,7 +42,7 @@ class PredictTool:
         best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights)
 
         # define callbacks
-        early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-4, restore_best_weights=True)
+        early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
         predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, compatible_next_tools, usage_pred)
 
         callbacks_list = [predict_callback_test, early_stopping]

@@ -5,8 +5,8 @@ Find the optimal combination of hyperparameters
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-from keras.models import Sequential
-from keras.layers import Dense, GRU, Dropout
+from keras.models import Sequential, Model
+from keras.layers import Dense, GRU, Dropout, Bidirectional, Input, Concatenate
 from keras.layers.embeddings import Embedding
 from keras.layers.core import SpatialDropout1D
 from keras.optimizers import RMSprop
@@ -45,8 +45,9 @@ class HyperparameterOptimisation:
 
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
+        max_len = train_data.shape[1]
         best_model_params = dict()
-        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-4)
+        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
 
         # specify the search space for finding the best combination of parameters using Bayesian optimisation
         params = {
@@ -62,14 +63,35 @@ class HyperparameterOptimisation:
         }
 
         def create_model(params):
-            model = Sequential()
-            model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(SpatialDropout1D(params["spatial_dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=True, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(Dense(dimensions, activation=params["activation_output"]))
+            embedding_size = int(params["embedding_size"])
+            rnn_units = int(params["units"])
+            recurrent_dropout = params["recurrent_dropout"]
+            spatial_dropout = params["spatial_dropout"]
+            dropout = params["dropout"]
+            
+            sequence_input = Input(shape=(max_len,), dtype='int32')
+            
+            embedded_sequences = Embedding(dimensions, embedding_size, input_length=max_len, mask_zero=True)(sequence_input)
+            
+            embedded_sequences = SpatialDropout1D(spatial_dropout)(embedded_sequences)
+
+            rnn_output, forward_h, backward_h = Bidirectional(GRU(rnn_units,
+                return_sequences=True,
+                return_state=True,
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
+            ))(embedded_sequences)
+            
+            rnn_concat = Concatenate()([forward_h, backward_h])
+            
+            rnn_concat = Dropout(dropout)(rnn_concat)
+
+            output = Dense(dimensions, activation='sigmoid')(rnn_concat)
+
+            model = Model(inputs=sequence_input, outputs=output)
+            
+            print(model.summary())
+
             optimizer_rms = RMSprop(lr=params["learning_rate"])
             model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
             model_fit = model.fit(
