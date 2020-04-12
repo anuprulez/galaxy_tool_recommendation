@@ -26,9 +26,6 @@ class HyperparameterOptimisation:
         """
         Train a model and report accuracy
         """
-        l_recurrent_activations = config["activation_recurrent"].split(",")
-        l_output_activations = config["activation_output"].split(",")
-
         # convert items to integer
         l_batch_size = list(map(int, config["batch_size"].split(",")))
         l_embedding_size = list(map(int, config["embedding_size"].split(",")))
@@ -46,6 +43,7 @@ class HyperparameterOptimisation:
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
         max_len = train_data.shape[1]
+        batch_size = l_batch_size[0]
         best_model_params = dict()
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
 
@@ -53,9 +51,6 @@ class HyperparameterOptimisation:
         params = {
             "embedding_size": hp.quniform("embedding_size", l_embedding_size[0], l_embedding_size[1], 1),
             "units": hp.quniform("units", l_units[0], l_units[1], 1),
-            "batch_size": hp.quniform("batch_size", l_batch_size[0], l_batch_size[1], 1),
-            "activation_recurrent": hp.choice("activation_recurrent", l_recurrent_activations),
-            "activation_output": hp.choice("activation_output", l_output_activations),
             "learning_rate": hp.loguniform("learning_rate", np.log(l_learning_rate[0]), np.log(l_learning_rate[1])),
             "dropout": hp.uniform("dropout", l_dropout[0], l_dropout[1]),
             "spatial_dropout": hp.uniform("spatial_dropout", l_spatial_dropout[0], l_spatial_dropout[1]),
@@ -68,6 +63,7 @@ class HyperparameterOptimisation:
             recurrent_dropout = params["recurrent_dropout"]
             spatial_dropout = params["spatial_dropout"]
             dropout = params["dropout"]
+            learning_rate = params["learning_rate"]
             
             sequence_input = Input(shape=(max_len,), dtype='int32')
             
@@ -92,12 +88,12 @@ class HyperparameterOptimisation:
             
             print(model.summary())
 
-            optimizer_rms = RMSprop(lr=params["learning_rate"])
+            optimizer_rms = RMSprop(lr=learning_rate)
             model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
             model_fit = model.fit(
                 train_data,
                 train_labels,
-                batch_size=int(params["batch_size"]),
+                batch_size=int(batch_size),
                 epochs=optimize_n_epochs,
                 shuffle="batch",
                 verbose=2,
@@ -112,11 +108,6 @@ class HyperparameterOptimisation:
 
         # set the best params with respective values
         for item in learned_params:
-            item_val = learned_params[item]
-            if item == 'activation_output':
-                best_model_params[item] = l_output_activations[item_val]
-            elif item == 'activation_recurrent':
-                best_model_params[item] = l_recurrent_activations[item_val]
-            else:
-                best_model_params[item] = item_val
+            best_model_params[item] = learned_params[item]
+        best_model_params["batch_size"] = batch_size
         return best_model_params, best_model

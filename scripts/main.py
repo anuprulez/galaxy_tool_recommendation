@@ -125,8 +125,6 @@ if __name__ == "__main__":
     arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
     arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
-    arg_parser.add_argument("-ar", "--activation_recurrent", required=True, help="activation function for recurrent layers")
-    arg_parser.add_argument("-ao", "--activation_output", required=True, help="activation function for output layers")
     arg_parser.add_argument("-cpus", "--num_cpus", required=True, help="number of cpus for parallelism")
 
     # get argument values
@@ -148,8 +146,6 @@ if __name__ == "__main__":
     spatial_dropout = args["spatial_dropout"]
     recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
-    activation_recurrent = args["activation_recurrent"]
-    activation_output = args["activation_output"]
     num_cpus = int(args["num_cpus"])
 
     config = {
@@ -166,11 +162,8 @@ if __name__ == "__main__":
         'dropout': dropout,
         'spatial_dropout': spatial_dropout,
         'recurrent_dropout': recurrent_dropout,
-        'learning_rate': learning_rate,
-        'activation_recurrent': activation_recurrent,
-        'activation_output': activation_output
+        'learning_rate': learning_rate
     }
-
     # Extract and process workflows
     connections = extract_workflow_connections.ExtractWorkflowConnections()
     workflow_paths, compatible_next_tools = connections.read_tabular_file(workflows_path)
