@@ -1,16 +1,11 @@
-name: tool_prediction_gru_wc
+name: tool_prediction_statistical_model
 channels:
 - conda-forge
 - bioconda
 - defaults
-dependencies:    
+dependencies:
 - python=3.6
-- tensorflow=1.13.1
-- keras=2.3.0
 - scikit-learn=0.21.3
-- numpy=1.17.2
 - h5py=2.9.0
 - csvkit=1.0.4
-- hyperopt=0.1.2
-- matplotlib=3.1.1
 - nb_conda
