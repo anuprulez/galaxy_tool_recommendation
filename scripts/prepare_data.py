@@ -9,6 +9,8 @@ import collections
 import numpy as np
 import random
 
+import utils
+
 import predict_tool_usage
 
 main_path = os.getcwd()
@@ -17,10 +19,9 @@ main_path = os.getcwd()
 class PrepareData:
 
     @classmethod
-    def __init__(self, max_seq_length, test_data_share):
+    def __init__(self, max_seq_length):
         """ Init method. """
         self.max_tool_sequence_len = max_seq_length
-        self.test_share = test_data_share
 
     @classmethod
     def process_workflow_paths(self, workflow_paths):
@@ -84,6 +85,7 @@ class PrepareData:
                     if len(tools_pos) > 1:
                         sub_paths_pos.append(",".join(tools_pos))
         sub_paths_pos = list(set(sub_paths_pos))
+        utils.write_file("data/decomposed_paths.json", sub_paths_pos)
         return sub_paths_pos
 
     @classmethod
@@ -114,6 +116,7 @@ class PrepareData:
                     paths_labels[train_tools] = composite_labels
         for item in paths_labels:
             paths_labels[item] = ",".join(list(set(paths_labels[item].split(","))))
+        utils.write_file("data/paths_labels.json", paths_labels)
         return paths_labels
 
     @classmethod
@@ -185,9 +188,10 @@ class PrepareData:
         """
         Compute class weights using usage
         """
+        dim = n_classes + 1
         class_weights = dict()
         class_weights[str(0)] = 0.0
-        for key in range(1, n_classes):
+        for key in range(1, dim):
             u_score = predicted_usage[key]
             if u_score < 1.0:
                 u_score += 1.0
@@ -230,13 +234,6 @@ class PrepareData:
         multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, reverse_dictionary, all_unique_paths, compatible_next_tools)
 
         print("Complete data: %d" % len(multilabels_paths))
-        train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
-
-        print("Train data: %d" % len(train_paths_dict))
-        print("Test data: %d" % len(test_paths_dict))
-
-        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes)
-        train_data, train_labels = self.pad_paths(train_paths_dict, num_classes)
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -246,6 +243,6 @@ class PrepareData:
         tool_predicted_usage = self.get_predicted_usage(dictionary, tool_usage_prediction)
 
         # get class weights using the predicted usage for each tool
-        class_weights = self.assign_class_weights(train_labels.shape[1], tool_predicted_usage)
+        class_weights = self.assign_class_weights(num_classes, tool_predicted_usage)
 
-        return train_data, train_labels, test_data, test_labels, dictionary, reverse_dictionary, class_weights, tool_predicted_usage
+        return multilabels_paths, dictionary, reverse_dictionary, class_weights, tool_predicted_usage

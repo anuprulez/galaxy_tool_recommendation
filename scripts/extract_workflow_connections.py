@@ -26,17 +26,19 @@ class ExtractWorkflowConnections:
         workflow_parents = dict()
         workflow_paths = list()
         unique_paths = list()
+        print("Processing workflows...")
         with open(raw_file_path, 'rt') as workflow_connections_file:
             workflow_connections = csv.reader(workflow_connections_file, delimiter='\t')
             for index, row in enumerate(workflow_connections):
                 wf_id = str(row[0])
-                in_tool = row[3]
-                out_tool = row[6]
+                in_tool = utils.format_tool_id(row[3])
+                out_tool = utils.format_tool_id(row[6])
                 if wf_id not in workflows:
                     workflows[wf_id] = list()
                 if out_tool and in_tool and out_tool != in_tool:
                     workflows[wf_id].append((in_tool, out_tool))
-        print("Processing workflows...")
+        print("%d workflow processed" % len(workflows))
+        
         wf_ctr = 0
         for wf_id in workflows:
             wf_ctr += 1
@@ -72,6 +74,9 @@ class ExtractWorkflowConnections:
         unique_paths = list(filter(None, unique_paths))
         random.shuffle(unique_paths)
         no_dup_paths = list(set(unique_paths))
+        
+        utils.write_file("data/paths.json", workflow_paths_dup)
+        utils.write_file("data/unique_paths.json", no_dup_paths)
 
         print("Finding compatible next tools...")
         compatible_next_tools = self.set_compatible_next_tools(no_dup_paths)
