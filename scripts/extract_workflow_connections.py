@@ -75,8 +75,8 @@ class ExtractWorkflowConnections:
         random.shuffle(unique_paths)
         no_dup_paths = list(set(unique_paths))
         
-        utils.write_file("data/paths.json", workflow_paths_dup)
-        utils.write_file("data/unique_paths.json", no_dup_paths)
+        #utils.write_file("data/paths.json", workflow_paths_dup)
+        #utils.write_file("data/unique_paths.json", no_dup_paths)
 
         print("Finding compatible next tools...")
         compatible_next_tools = self.set_compatible_next_tools(no_dup_paths)

@@ -1,9 +1,8 @@
 """
-Predict next tools in the Galaxy workflows
-using machine learning (recurrent neural network)
+Fetch recommended tools in Galaxy workflows
+using statistical model
 """
 
-import numpy as np
 import argparse
 import time
 import h5py
@@ -28,7 +27,7 @@ class PredictTool:
         }
         utils.save_model(data, model_path)
 
-    def predict_tools(self, model_path, test_path="bowtie2"):
+    def predict_tools(self, model_path, test_path="Cut1"):
         dict_paths, d_dict, c_tools, class_weights = utils.load_model(model_path)
         rev_dict = dict((str(v), k) for k, v in d_dict.items())
         p_num = list()
@@ -36,7 +35,6 @@ class PredictTool:
             p_num.append(str(d_dict[t]))
         p_num = ",".join(p_num)
         predicted_tools = list()
-        test_path = "trimmomatic"
         for k in dict_paths:
             if k == p_num:
                 predicted_tools = dict_paths[k].split(",")
@@ -44,9 +42,10 @@ class PredictTool:
         pred_names = list()
         for tool in predicted_tools:
             pred_names.append(rev_dict[tool])
+        assert len(pred_names) > 0
         print("Test path: %s" % test_path)
         print("Predicted tools: %s" % ",".join(pred_names))
-        
+
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -54,11 +53,10 @@ if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-wf", "--workflow_file", required=True, help="workflows tabular file")
     arg_parser.add_argument("-tu", "--tool_usage_file", required=True, help="tool usage file")
-    arg_parser.add_argument("-om", "--output_model", required=True, help="trained model file")
+    arg_parser.add_argument("-om", "--output_model", required=True, help="model file")
     # data parameters
     arg_parser.add_argument("-cd", "--cutoff_date", required=True, help="earliest date for taking tool usage")
     arg_parser.add_argument("-pl", "--maximum_path_length", required=True, help="maximum length of tool path")
-    
 
     # get argument values
     args = vars(arg_parser.parse_args())
@@ -67,11 +65,6 @@ if __name__ == "__main__":
     cutoff_date = args["cutoff_date"]
     maximum_path_length = int(args["maximum_path_length"])
     model_path = args["output_model"]
-    
-    config = {
-        'cutoff_date': cutoff_date,
-        'maximum_path_length': maximum_path_length,
-    }
 
     # Extract and process workflows
     connections = extract_workflow_connections.ExtractWorkflowConnections()
@@ -80,8 +73,7 @@ if __name__ == "__main__":
     print("Dividing data...")
     data = prepare_data.PrepareData(maximum_path_length)
     multilabels_paths, data_dictionary, reverse_dictionary, class_weights, usage_pred = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools)
-
-    # find the best model and start training
+    # create model and test predicted tools
     predict_tool = PredictTool()
     predict_tool.create_model(multilabels_paths, data_dictionary, class_weights, compatible_next_tools, model_path)
     print()

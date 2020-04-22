@@ -85,7 +85,7 @@ class PrepareData:
                     if len(tools_pos) > 1:
                         sub_paths_pos.append(",".join(tools_pos))
         sub_paths_pos = list(set(sub_paths_pos))
-        utils.write_file("data/decomposed_paths.json", sub_paths_pos)
+        #utils.write_file("data/decomposed_paths.json", sub_paths_pos)
         return sub_paths_pos
 
     @classmethod
@@ -116,7 +116,7 @@ class PrepareData:
                     paths_labels[train_tools] = composite_labels
         for item in paths_labels:
             paths_labels[item] = ",".join(list(set(paths_labels[item].split(","))))
-        utils.write_file("data/paths_labels.json", paths_labels)
+        #utils.write_file("data/paths_labels.json", paths_labels)
         return paths_labels
 
     @classmethod
