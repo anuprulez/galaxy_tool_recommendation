@@ -142,13 +142,20 @@ def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, us
     return mean_precision, mean_usage
 
 
+def save_results(results):
+    np.savetxt("data/validation_loss.txt", results["validation_loss"])
+    np.savetxt("data/train_loss.txt", results["train_loss"])
+    np.savetxt("data/precision.txt", results["precision"])
+    np.savetxt("data/usage_weights.txt", results["usage_weights"])
+
+
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
     # save files
     trained_model = results["model"]
     best_model_parameters = results["best_parameters"]
     model_config = trained_model.to_json()
     model_weights = trained_model.get_weights()
-
+    save_results(results)
     model_values = {
         'data_dictionary': data_dictionary,
         'model_config': model_config,
