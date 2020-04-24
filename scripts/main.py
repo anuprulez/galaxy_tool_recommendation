@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
     # Extract and process workflows
     connections = extract_workflow_connections.ExtractWorkflowConnections()
-    workflow_paths, compatible_next_tools = connections.read_tabular_file(workflows_path)
+    workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
     # Process the paths from workflows
     print("Dividing data...")
     data = prepare_data.PrepareData(maximum_path_length, test_share)
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     print("Best parameters \n")
     print(results_weighted["best_parameters"])
     print()
-    utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights)
+    utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections)
     end_time = time.time()
     print()
     print("Program finished in %s seconds" % str(end_time - start_time))

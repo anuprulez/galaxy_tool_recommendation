@@ -149,7 +149,7 @@ def save_results(results):
     np.savetxt("data/usage_weights.txt", results["usage_weights"])
 
 
-def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
+def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections):
     # save files
     trained_model = results["model"]
     best_model_parameters = results["best_parameters"]
@@ -162,6 +162,7 @@ def save_model(results, data_dictionary, compatible_next_tools, trained_model_pa
         'best_parameters': best_model_parameters,
         'model_weights': model_weights,
         "compatible_tools": compatible_next_tools,
-        "class_weights": class_weights
+        "class_weights": class_weights,
+        "standard_connections": standard_connections
     }
     set_trained_model(trained_model_path, model_values)

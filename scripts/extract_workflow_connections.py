@@ -43,8 +43,6 @@ class ExtractWorkflowConnections:
                     workflows[wf_id].append((out_tool, in_tool))
                     qc = self.collect_standard_connections(row)
                     if qc == True:
-                        print(in_tool, out_tool, row[10])
-                        print()
                         i_t = utils.format_tool_id(in_tool)
                         o_t = utils.format_tool_id(out_tool)
                         if i_t not in standard_connections:
@@ -72,7 +70,6 @@ class ExtractWorkflowConnections:
             workflow_paths.extend(flow_paths)
 
         print("Workflows processed: %d" % wf_ctr)
-
         # remove slashes from the tool ids
         wf_paths_no_slash = list()
         for path in workflow_paths:
@@ -91,7 +88,7 @@ class ExtractWorkflowConnections:
 
         print("Finding compatible next tools...")
         compatible_next_tools = self.set_compatible_next_tools(no_dup_paths)
-        return unique_paths, compatible_next_tools
+        return unique_paths, compatible_next_tools, standard_connections
 
     def set_compatible_next_tools(self, workflow_paths):
         """
