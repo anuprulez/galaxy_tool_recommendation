@@ -121,9 +121,6 @@ if __name__ == "__main__":
     arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
     arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden recurrent units")
     arg_parser.add_argument("-es", "--embedding_size", required=True, help="size of the fixed vector learned for each tool")
-    arg_parser.add_argument("-dt", "--dropout", required=True, help="percentage of neurons to be dropped")
-    arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
-    arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
     arg_parser.add_argument("-ar", "--activation_recurrent", required=True, help="activation function for recurrent layers")
     arg_parser.add_argument("-ao", "--activation_output", required=True, help="activation function for output layers")
@@ -144,9 +141,6 @@ if __name__ == "__main__":
     batch_size = args["batch_size"]
     units = args["units"]
     embedding_size = args["embedding_size"]
-    dropout = args["dropout"]
-    spatial_dropout = args["spatial_dropout"]
-    recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
     activation_recurrent = args["activation_recurrent"]
     activation_output = args["activation_output"]
@@ -163,9 +157,6 @@ if __name__ == "__main__":
         'batch_size': batch_size,
         'units': units,
         'embedding_size': embedding_size,
-        'dropout': dropout,
-        'spatial_dropout': spatial_dropout,
-        'recurrent_dropout': recurrent_dropout,
         'learning_rate': learning_rate,
         'activation_recurrent': activation_recurrent,
         'activation_output': activation_output

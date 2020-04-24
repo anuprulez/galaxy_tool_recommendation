@@ -6,9 +6,8 @@ import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
 from keras.models import Sequential
-from keras.layers import Dense, GRU, Dropout
+from keras.layers import Dense, GRU
 from keras.layers.embeddings import Embedding
-from keras.layers.core import SpatialDropout1D
 from keras.optimizers import RMSprop
 from keras.callbacks import EarlyStopping
 
@@ -36,9 +35,6 @@ class HyperparameterOptimisation:
 
         # convert items to float
         l_learning_rate = list(map(float, config["learning_rate"].split(",")))
-        l_dropout = list(map(float, config["dropout"].split(",")))
-        l_spatial_dropout = list(map(float, config["spatial_dropout"].split(",")))
-        l_recurrent_dropout = list(map(float, config["recurrent_dropout"].split(",")))
 
         optimize_n_epochs = int(config["optimize_n_epochs"])
         validation_split = float(config["validation_share"])
@@ -55,20 +51,14 @@ class HyperparameterOptimisation:
             "batch_size": hp.quniform("batch_size", l_batch_size[0], l_batch_size[1], 1),
             "activation_recurrent": hp.choice("activation_recurrent", l_recurrent_activations),
             "activation_output": hp.choice("activation_output", l_output_activations),
-            "learning_rate": hp.loguniform("learning_rate", np.log(l_learning_rate[0]), np.log(l_learning_rate[1])),
-            "dropout": hp.uniform("dropout", l_dropout[0], l_dropout[1]),
-            "spatial_dropout": hp.uniform("spatial_dropout", l_spatial_dropout[0], l_spatial_dropout[1]),
-            "recurrent_dropout": hp.uniform("recurrent_dropout", l_recurrent_dropout[0], l_recurrent_dropout[1])
+            "learning_rate": hp.loguniform("learning_rate", np.log(l_learning_rate[0]), np.log(l_learning_rate[1]))
         }
 
         def create_model(params):
             model = Sequential()
             model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(SpatialDropout1D(params["spatial_dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=True, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation=params["activation_recurrent"]))
-            model.add(Dropout(params["dropout"]))
+            model.add(GRU(int(params["units"]), return_sequences=True, activation=params["activation_recurrent"]))
+            model.add(GRU(int(params["units"]), return_sequences=False, activation=params["activation_recurrent"]))
             model.add(Dense(dimensions, activation=params["activation_output"]))
             optimizer_rms = RMSprop(lr=params["learning_rate"])
             model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
