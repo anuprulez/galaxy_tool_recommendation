@@ -47,7 +47,7 @@ class HyperparameterOptimisation:
         dimensions = len(reverse_dictionary) + 1
         best_model_params = dict()
         batch_size = int(config["batch_size"])
-        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
+        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
 
         # specify the search space for finding the best combination of parameters using Bayesian optimisation
         params = {

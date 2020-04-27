@@ -82,11 +82,15 @@ def weighted_loss(class_weights):
     return weighted_binary_crossentropy
 
 
-def compute_precision(model, x, y, reverse_data_dictionary, next_compatible_tools, usage_scores, actual_classes_pos, topk):
+def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual_classes_pos, topk, standard_conn):
     """
     Compute absolute and compatible precision
     """
-    absolute_precision = 0.0
+    pred_t_name = ""
+    top_precision = 0.0
+    usage_wt_score = 0.0
+    pub_precision = 0.0
+    pub_tools = list()
     test_sample = np.reshape(x, (1, len(x)))
 
     # predict next tools for a test path
@@ -98,30 +102,26 @@ def compute_precision(model, x, y, reverse_data_dictionary, next_compatible_tool
     prediction = np.reshape(prediction, (nw_dimension,))
 
     prediction_pos = np.argsort(prediction, axis=-1)
-    topk_prediction_pos = prediction_pos[-topk:]
-
-    # remove the wrong tool position from the predicted list of tool positions
-    topk_prediction_pos = [x for x in topk_prediction_pos if x > 0]
-
+    topk_prediction_pos = prediction_pos[-topk]
+    
     # read tool names using reverse dictionary
-    actual_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in actual_classes_pos]
-    top_predicted_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in topk_prediction_pos]
+    if topk_prediction_pos in reverse_data_dictionary:
+        actual_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in actual_classes_pos]
+        pred_t_name = reverse_data_dictionary[int(topk_prediction_pos)]
+        last_tool_name = reverse_data_dictionary[x[-1]]
+        if last_tool_name in standard_conn:
+            pub_tools = standard_conn[last_tool_name]
+        # compute the class weights of predicted tools
+        if pred_t_name in actual_next_tool_names:
+            if topk_prediction_pos in usage_scores:
+                usage_wt_score = np.log(usage_scores[topk_prediction_pos] + 1.0)
+            top_precision = 1.0
+        if pred_t_name in pub_tools:
+            pub_precision = 1.0
+    return top_precision, usage_wt_score, pub_precision
 
-    # compute the class weights of predicted tools
-    mean_usg_score = 0
-    usg_wt_scores = list()
-    for t_id in topk_prediction_pos:
-        t_name = reverse_data_dictionary[int(t_id)]
-        if t_id in usage_scores and t_name in actual_next_tool_names:
-            usg_wt_scores.append(np.log(usage_scores[t_id] + 1.0))
-    if len(usg_wt_scores) > 0:
-            mean_usg_score = np.sum(usg_wt_scores) / float(topk)
-    false_positives = [tool_name for tool_name in top_predicted_next_tool_names if tool_name not in actual_next_tool_names]
-    absolute_precision = 1 - (len(false_positives) / float(topk))
-    return mean_usg_score, absolute_precision
 
-
-def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, usage_scores, topk_list=[1, 2, 3]):
+def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_conn, topk_list=[1, 2, 3]):
     """
     Verify the model on test data
     """
@@ -130,16 +130,19 @@ def verify_model(model, x, y, reverse_data_dictionary, next_compatible_tools, us
     size = y.shape[0]
     precision = np.zeros([len(y), len(topk_list)])
     usage_weights = np.zeros([len(y), len(topk_list)])
+    epo_pub_prec = np.zeros([len(y), len(topk_list)])
     # loop over all the test samples and find prediction precision
     for i in range(size):
         actual_classes_pos = np.where(y[i] > 0)[0]
         for index, abs_topk in enumerate(topk_list):
-            abs_mean_usg_score, absolute_precision = compute_precision(model, x[i, :], y, reverse_data_dictionary, next_compatible_tools, usage_scores, actual_classes_pos, abs_topk)
+            absolute_precision, usg_wt_score, pub_prec = compute_precision(model, x[i, :], y, reverse_data_dictionary, usage_scores, actual_classes_pos, abs_topk, standard_conn)
             precision[i][index] = absolute_precision
-            usage_weights[i][index] = abs_mean_usg_score
+            usage_weights[i][index] = usg_wt_score
+            epo_pub_prec[i][index] = pub_prec
     mean_precision = np.mean(precision, axis=0)
     mean_usage = np.mean(usage_weights, axis=0)
-    return mean_precision, mean_usage
+    mean_pub_prec = np.mean(epo_pub_prec, axis=0)
+    return mean_precision, mean_usage, mean_pub_prec
 
 
 def save_results(results):
@@ -147,6 +150,7 @@ def save_results(results):
     np.savetxt("data/train_loss.txt", results["train_loss"])
     np.savetxt("data/precision.txt", results["precision"])
     np.savetxt("data/usage_weights.txt", results["usage_weights"])
+    np.savetxt("data/published_precision.txt", results["published_precision"]) 
 
 
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections):
