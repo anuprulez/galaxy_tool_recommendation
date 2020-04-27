@@ -117,7 +117,7 @@ class PrepareData:
         return paths_labels
 
     @classmethod
-    def pad_paths(self, paths_dictionary, num_classes):
+    def pad_test_paths(self, paths_dictionary, num_classes):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
         """
@@ -132,6 +132,34 @@ class PrepareData:
                 data_mat[train_counter][start_pos + id_pos] = int(pos)
             for label_item in train_label.split(","):
                 label_mat[train_counter][int(label_item)] = 1.0
+            train_counter += 1
+        return data_mat, label_mat
+        
+    @classmethod
+    def pad_train_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary):
+        """
+        Add padding to the tools sequences and create multi-hot encoded labels
+        """
+        size_data = len(paths_dictionary)
+        data_mat = np.zeros([size_data, self.max_tool_sequence_len])
+        label_mat = np.zeros([size_data, num_classes + 1])
+        train_counter = 0
+        for train_seq, train_label in list(paths_dictionary.items()):
+            pub_connections = list()
+            positions = train_seq.split(",")
+            last_tool_id = positions[-1]
+            last_tool_name = reverse_dictionary[int(last_tool_id)]
+            start_pos = self.max_tool_sequence_len - len(positions)
+            for id_pos, pos in enumerate(positions):
+                data_mat[train_counter][start_pos + id_pos] = int(pos)
+            if last_tool_name in standard_connections:
+                pub_connections = standard_connections[last_tool_name]
+            for label_item in train_label.split(","):
+                position_weight = 1.0
+                if reverse_dictionary[int(label_item)] in pub_connections:
+                    # higher weight for published connections
+                    position_weight = 2.0
+                label_mat[train_counter][int(label_item)] = position_weight
             train_counter += 1
         return data_mat, label_mat
 
@@ -211,7 +239,7 @@ class PrepareData:
         return path_weights
 
     @classmethod
-    def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, old_data_dictionary={}):
+    def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
         Convert the training and test paths into corresponding numpy matrices
         """
@@ -235,8 +263,8 @@ class PrepareData:
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
 
-        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes)
-        train_data, train_labels = self.pad_paths(train_paths_dict, num_classes)
+        test_data, test_labels = self.pad_test_paths(test_paths_dict, num_classes)
+        train_data, train_labels = self.pad_train_paths(train_paths_dict, num_classes, standard_connections, reverse_dictionary)
 
         # Predict tools usage
         print("Predicting tools' usage...")

@@ -30,7 +30,7 @@ class HyperparameterOptimisation:
         l_output_activations = config["activation_output"].split(",")
 
         # convert items to integer
-        l_batch_size = list(map(int, config["batch_size"].split(",")))
+        #l_batch_size = list(map(int, config["batch_size"].split(",")))
         l_embedding_size = list(map(int, config["embedding_size"].split(",")))
         l_units = list(map(int, config["units"].split(",")))
 
@@ -46,13 +46,14 @@ class HyperparameterOptimisation:
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
         best_model_params = dict()
-        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-4)
+        batch_size = int(config["batch_size"])
+        early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1)
 
         # specify the search space for finding the best combination of parameters using Bayesian optimisation
         params = {
             "embedding_size": hp.quniform("embedding_size", l_embedding_size[0], l_embedding_size[1], 1),
             "units": hp.quniform("units", l_units[0], l_units[1], 1),
-            "batch_size": hp.quniform("batch_size", l_batch_size[0], l_batch_size[1], 1),
+            #"batch_size": hp.quniform("batch_size", l_batch_size[0], l_batch_size[1], 1),
             "activation_recurrent": hp.choice("activation_recurrent", l_recurrent_activations),
             "activation_output": hp.choice("activation_output", l_output_activations),
             "learning_rate": hp.loguniform("learning_rate", np.log(l_learning_rate[0]), np.log(l_learning_rate[1])),
@@ -75,7 +76,7 @@ class HyperparameterOptimisation:
             model_fit = model.fit(
                 train_data,
                 train_labels,
-                batch_size=int(params["batch_size"]),
+                batch_size=batch_size,
                 epochs=optimize_n_epochs,
                 shuffle="batch",
                 verbose=2,
@@ -87,7 +88,7 @@ class HyperparameterOptimisation:
         trials = Trials()
         learned_params = fmin(create_model, params, trials=trials, algo=tpe.suggest, max_evals=int(config["max_evals"]))
         best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
-
+        best_model_params["batch_size"] = batch_size
         # set the best params with respective values
         for item in learned_params:
             item_val = learned_params[item]
