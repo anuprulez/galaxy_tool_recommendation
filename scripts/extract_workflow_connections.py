@@ -15,8 +15,10 @@ class ExtractWorkflowConnections:
         """ Init method. """
         
     def collect_standard_connections(self, row):
-        published = row[10]
-        if published == 't':
+        published = row[8]
+        deleted = row[9]
+        has_errors = row[10]
+        if published == "t" and deleted == "f" and has_errors == "f":
             return True
         return False
 
@@ -49,8 +51,9 @@ class ExtractWorkflowConnections:
                             standard_connections[i_t] = list()
                         if o_t not in standard_connections[i_t]:
                             standard_connections[i_t].append(o_t)
-        utils.write_file("data/standard_connections.json", standard_connections)
+        utils.write_file("data/standard_connections.txt", standard_connections)
         print("Processing workflows...")
+        print(len(standard_connections))
         wf_ctr = 0
         for wf_id in workflows:
             wf_ctr += 1
@@ -70,6 +73,10 @@ class ExtractWorkflowConnections:
             workflow_paths.extend(flow_paths)
 
         print("Workflows processed: %d" % wf_ctr)
+        
+        #import sys
+        #sys.exit()
+        
         # remove slashes from the tool ids
         wf_paths_no_slash = list()
         for path in workflow_paths:
