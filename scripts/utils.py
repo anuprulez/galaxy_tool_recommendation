@@ -74,7 +74,7 @@ def weighted_loss(class_weights):
     of classes more with the higher usage
     """
     weight_values = list(class_weights.values())
-
+    weight_values.extend(weight_values)
     def weighted_binary_crossentropy(y_true, y_pred):
         # add another dimension to compute dot product
         expanded_weights = K.expand_dims(weight_values, axis=-1)
@@ -91,33 +91,50 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
     usage_wt_score = 0.0
     pub_precision = 0.0
     pub_tools = list()
+    actual_next_tool_names = list()
     test_sample = np.reshape(x, (1, len(x)))
 
     # predict next tools for a test path
     prediction = model.predict(test_sample, verbose=0)
 
     nw_dimension = prediction.shape[1]
+    
+    half_len = int(nw_dimension / 2)
 
     # remove the 0th position as there is no tool at this index
     prediction = np.reshape(prediction, (nw_dimension,))
 
-    prediction_pos = np.argsort(prediction, axis=-1)
-    topk_prediction_pos = prediction_pos[-topk]
-    
-    # read tool names using reverse dictionary
-    if topk_prediction_pos in reverse_data_dictionary:
-        actual_next_tool_names = [reverse_data_dictionary[int(tool_pos)] for tool_pos in actual_classes_pos]
-        pred_t_name = reverse_data_dictionary[int(topk_prediction_pos)]
-        last_tool_name = reverse_data_dictionary[x[-1]]
+    standard_pred = prediction[:half_len]
+    normal_pred = prediction[half_len:]
+
+    standard_prediction_pos = np.argsort(standard_pred, axis=-1)
+    standard_topk_prediction_pos = standard_prediction_pos[-topk]
+
+    normal_prediction_pos = np.argsort(normal_pred, axis=-1)
+    normal_topk_prediction_pos = normal_prediction_pos[-topk]
+
+    for a_t_pos in actual_classes_pos:
+        if a_t_pos > half_len:
+            t_name = reverse_data_dictionary[int(a_t_pos - half_len)]
+        else:
+            t_name = reverse_data_dictionary[int(a_t_pos)]
+        actual_next_tool_names.append(t_name)
+
+    last_tool_name = reverse_data_dictionary[x[-1]]
+
+    if standard_topk_prediction_pos in reverse_data_dictionary:
+        pred_t_name = reverse_data_dictionary[int(standard_topk_prediction_pos)]
         if last_tool_name in standard_conn:
             pub_tools = standard_conn[last_tool_name]
-        # compute the class weights of predicted tools
-        if pred_t_name in actual_next_tool_names:
-            if topk_prediction_pos in usage_scores:
-                usage_wt_score = np.log(usage_scores[topk_prediction_pos] + 1.0)
-            top_precision = 1.0
         if pred_t_name in pub_tools:
             pub_precision = 1.0
+    # read tool names using reverse dictionary
+    if normal_topk_prediction_pos in reverse_data_dictionary:
+        pred_t_name = reverse_data_dictionary[int(normal_topk_prediction_pos)]
+        if pred_t_name in actual_next_tool_names:
+            if normal_topk_prediction_pos in usage_scores:
+                usage_wt_score = np.log(usage_scores[normal_topk_prediction_pos] + 1.0)
+            top_precision = 1.0
     return top_precision, usage_wt_score, pub_precision
 
 

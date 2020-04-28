@@ -136,13 +136,14 @@ class PrepareData:
         return data_mat, label_mat
         
     @classmethod
-    def pad_train_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary):
+    def pad_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
         """
         size_data = len(paths_dictionary)
         data_mat = np.zeros([size_data, self.max_tool_sequence_len])
-        label_mat = np.zeros([size_data, num_classes + 1])
+        label_mat = np.zeros([size_data, 2 * (num_classes + 1)])
+        pos_flag = 1.0
         train_counter = 0
         for train_seq, train_label in list(paths_dictionary.items()):
             pub_connections = list()
@@ -155,11 +156,12 @@ class PrepareData:
             if last_tool_name in standard_connections:
                 pub_connections = standard_connections[last_tool_name]
             for label_item in train_label.split(","):
-                position_weight = 1.0
-                if reverse_dictionary[int(label_item)] in pub_connections:
-                    # higher weight for published connections
-                    position_weight = 2.0
-                label_mat[train_counter][int(label_item)] = position_weight
+                label_pos = int(label_item)
+                label_row = label_mat[train_counter]
+                if reverse_dictionary[label_pos] in pub_connections:
+                    label_row[label_pos] = pos_flag
+                else:
+                    label_row[label_pos + num_classes + 1] = pos_flag
             train_counter += 1
         return data_mat, label_mat
 
@@ -215,7 +217,7 @@ class PrepareData:
         """
         class_weights = dict()
         class_weights[str(0)] = 0.0
-        for key in range(1, n_classes):
+        for key in range(1, n_classes + 1):
             u_score = predicted_usage[key]
             if u_score < 1.0:
                 u_score += 1.0
@@ -263,8 +265,8 @@ class PrepareData:
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
 
-        test_data, test_labels = self.pad_test_paths(test_paths_dict, num_classes)
-        train_data, train_labels = self.pad_train_paths(train_paths_dict, num_classes, standard_connections, reverse_dictionary)
+        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, reverse_dictionary)
+        train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, reverse_dictionary)
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -274,6 +276,6 @@ class PrepareData:
         tool_predicted_usage = self.get_predicted_usage(dictionary, tool_usage_prediction)
 
         # get class weights using the predicted usage for each tool
-        class_weights = self.assign_class_weights(train_labels.shape[1], tool_predicted_usage)
+        class_weights = self.assign_class_weights(num_classes, tool_predicted_usage)
 
         return train_data, train_labels, test_data, test_labels, dictionary, reverse_dictionary, class_weights, tool_predicted_usage

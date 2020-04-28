@@ -70,9 +70,10 @@ class HyperparameterOptimisation:
             model.add(Dropout(params["dropout"]))
             model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation=params["activation_recurrent"]))
             model.add(Dropout(params["dropout"]))
-            model.add(Dense(dimensions, activation=params["activation_output"]))
+            model.add(Dense(2 * dimensions, activation=params["activation_output"]))
             optimizer_rms = RMSprop(lr=params["learning_rate"])
             model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
+            print(model.summary())
             model_fit = model.fit(
                 train_data,
                 train_labels,

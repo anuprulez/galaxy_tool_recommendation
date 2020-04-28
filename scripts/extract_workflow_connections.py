@@ -53,7 +53,6 @@ class ExtractWorkflowConnections:
                             standard_connections[i_t].append(o_t)
         utils.write_file("data/standard_connections.txt", standard_connections)
         print("Processing workflows...")
-        print(len(standard_connections))
         wf_ctr = 0
         for wf_id in workflows:
             wf_ctr += 1
@@ -71,12 +70,8 @@ class ExtractWorkflowConnections:
                     if len(paths) > 0:
                         flow_paths.extend(paths)
             workflow_paths.extend(flow_paths)
-
         print("Workflows processed: %d" % wf_ctr)
-        
-        #import sys
-        #sys.exit()
-        
+
         # remove slashes from the tool ids
         wf_paths_no_slash = list()
         for path in workflow_paths:
