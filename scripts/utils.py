@@ -88,7 +88,8 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
     """
     pred_t_name = ""
     top_precision = 0.0
-    usage_wt_score = 0.0
+    mean_usage = 0.0
+    usage_wt_score = list()
     pub_precision = 0.0
     pub_tools = list()
     actual_next_tool_names = list()
@@ -97,14 +98,17 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
     # predict next tools for a test path
     prediction = model.predict(test_sample, verbose=0)
 
+    # divide the predicted vector into two halves - one for published and
+    # another for normal workflows
     nw_dimension = prediction.shape[1]
-    
     half_len = int(nw_dimension / 2)
 
-    # remove the 0th position as there is no tool at this index
+    # predict tools
     prediction = np.reshape(prediction, (nw_dimension,))
-
+    
+    # get predictions of tools from published workflows
     standard_pred = prediction[:half_len]
+    # get predictions of tools from normal workflows
     normal_pred = prediction[half_len:]
 
     standard_prediction_pos = np.argsort(standard_pred, axis=-1)
@@ -113,29 +117,33 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
     normal_prediction_pos = np.argsort(normal_pred, axis=-1)
     normal_topk_prediction_pos = normal_prediction_pos[-topk]
 
+    # get true tools names
     for a_t_pos in actual_classes_pos:
         if a_t_pos > half_len:
             t_name = reverse_data_dictionary[int(a_t_pos - half_len)]
         else:
             t_name = reverse_data_dictionary[int(a_t_pos)]
         actual_next_tool_names.append(t_name)
-
     last_tool_name = reverse_data_dictionary[x[-1]]
-
+    # compute scores for published recommendations
     if standard_topk_prediction_pos in reverse_data_dictionary:
         pred_t_name = reverse_data_dictionary[int(standard_topk_prediction_pos)]
         if last_tool_name in standard_conn:
             pub_tools = standard_conn[last_tool_name]
         if pred_t_name in pub_tools:
             pub_precision = 1.0
-    # read tool names using reverse dictionary
+            if standard_topk_prediction_pos in usage_scores:
+                usage_wt_score.append(np.log(usage_scores[standard_topk_prediction_pos] + 1.0))
+    # compute scores for normal recommendations
     if normal_topk_prediction_pos in reverse_data_dictionary:
         pred_t_name = reverse_data_dictionary[int(normal_topk_prediction_pos)]
         if pred_t_name in actual_next_tool_names:
             if normal_topk_prediction_pos in usage_scores:
-                usage_wt_score = np.log(usage_scores[normal_topk_prediction_pos] + 1.0)
+                usage_wt_score.append(np.log(usage_scores[normal_topk_prediction_pos] + 1.0))
             top_precision = 1.0
-    return top_precision, usage_wt_score, pub_precision
+    if len(usage_wt_score) > 0:
+        mean_usage = np.mean(usage_wt_score)
+    return top_precision, mean_usage, pub_precision
 
 
 def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_conn, topk_list=[1, 2, 3]):
@@ -163,11 +171,18 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
 
 
 def save_results(results):
-    np.savetxt("data/validation_loss.txt", results["validation_loss"])
-    np.savetxt("data/train_loss.txt", results["train_loss"])
-    np.savetxt("data/precision.txt", results["precision"])
-    np.savetxt("data/usage_weights.txt", results["usage_weights"])
-    np.savetxt("data/published_precision.txt", results["published_precision"]) 
+    if "validation_loss" in results:
+        np.savetxt("data/validation_loss.txt", results["validation_loss"])
+    if "train_loss" in results:
+        np.savetxt("data/train_loss.txt", results["train_loss"])
+    if "precision" in results:
+        np.savetxt("data/precision.txt", results["precision"])
+    if "usage_weights" in results:
+        np.savetxt("data/usage_weights.txt", results["usage_weights"])
+    if "published_precision" in results:
+        np.savetxt("data/published_precision.txt", results["published_precision"])
+    if "standard_connections" in results:
+        write_file("data/standard_connections.txt", results["standard_connections"])
 
 
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections):
@@ -176,7 +191,6 @@ def save_model(results, data_dictionary, compatible_next_tools, trained_model_pa
     best_model_parameters = results["best_parameters"]
     model_config = trained_model.to_json()
     model_weights = trained_model.get_weights()
-    save_results(results)
     model_values = {
         'data_dictionary': data_dictionary,
         'model_config': model_config,
@@ -187,3 +201,5 @@ def save_model(results, data_dictionary, compatible_next_tools, trained_model_pa
         "standard_connections": standard_connections
     }
     set_trained_model(trained_model_path, model_values)
+    results["standard_connections"] = standard_connections
+    save_results(results)

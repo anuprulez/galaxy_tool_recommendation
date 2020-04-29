@@ -16,13 +16,11 @@ main_path = os.getcwd()
 
 class PrepareData:
 
-    @classmethod
     def __init__(self, max_seq_length, test_data_share):
         """ Init method. """
         self.max_tool_sequence_len = max_seq_length
         self.test_share = test_data_share
 
-    @classmethod
     def process_workflow_paths(self, workflow_paths):
         """
         Get all the tools and complete set of individual paths for each workflow
@@ -40,7 +38,6 @@ class PrepareData:
         tokens = np.reshape(tokens, [-1, ])
         return tokens, raw_paths
 
-    @classmethod
     def create_new_dict(self, new_data_dict):
         """
         Create new data dictionary
@@ -48,7 +45,6 @@ class PrepareData:
         reverse_dict = dict((v, k) for k, v in new_data_dict.items())
         return new_data_dict, reverse_dict
 
-    @classmethod
     def assemble_dictionary(self, new_data_dict, old_data_dictionary={}):
         """
         Create/update tools indices in the forward and backward dictionary
@@ -56,7 +52,6 @@ class PrepareData:
         new_data_dict, reverse_dict = self.create_new_dict(new_data_dict)
         return new_data_dict, reverse_dict
 
-    @classmethod
     def create_data_dictionary(self, words, old_data_dictionary={}):
         """
         Create two dictionaries having tools names and their indexes
@@ -68,7 +63,6 @@ class PrepareData:
         dictionary, reverse_dictionary = self.assemble_dictionary(dictionary, old_data_dictionary)
         return dictionary, reverse_dictionary
 
-    @classmethod
     def decompose_paths(self, paths, dictionary):
         """
         Decompose the paths to variable length sub-paths keeping the first tool fixed
@@ -86,7 +80,6 @@ class PrepareData:
         sub_paths_pos = list(set(sub_paths_pos))
         return sub_paths_pos
 
-    @classmethod
     def prepare_paths_labels_dictionary(self, dictionary, reverse_dictionary, paths, compatible_next_tools):
         """
         Create a dictionary of sequences with their labels for training and test paths
@@ -116,7 +109,6 @@ class PrepareData:
             paths_labels[item] = ",".join(list(set(paths_labels[item].split(","))))
         return paths_labels
 
-    @classmethod
     def pad_test_paths(self, paths_dictionary, num_classes):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
@@ -134,8 +126,7 @@ class PrepareData:
                 label_mat[train_counter][int(label_item)] = 1.0
             train_counter += 1
         return data_mat, label_mat
-        
-    @classmethod
+
     def pad_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
@@ -165,7 +156,6 @@ class PrepareData:
             train_counter += 1
         return data_mat, label_mat
 
-    @classmethod
     def split_test_train_data(self, multilabels_paths):
         """
         Split into test and train data randomly for each run
@@ -182,15 +172,6 @@ class PrepareData:
                 train_dict[path] = multilabels_paths[path]
         return train_dict, test_dict
 
-    @classmethod
-    def verify_overlap(self, train_paths, test_paths):
-        """
-        Verify the overlapping of samples in train and test data
-        """
-        intersection = list(set(train_paths).intersection(set(test_paths)))
-        print("Overlap in train and test: %d" % len(intersection))
-
-    @classmethod
     def get_predicted_usage(self, data_dictionary, predicted_usage):
         """
         Get predicted usage for tools
@@ -210,7 +191,6 @@ class PrepareData:
                 continue
         return usage
 
-    @classmethod
     def assign_class_weights(self, n_classes, predicted_usage):
         """
         Compute class weights using usage
@@ -221,10 +201,9 @@ class PrepareData:
             u_score = predicted_usage[key]
             if u_score < 1.0:
                 u_score += 1.0
-            class_weights[key] = np.log(u_score)
+            class_weights[key] = np.round(np.log(u_score), 6)
         return class_weights
 
-    @classmethod
     def get_sample_weights(self, train_data, reverse_dictionary, paths_frequency):
         """
         Compute the frequency of paths in training data
@@ -240,7 +219,6 @@ class PrepareData:
                 path_weights[path_index] = 1
         return path_weights
 
-    @classmethod
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
         Convert the training and test paths into corresponding numpy matrices

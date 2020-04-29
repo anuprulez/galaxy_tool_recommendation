@@ -51,7 +51,6 @@ class ExtractWorkflowConnections:
                             standard_connections[i_t] = list()
                         if o_t not in standard_connections[i_t]:
                             standard_connections[i_t].append(o_t)
-        utils.write_file("data/standard_connections.txt", standard_connections)
         print("Processing workflows...")
         wf_ctr = 0
         for wf_id in workflows:

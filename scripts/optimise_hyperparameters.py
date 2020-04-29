@@ -17,11 +17,9 @@ import utils
 
 class HyperparameterOptimisation:
 
-    @classmethod
     def __init__(self):
         """ Init method. """
 
-    @classmethod
     def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights):
         """
         Train a model and report accuracy

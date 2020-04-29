@@ -20,7 +20,6 @@ import utils
 
 class PredictTool:
 
-    @classmethod
     def __init__(self, num_cpus):
         """ Init method. """
         # set the number of cpus
@@ -32,7 +31,6 @@ class PredictTool:
         )
         K.set_session(tf.Session(config=cpu_config))
 
-    @classmethod
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections):
         """
         Define recurrent neural network and train sequential data
@@ -77,7 +75,6 @@ class PredictTool:
         train_performance["train_loss"] = np.array(trained_model.history["loss"])
         train_performance["model"] = best_model
         train_performance["best_parameters"] = best_params
-        train_performance["published_precision"] = predict_callback_test.published_precision
         return train_performance
 
 
