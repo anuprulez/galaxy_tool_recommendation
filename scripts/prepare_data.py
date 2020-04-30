@@ -229,7 +229,10 @@ class PrepareData:
             last_tool_freq[last_tool] += 1
         max_freq = max(last_tool_freq.values())
         for t in last_tool_freq:
-            inv_freq[t] = np.round(max_freq / float(last_tool_freq[t]), 4)
+            inv_freq[t] = np.round(np.log((max_freq / float(last_tool_freq[t]) + 1.0)), 4)
+        print(last_tool_freq)
+        print()
+        print(inv_freq)
         return last_tool_freq, inv_freq
 
     def compute_sample_weight(self, train_data, inv_last_tool_freq):
