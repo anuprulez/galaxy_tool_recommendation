@@ -58,7 +58,7 @@ class PredictTool:
                 epochs=n_epochs,
                 verbose=2,
                 callbacks=callbacks_list,
-                shuffle="batch",
+                shuffle=True,
                 validation_data=(test_data, test_labels),
                 sample_weight=np.array(inv_sample_wt)
             )

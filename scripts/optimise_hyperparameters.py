@@ -77,7 +77,7 @@ class HyperparameterOptimisation:
                 train_labels,
                 batch_size=batch_size,
                 epochs=optimize_n_epochs,
-                shuffle="batch",
+                shuffle=True,
                 verbose=2,
                 validation_split=validation_split,
                 sample_weight=np.array(sample_wt),
