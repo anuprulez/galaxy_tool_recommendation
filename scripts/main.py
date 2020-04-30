@@ -38,8 +38,6 @@ class PredictTool:
         # get tools with lowest representation
         lowest_tool_ids = utils.get_lowest_tools(l_tool_freq)
         
-        print(lowest_tool_ids)
-        
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
         best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights, inv_sample_wt)
@@ -119,7 +117,6 @@ class PredictCallback(callbacks.Callback):
             print("Epoch %d lowest published precision: %s" % (epoch + 1, low_pub_prec))
             print("Epoch %d lowest normal precision: %s" % (epoch + 1, low_norm_prec))
             print("Epoch %d number of test samples with lowest tool ids: %s" % (epoch + 1, low_num))
-            
 
 
 if __name__ == "__main__":
