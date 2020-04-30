@@ -31,17 +31,22 @@ class PredictTool:
         )
         K.set_session(tf.Session(config=cpu_config))
 
-    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections):
+    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, inv_sample_wt, l_tool_freq):
         """
         Define recurrent neural network and train sequential data
         """
+        # get tools with lowest representation
+        lowest_tool_ids = utils.get_lowest_tools(l_tool_freq)
+        
+        print(lowest_tool_ids)
+        
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
-        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights)
+        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights, inv_sample_wt)
 
         # define callbacks
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
-        predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, usage_pred, standard_connections)
+        predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, usage_pred, standard_connections, lowest_tool_ids)
 
         callbacks_list = [predict_callback_test]
 
@@ -56,12 +61,15 @@ class PredictTool:
                 verbose=2,
                 callbacks=callbacks_list,
                 shuffle="batch",
-                validation_data=(test_data, test_labels)
+                validation_data=(test_data, test_labels),
+                sample_weight=np.array(inv_sample_wt)
             )
             train_performance["validation_loss"] = np.array(trained_model.history["val_loss"])
             train_performance["precision"] = predict_callback_test.precision
             train_performance["usage_weights"] = predict_callback_test.usage_weights
             train_performance["published_precision"] = predict_callback_test.published_precision
+            train_performance["lowest_pub_precision"] = predict_callback_test.lowest_pub_precision
+            train_performance["lowest_norm_precision"] = predict_callback_test.lowest_norm_precision
         else:
             trained_model = best_model.fit(
                 train_data,
@@ -70,7 +78,8 @@ class PredictTool:
                 epochs=n_epochs,
                 verbose=2,
                 callbacks=callbacks_list,
-                shuffle="batch"
+                shuffle="batch",
+                sample_weight=np.array(inv_sample_wt),
             )
         train_performance["train_loss"] = np.array(trained_model.history["loss"])
         train_performance["model"] = best_model
@@ -79,7 +88,7 @@ class PredictTool:
 
 
 class PredictCallback(callbacks.Callback):
-    def __init__(self, test_data, test_labels, reverse_data_dictionary, n_epochs, usg_scores, standard_connections):
+    def __init__(self, test_data, test_labels, reverse_data_dictionary, n_epochs, usg_scores, standard_connections, lowest_tool_ids):
         self.test_data = test_data
         self.test_labels = test_labels
         self.reverse_data_dictionary = reverse_data_dictionary
@@ -89,19 +98,27 @@ class PredictCallback(callbacks.Callback):
         self.n_epochs = n_epochs
         self.pred_usage_scores = usg_scores
         self.standard_connections = standard_connections
+        self.lowest_tool_ids = lowest_tool_ids
+        self.lowest_pub_precision = list()
+        self.lowest_norm_precision = list()
 
     def on_epoch_end(self, epoch, logs={}):
         """
         Compute absolute and compatible precision for test data
         """
         if len(self.test_data) > 0:
-            precision, usage_weights, precision_sc = utils.verify_model(self.model, self.test_data, self.test_labels, self.reverse_data_dictionary, self.pred_usage_scores, self.standard_connections)
+            usage_weights, precision, precision_pub, low_pub_prec, low_norm_prec, low_num = utils.verify_model(self.model, self.test_data, self.test_labels, self.reverse_data_dictionary, self.pred_usage_scores, self.standard_connections, self.lowest_tool_ids)
             self.precision.append(precision)
             self.usage_weights.append(usage_weights)
-            self.published_precision.append(precision_sc)
-            print("Epoch %d precision: %s" % (epoch + 1, precision))
+            self.published_precision.append(precision_pub)
+            self.lowest_pub_precision.append(low_pub_prec)
+            self.lowest_norm_precision.append(low_norm_prec)
             print("Epoch %d usage weights: %s" % (epoch + 1, usage_weights))
-            print("Epoch %d published precision: %s" % (epoch + 1, precision_sc))
+            print("Epoch %d normal precision: %s" % (epoch + 1, precision))
+            print("Epoch %d published precision: %s" % (epoch + 1, precision_pub))
+            print("Epoch %d lowest published precision: %s" % (epoch + 1, low_pub_prec))
+            print("Epoch %d lowest normal precision: %s" % (epoch + 1, low_norm_prec))
+            print("Epoch %d number of test samples with lowest tool ids: %s" % (epoch + 1, low_num))
             
 
 
@@ -180,16 +197,17 @@ if __name__ == "__main__":
     # Process the paths from workflows
     print("Dividing data...")
     data = prepare_data.PrepareData(maximum_path_length, test_share)
-    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, l_tool_freq, sample_wt = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
     # find the best model and start training
     predict_tool = PredictTool(num_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
-    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections)
+    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, sample_wt, l_tool_freq)
     print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])
     print()
+    utils.write_file("data/train_last_tools.txt", l_tool_freq)
     utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections)
     end_time = time.time()
     print()
