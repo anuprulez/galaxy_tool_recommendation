@@ -13,7 +13,7 @@ class ExtractWorkflowConnections:
 
     def __init__(self):
         """ Init method. """
-        
+
     def collect_standard_connections(self, row):
         published = row[8]
         deleted = row[9]
@@ -44,7 +44,7 @@ class ExtractWorkflowConnections:
                 if out_tool and in_tool and out_tool != in_tool:
                     workflows[wf_id].append((out_tool, in_tool))
                     qc = self.collect_standard_connections(row)
-                    if qc == True:
+                    if qc:
                         i_t = utils.format_tool_id(in_tool)
                         o_t = utils.format_tool_id(out_tool)
                         if i_t not in standard_connections:

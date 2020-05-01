@@ -107,7 +107,6 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
 
     # predict tools
     prediction = np.reshape(prediction, (nw_dimension,))
-    
     # get predictions of tools from published workflows
     standard_pred = prediction[:half_len]
     # get predictions of tools from normal workflows
@@ -166,7 +165,6 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
     print("Evaluating performance on test data...")
     print("Test data size: %d" % len(y))
     size = y.shape[0]
-    
     precision = np.zeros([len(y), len(topk_list)])
     usage_weights = np.zeros([len(y), len(topk_list)])
     epo_pub_prec = np.zeros([len(y), len(topk_list)])

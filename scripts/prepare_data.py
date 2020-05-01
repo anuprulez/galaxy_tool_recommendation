@@ -192,14 +192,6 @@ class PrepareData:
                 usage[v] = epsilon
                 continue
         return usage
-        
-    def compute_sample_weight(self, train_data, inv_last_tool_freq):
-        inv_train_sample_weight = list()
-        for ts in train_data:
-            l_tool = int(ts[-1])
-            sample_wt = inv_last_tool_freq[str(l_tool)]
-            inv_train_sample_weight.append(sample_wt)
-        return inv_train_sample_weight
 
     def assign_class_weights(self, n_classes, predicted_usage):
         """
@@ -214,22 +206,11 @@ class PrepareData:
             class_weights[key] = np.round(np.log(u_score), 6)
         return class_weights
 
-    def get_sample_weights(self, train_data, reverse_dictionary, paths_frequency):
-        """
-        Compute the frequency of paths in training data
-        """
-        path_weights = np.zeros(len(train_data))
-        for path_index, path in enumerate(train_data):
-            sample_pos = np.where(path > 0)[0]
-            sample_tool_pos = path[sample_pos[0]:]
-            path_name = ",".join([reverse_dictionary[int(tool_pos)] for tool_pos in sample_tool_pos])
-            try:
-                path_weights[path_index] = int(paths_frequency[path_name])
-            except Exception:
-                path_weights[path_index] = 1
-        return path_weights
-        
     def get_train_last_tool_freq(self, train_paths, reverse_dictionary):
+        """
+        Get the frequency of last tool of each tool sequence
+        to estimate the frequency of tool sequences
+        """
         last_tool_freq = dict()
         inv_freq = dict()
         for path in train_paths:
@@ -243,11 +224,14 @@ class PrepareData:
         utils.write_file("data/last_tool_freq.txt", last_tool_freq)
         utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
         return last_tool_freq, inv_freq
-        
-    def oversample_training(self, train_data, train_labels, inv_freq, actual_freq):
+
+    def oversample_training(self, train_data, train_labels, inv_freq):
+        """
+        Oversample training data by adding tool sequences which are
+        under-represented to balance the training data
+        """
         oversampled_train_data = list()
         oversampled_train_labels = list()
-        freq_dict = dict()
         for index, tr_sample in enumerate(train_data):
             last_tool_id = str(int(tr_sample[-1]))
             n_repeat = inv_freq[last_tool_id]
@@ -258,8 +242,11 @@ class PrepareData:
             oversampled_train_labels.extend(oversampled_label.tolist())
         assert len(oversampled_train_data) == len(oversampled_train_labels)
         return oversampled_train_data, oversampled_train_labels
-        
+
     def verify_oversampling_freq(self, oversampled_tr_data):
+        """
+        Compute the frequency of tool sequences after oversampling
+        """
         freq_dict = dict()
         for tr_data in oversampled_tr_data:
             last_tool_id = str(int(tr_data[-1]))
@@ -269,6 +256,9 @@ class PrepareData:
         utils.write_file("data/oversampled_last_tool_freq.txt", freq_dict)
 
     def sample_train_data(self, oversampled_train_data, oversampled_train_labels, num_classes):
+        """
+        Sample training data from oversampled set
+        """
         # randomize oversampled data
         n_oversample = len(oversampled_train_data)
         random_tr_data = list()
@@ -277,11 +267,10 @@ class PrepareData:
         for pos in random_oversample_pos:
             random_tr_data.append(oversampled_train_data[pos])
             random_tr_label.append(oversampled_train_labels[pos])
-        # create a undersampled train data from randomized oversampled data 
+        # create undersampled train data from randomized oversampled data
         random_pos = random.sample(range(0, len(random_tr_data)), self.train_size)
         train_data = np.zeros([self.train_size, self.max_tool_sequence_len])
         train_labels = np.zeros([self.train_size, 2 * (num_classes + 1)])
-        
         for index, pos in enumerate(random_pos):
             train_data[index] = random_tr_data[pos]
             train_labels[index] = random_tr_label[pos]
@@ -308,26 +297,27 @@ class PrepareData:
 
         print("Complete data: %d" % len(multilabels_paths))
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
-        
+
         # get sample frequency
         l_tool_freq, inv_last_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
-        
+
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
 
+        # pad training and test data with leading zeros
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
-        
-        oversampled_train_data, oversampled_train_labels = self.oversample_training(train_data, train_labels, inv_last_tool_freq, l_tool_freq)
-        
+
+        # get oversampled training data and labels
+        oversampled_train_data, oversampled_train_labels = self.oversample_training(train_data, train_labels, inv_last_tool_freq)
+
         self.verify_oversampling_freq(oversampled_train_data)
-        
+
+        # sample training data from oversampled set
         train_data, train_labels = self.sample_train_data(oversampled_train_data, oversampled_train_labels, num_classes)
-        
-        print("Train data after oversampling: %d" % len(train_data))
-        
-        #import sys
-        #sys.exit()
+
+        print("Oversampled training data: %d" % len(oversampled_train_data))
+        print("Sampled train data: %d" % len(train_data))
 
         # Predict tools usage
         print("Predicting tools' usage...")
