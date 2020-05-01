@@ -10,16 +10,18 @@ import numpy as np
 import random
 
 import predict_tool_usage
+import utils
 
 main_path = os.getcwd()
 
 
 class PrepareData:
 
-    def __init__(self, max_seq_length, test_data_share):
+    def __init__(self, max_seq_length, test_data_share, train_size):
         """ Init method. """
         self.max_tool_sequence_len = max_seq_length
         self.test_share = test_data_share
+        self.train_size = train_size
 
     def process_workflow_paths(self, workflow_paths):
         """
@@ -238,17 +240,8 @@ class PrepareData:
         max_freq = max(last_tool_freq.values())
         for t in last_tool_freq:
             inv_freq[t] = int(np.round(max_freq / float(last_tool_freq[t]), 0))
-        print(reverse_dictionary)
-        print()
-        print(max_freq)
-        print()
-        print("Original train freq:")
-        print()
-        print(last_tool_freq)
-        print()
-        print("Inverted train freq:")
-        print()
-        print(inv_freq)
+        utils.write_file("data/last_tool_freq.txt", last_tool_freq)
+        utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
         return last_tool_freq, inv_freq
         
     def oversample_training(self, train_data, train_labels, inv_freq, actual_freq):
@@ -257,7 +250,6 @@ class PrepareData:
         freq_dict = dict()
         for index, tr_sample in enumerate(train_data):
             last_tool_id = str(int(tr_sample[-1]))
-            #if last_tool_id == "52":
             n_repeat = inv_freq[last_tool_id]
             label_vec = train_labels[index]
             oversampled_tr = np.array([tr_sample] * n_repeat)
@@ -274,11 +266,27 @@ class PrepareData:
             if last_tool_id not in freq_dict:
                 freq_dict[last_tool_id] = 0
             freq_dict[last_tool_id] += 1
-        print()
-        print("Oversampled train freq:")
-        print()
-        print(freq_dict)
+        utils.write_file("data/oversampled_last_tool_freq.txt", freq_dict)
 
+    def sample_train_data(self, oversampled_train_data, oversampled_train_labels, num_classes):
+        # randomize oversampled data
+        n_oversample = len(oversampled_train_data)
+        random_tr_data = list()
+        random_tr_label = list()
+        random_oversample_pos = random.sample(range(0, n_oversample), n_oversample)
+        for pos in random_oversample_pos:
+            random_tr_data.append(oversampled_train_data[pos])
+            random_tr_label.append(oversampled_train_labels[pos])
+        # create a undersampled train data from randomized oversampled data 
+        random_pos = random.sample(range(0, len(random_tr_data)), self.train_size)
+        train_data = np.zeros([self.train_size, self.max_tool_sequence_len])
+        train_labels = np.zeros([self.train_size, 2 * (num_classes + 1)])
+        
+        for index, pos in enumerate(random_pos):
+            train_data[index] = random_tr_data[pos]
+            train_labels[index] = random_tr_label[pos]
+        self.verify_oversampling_freq(train_data)
+        return train_data, train_labels
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
@@ -314,8 +322,12 @@ class PrepareData:
         
         self.verify_oversampling_freq(oversampled_train_data)
         
-        import sys
-        sys.exit()
+        train_data, train_labels = self.sample_train_data(oversampled_train_data, oversampled_train_labels, num_classes)
+        
+        print("Train data after oversampling: %d" % len(train_data))
+        
+        #import sys
+        #sys.exit()
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -327,4 +339,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
 
-        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, t_sample_wt
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq

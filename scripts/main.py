@@ -31,7 +31,7 @@ class PredictTool:
         )
         K.set_session(tf.Session(config=cpu_config))
 
-    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, inv_sample_wt, l_tool_freq):
+    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, l_tool_freq):
         """
         Define recurrent neural network and train sequential data
         """
@@ -40,7 +40,7 @@ class PredictTool:
         
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
-        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights, inv_sample_wt)
+        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights)
 
         # define callbacks
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
@@ -59,8 +59,7 @@ class PredictTool:
                 verbose=2,
                 callbacks=callbacks_list,
                 shuffle=True,
-                validation_data=(test_data, test_labels),
-                sample_weight=np.array(inv_sample_wt)
+                validation_data=(test_data, test_labels)
             )
             train_performance["validation_loss"] = np.array(trained_model.history["val_loss"])
             train_performance["precision"] = predict_callback_test.precision
@@ -76,8 +75,7 @@ class PredictTool:
                 epochs=n_epochs,
                 verbose=2,
                 callbacks=callbacks_list,
-                shuffle="batch",
-                sample_weight=np.array(inv_sample_wt),
+                shuffle=True
             )
         train_performance["train_loss"] = np.array(trained_model.history["loss"])
         train_performance["model"] = best_model
@@ -168,6 +166,7 @@ if __name__ == "__main__":
     activation_recurrent = args["activation_recurrent"]
     activation_output = args["activation_output"]
     num_cpus = int(args["num_cpus"])
+    train_size = 8000
 
     config = {
         'cutoff_date': cutoff_date,
@@ -193,13 +192,13 @@ if __name__ == "__main__":
     workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
     # Process the paths from workflows
     print("Dividing data...")
-    data = prepare_data.PrepareData(maximum_path_length, test_share)
-    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, l_tool_freq, sample_wt = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+    data = prepare_data.PrepareData(maximum_path_length, test_share, train_size)
+    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, l_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
     # find the best model and start training
     predict_tool = PredictTool(num_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
-    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, sample_wt, l_tool_freq)
+    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, l_tool_freq)
     print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])

@@ -20,7 +20,7 @@ class HyperparameterOptimisation:
     def __init__(self):
         """ Init method. """
 
-    def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights, sample_wt):
+    def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights):
         """
         Train a model and report accuracy
         """
@@ -80,7 +80,7 @@ class HyperparameterOptimisation:
                 shuffle=True,
                 verbose=2,
                 validation_split=validation_split,
-                sample_weight=np.array(sample_wt),
+                #sample_weight=np.array(sample_wt),
                 callbacks=[early_stopping]
             )
             return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
