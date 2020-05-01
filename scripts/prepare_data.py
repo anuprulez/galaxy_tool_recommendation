@@ -190,6 +190,14 @@ class PrepareData:
                 usage[v] = epsilon
                 continue
         return usage
+        
+    def compute_sample_weight(self, train_data, inv_last_tool_freq):
+        inv_train_sample_weight = list()
+        for ts in train_data:
+            l_tool = int(ts[-1])
+            sample_wt = inv_last_tool_freq[str(l_tool)]
+            inv_train_sample_weight.append(sample_wt)
+        return inv_train_sample_weight
 
     def assign_class_weights(self, n_classes, predicted_usage):
         """
@@ -225,20 +233,52 @@ class PrepareData:
         for path in train_paths:
             last_tool = path.split(",")[-1]
             if last_tool not in last_tool_freq:
-                last_tool_freq[last_tool] = 1
+                last_tool_freq[last_tool] = 0
             last_tool_freq[last_tool] += 1
         max_freq = max(last_tool_freq.values())
         for t in last_tool_freq:
-            inv_freq[t] = np.round(np.log((max_freq / float(last_tool_freq[t]) + 1.0)), 4)
+            inv_freq[t] = int(np.round(max_freq / float(last_tool_freq[t]), 0))
+        print(reverse_dictionary)
+        print()
+        print(max_freq)
+        print()
+        print("Original train freq:")
+        print()
+        print(last_tool_freq)
+        print()
+        print("Inverted train freq:")
+        print()
+        print(inv_freq)
         return last_tool_freq, inv_freq
+        
+    def oversample_training(self, train_data, train_labels, inv_freq, actual_freq):
+        oversampled_train_data = list()
+        oversampled_train_labels = list()
+        freq_dict = dict()
+        for index, tr_sample in enumerate(train_data):
+            last_tool_id = str(int(tr_sample[-1]))
+            #if last_tool_id == "52":
+            n_repeat = inv_freq[last_tool_id]
+            label_vec = train_labels[index]
+            oversampled_tr = np.array([tr_sample] * n_repeat)
+            oversampled_label = np.array([label_vec] * n_repeat)
+            oversampled_train_data.extend(oversampled_tr.tolist())
+            oversampled_train_labels.extend(oversampled_label.tolist())
+        assert len(oversampled_train_data) == len(oversampled_train_labels)
+        return oversampled_train_data, oversampled_train_labels
+        
+    def verify_oversampling_freq(self, oversampled_tr_data):
+        freq_dict = dict()
+        for tr_data in oversampled_tr_data:
+            last_tool_id = str(int(tr_data[-1]))
+            if last_tool_id not in freq_dict:
+                freq_dict[last_tool_id] = 0
+            freq_dict[last_tool_id] += 1
+        print()
+        print("Oversampled train freq:")
+        print()
+        print(freq_dict)
 
-    def compute_sample_weight(self, train_data, inv_last_tool_freq):
-        inv_train_sample_weight = list()
-        for ts in train_data:
-            l_tool = int(ts[-1])
-            sample_wt = inv_last_tool_freq[str(l_tool)]
-            inv_train_sample_weight.append(sample_wt)
-        return inv_train_sample_weight    
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
@@ -270,7 +310,12 @@ class PrepareData:
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
         
-        t_sample_wt = self.compute_sample_weight(train_data, inv_last_tool_freq)
+        oversampled_train_data, oversampled_train_labels = self.oversample_training(train_data, train_labels, inv_last_tool_freq, l_tool_freq)
+        
+        self.verify_oversampling_freq(oversampled_train_data)
+        
+        import sys
+        sys.exit()
 
         # Predict tools usage
         print("Predicting tools' usage...")
