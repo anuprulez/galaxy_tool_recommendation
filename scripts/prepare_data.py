@@ -225,7 +225,7 @@ class PrepareData:
         utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
         return last_tool_freq, inv_freq
 
-    def oversample_training(self, train_data, train_labels, inv_freq):
+    def oversample_training(self, train_data, train_labels, inv_freq, max_repeat=25):
         """
         Oversample training data by adding tool sequences which are
         under-represented to balance the training data
@@ -234,14 +234,18 @@ class PrepareData:
         oversampled_train_labels = list()
         for index, tr_sample in enumerate(train_data):
             last_tool_id = str(int(tr_sample[-1]))
-            n_repeat = inv_freq[last_tool_id]
             label_vec = train_labels[index]
+            n_repeat = inv_freq[last_tool_id]
+            # limit repeat of lists to avoid memory error
+            if n_repeat > max_repeat:
+                n_repeat = max_repeat
             oversampled_tr = np.array([tr_sample] * n_repeat)
             oversampled_label = np.array([label_vec] * n_repeat)
             oversampled_train_data.extend(oversampled_tr.tolist())
             oversampled_train_labels.extend(oversampled_label.tolist())
         assert len(oversampled_train_data) == len(oversampled_train_labels)
         return oversampled_train_data, oversampled_train_labels
+        
 
     def verify_oversampling_freq(self, oversampled_tr_data):
         """
@@ -259,8 +263,11 @@ class PrepareData:
         """
         Sample training data from oversampled set
         """
-        # randomize oversampled data
+        t_size = self.train_size
         n_oversample = len(oversampled_train_data)
+        if t_size > n_oversample:
+            t_size = n_oversample
+        # randomize oversampled data
         random_tr_data = list()
         random_tr_label = list()
         random_oversample_pos = random.sample(range(0, n_oversample), n_oversample)
@@ -268,9 +275,9 @@ class PrepareData:
             random_tr_data.append(oversampled_train_data[pos])
             random_tr_label.append(oversampled_train_labels[pos])
         # create undersampled train data from randomized oversampled data
-        random_pos = random.sample(range(0, len(random_tr_data)), self.train_size)
-        train_data = np.zeros([self.train_size, self.max_tool_sequence_len])
-        train_labels = np.zeros([self.train_size, 2 * (num_classes + 1)])
+        random_pos = random.sample(range(0, len(random_tr_data)), t_size)
+        train_data = np.zeros([t_size, self.max_tool_sequence_len])
+        train_labels = np.zeros([t_size, 2 * (num_classes + 1)])
         for index, pos in enumerate(random_pos):
             train_data[index] = random_tr_data[pos]
             train_labels[index] = random_tr_label[pos]
@@ -304,16 +311,20 @@ class PrepareData:
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
 
+        print("Padding train and test data...")
         # pad training and test data with leading zeros
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
 
+        print("Computing oversampled train data...")
         # get oversampled training data and labels
         oversampled_train_data, oversampled_train_labels = self.oversample_training(train_data, train_labels, inv_last_tool_freq)
 
+        print("Checking oversampling...")
         self.verify_oversampling_freq(oversampled_train_data)
 
         # sample training data from oversampled set
+        print("Sampling train data from oversampled data...")
         train_data, train_labels = self.sample_train_data(oversampled_train_data, oversampled_train_labels, num_classes)
 
         print("Oversampled training data: %d" % len(oversampled_train_data))
