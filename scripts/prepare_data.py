@@ -17,12 +17,10 @@ main_path = os.getcwd()
 
 class PrepareData:
 
-    def __init__(self, max_seq_length, test_data_share, train_size, max_repeat):
+    def __init__(self, max_seq_length, test_data_share):
         """ Init method. """
         self.max_tool_sequence_len = max_seq_length
         self.test_share = test_data_share
-        self.train_size = train_size
-        self.max_repeat = max_repeat
 
     def process_workflow_paths(self, workflow_paths):
         """
@@ -226,7 +224,7 @@ class PrepareData:
         utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
         return last_tool_freq, inv_freq
 
-    '''def oversample_training(self, train_data, train_labels, inv_freq, max_repeat=25):
+    def oversample_training(self, train_data, train_labels, inv_freq, max_repeat=25):
         """
         Oversample training data by adding tool sequences which are
         under-represented to balance the training data
@@ -245,7 +243,7 @@ class PrepareData:
             oversampled_train_data.extend(oversampled_tr.tolist())
             oversampled_train_labels.extend(oversampled_label.tolist())
         assert len(oversampled_train_data) == len(oversampled_train_labels)
-        return oversampled_train_data, oversampled_train_labels'''
+        return oversampled_train_data, oversampled_train_labels
         
 
     def verify_oversampling_freq(self, oversampled_tr_data):
@@ -258,7 +256,6 @@ class PrepareData:
             if last_tool_id not in freq_dict:
                 freq_dict[last_tool_id] = 0
             freq_dict[last_tool_id] += 1
-        print(len(freq_dict))
         utils.write_file("data/oversampled_last_tool_freq.txt", freq_dict)
 
     def sample_train_data(self, oversampled_train_data, oversampled_train_labels, num_classes):
@@ -283,7 +280,6 @@ class PrepareData:
         Repeat all samples equally and balance train data
         """
         l_tool_tr_samples = dict()
-        print(len(l_tool_freq))
         for tool_id in l_tool_freq:
             for index, tr_sample in enumerate(train_data):
                 last_tool_id = str(int(tr_sample[-1]))
@@ -305,7 +301,6 @@ class PrepareData:
                 o_train_data[ctr+i] = train_data[random_item]
                 o_train_labels[ctr+i] = train_label[random_item]
             ctr += self.max_repeat
-        
         # randomize
         random_pos = random.sample(range(0, t_size), t_size)
         train_data = np.zeros([t_size, self.max_tool_sequence_len])
@@ -315,7 +310,17 @@ class PrepareData:
             train_labels[index] = o_train_labels[pos]  
         
         return train_data, train_labels
-  
+        
+    def get_toolid_samples(self, train_data, l_tool_freq):
+        l_tool_tr_samples = dict()
+        for tool_id in l_tool_freq:
+            for index, tr_sample in enumerate(train_data):
+                last_tool_id = str(int(tr_sample[-1]))
+                if last_tool_id == tool_id:
+                    if last_tool_id not in l_tool_tr_samples:
+                        l_tool_tr_samples[last_tool_id] = list()
+                    l_tool_tr_samples[last_tool_id].append(index)
+        return l_tool_tr_samples
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
@@ -349,13 +354,7 @@ class PrepareData:
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
 
-        # sample training data from oversampled set
-        print("Sampling train data from oversampled data...")
-        balanced_train_data, balanced_train_labels = self.balance_train_data(train_data, train_labels, l_tool_freq, num_classes)
-        
-        self.verify_oversampling_freq(balanced_train_data)
-
-        print("Balanced train data: %d" % len(balanced_train_data))
+        l_tool_tr_samples = self.get_toolid_samples(train_data, l_tool_freq)
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -367,4 +366,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
 
-        return balanced_train_data, balanced_train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, l_tool_tr_samples

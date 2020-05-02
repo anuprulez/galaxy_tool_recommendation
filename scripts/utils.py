@@ -2,6 +2,7 @@ import os
 import numpy as np
 import json
 import h5py
+import random
 
 from keras import backend as K
 
@@ -80,7 +81,40 @@ def weighted_loss(class_weights):
         expanded_weights = K.expand_dims(weight_values, axis=-1)
         return K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights)
     return weighted_binary_crossentropy
+    
+    
+def verify_oversampling_freq(oversampled_tr_data):
+    """
+    Compute the frequency of tool sequences after oversampling
+    """
+    freq_dict = dict()
+    for tr_data in oversampled_tr_data:
+        last_tool_id = str(int(tr_data[-1]))
+        if last_tool_id not in freq_dict:
+            freq_dict[last_tool_id] = 0
+        freq_dict[last_tool_id] += 1
+    print()
+    print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
+    print()
 
+
+def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples):
+    while True:
+        dimension = train_data.shape[1]
+        n_classes = train_labels.shape[1]
+        tool_ids = list(l_tool_tr_samples.keys())
+        generator_batch_data = np.zeros([batch_size, dimension])
+        generator_batch_labels = np.zeros([batch_size, n_classes])
+        for i in range(batch_size):
+            random_toolid_index = random.sample(range(0, len(tool_ids)), 1)[0]
+            random_toolid = tool_ids[random_toolid_index]
+            sample_indices = l_tool_tr_samples[str(random_toolid)]
+            random_index = random.sample(range(0, len(sample_indices)), 1)[0]
+            random_tr_index = sample_indices[random_index]
+            generator_batch_data[i] = train_data[random_tr_index]
+            generator_batch_labels[i] = train_labels[random_tr_index]
+        yield generator_batch_data, generator_batch_labels
+    
 
 def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual_classes_pos, topk, standard_conn, last_tool_id, lowest_tool_ids):
     """

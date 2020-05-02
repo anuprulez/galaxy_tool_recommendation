@@ -31,7 +31,7 @@ class PredictTool:
         )
         K.set_session(tf.Session(config=cpu_config))
 
-    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, l_tool_freq):
+    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, l_tool_freq, l_tool_tr_samples):
         """
         Define recurrent neural network and train sequential data
         """
@@ -40,43 +40,38 @@ class PredictTool:
 
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
-        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, class_weights)
+        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, l_tool_tr_samples, class_weights)
 
         # define callbacks
         early_stopping = callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
         predict_callback_test = PredictCallback(test_data, test_labels, reverse_dictionary, n_epochs, usage_pred, standard_connections, lowest_tool_ids)
 
         callbacks_list = [predict_callback_test]
+        
+        batch_size = int(best_params["batch_size"])
 
         print("Start training on the best model...")
         train_performance = dict()
-        if len(test_data) > 0:
-            trained_model = best_model.fit(
+        trained_model = best_model.fit_generator(
+            utils.balanced_sample_generator(
                 train_data,
                 train_labels,
-                batch_size=int(best_params["batch_size"]),
-                epochs=n_epochs,
-                verbose=2,
-                callbacks=callbacks_list,
-                shuffle=True,
-                validation_data=(test_data, test_labels)
-            )
-            train_performance["validation_loss"] = np.array(trained_model.history["val_loss"])
-            train_performance["precision"] = predict_callback_test.precision
-            train_performance["usage_weights"] = predict_callback_test.usage_weights
-            train_performance["published_precision"] = predict_callback_test.published_precision
-            train_performance["lowest_pub_precision"] = predict_callback_test.lowest_pub_precision
-            train_performance["lowest_norm_precision"] = predict_callback_test.lowest_norm_precision
-        else:
-            trained_model = best_model.fit(
-                train_data,
-                train_labels,
-                batch_size=int(best_params["batch_size"]),
-                epochs=n_epochs,
-                verbose=2,
-                callbacks=callbacks_list,
-                shuffle=True
-            )
+                batch_size,
+                l_tool_tr_samples
+            ),
+            steps_per_epoch=len(train_data) // batch_size,
+            epochs=n_epochs,
+            callbacks=callbacks_list,
+            validation_data=(test_data, test_labels),
+            verbose=2,
+            shuffle=True
+        )
+        train_performance["validation_loss"] = np.array(trained_model.history["val_loss"])
+        train_performance["precision"] = predict_callback_test.precision
+        train_performance["usage_weights"] = predict_callback_test.usage_weights
+        train_performance["published_precision"] = predict_callback_test.published_precision
+        train_performance["lowest_pub_precision"] = predict_callback_test.lowest_pub_precision
+        train_performance["lowest_norm_precision"] = predict_callback_test.lowest_norm_precision
         train_performance["train_loss"] = np.array(trained_model.history["loss"])
         train_performance["model"] = best_model
         train_performance["best_parameters"] = best_params
@@ -132,8 +127,6 @@ if __name__ == "__main__":
     arg_parser.add_argument("-me", "--max_evals", required=True, help="maximum number of configuration evaluations")
     arg_parser.add_argument("-ts", "--test_share", required=True, help="share of data to be used for testing")
     arg_parser.add_argument("-vs", "--validation_share", required=True, help="share of data to be used for validation")
-    arg_parser.add_argument("-mr", "--max_repeat", required=True, help="number of times a sample is repeated")
-    arg_parser.add_argument("-trs", "--training_samples", required=True, help="number of training samples (after sampling)")
     # neural network parameters
     arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
     arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden recurrent units")
@@ -156,8 +149,6 @@ if __name__ == "__main__":
     max_evals = int(args["max_evals"])
     test_share = float(args["test_share"])
     validation_share = float(args["validation_share"])
-    max_repeat = int(args["max_repeat"])
-    n_training_samples = int(args["training_samples"])
     batch_size = args["batch_size"]
     units = args["units"]
     embedding_size = args["embedding_size"]
@@ -189,13 +180,13 @@ if __name__ == "__main__":
     workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
     # Process the paths from workflows
     print("Dividing data...")
-    data = prepare_data.PrepareData(maximum_path_length, test_share, n_training_samples, max_repeat)
-    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, l_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+    data = prepare_data.PrepareData(maximum_path_length, test_share)
+    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, l_tool_freq, l_tool_tr_samples = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
     # find the best model and start training
     predict_tool = PredictTool(num_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
-    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, l_tool_freq)
+    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, l_tool_freq, l_tool_tr_samples)
     print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])

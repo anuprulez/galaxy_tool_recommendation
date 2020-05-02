@@ -20,7 +20,7 @@ class HyperparameterOptimisation:
     def __init__(self):
         """ Init method. """
 
-    def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights):
+    def train_model(self, config, reverse_dictionary, train_data, train_labels, test_data, test_labels, l_tool_tr_samples, class_weights):
         """
         Train a model and report accuracy
         """
@@ -64,17 +64,22 @@ class HyperparameterOptimisation:
             model.add(Dropout(params["dropout"]))
             model.add(Dense(2 * dimensions, activation="sigmoid"))
             optimizer_rms = RMSprop(lr=params["learning_rate"])
+            batch_size = int(params["batch_size"])
             model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
             print(model.summary())
-            model_fit = model.fit(
-                train_data,
-                train_labels,
-                batch_size=int(params["batch_size"]),
+            model_fit = model.fit_generator(
+                utils.balanced_sample_generator(
+                    train_data,
+                    train_labels,
+                    batch_size,
+                    l_tool_tr_samples
+                ),
+                steps_per_epoch=len(train_data) // batch_size,
                 epochs=optimize_n_epochs,
-                shuffle=True,
+                callbacks=[early_stopping],
+                validation_data=(test_data, test_labels),
                 verbose=2,
-                validation_split=validation_split,
-                callbacks=[early_stopping]
+                shuffle=True
             )
             return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
         # minimize the objective function using the set of parameters above
