@@ -93,9 +93,7 @@ def verify_oversampling_freq(oversampled_tr_data):
         if last_tool_id not in freq_dict:
             freq_dict[last_tool_id] = 0
         freq_dict[last_tool_id] += 1
-    print()
     print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
-    print()
 
 
 def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples):
