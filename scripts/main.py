@@ -132,6 +132,7 @@ if __name__ == "__main__":
     arg_parser.add_argument("-me", "--max_evals", required=True, help="maximum number of configuration evaluations")
     arg_parser.add_argument("-ts", "--test_share", required=True, help="share of data to be used for testing")
     arg_parser.add_argument("-vs", "--validation_share", required=True, help="share of data to be used for validation")
+    arg_parser.add_argument("-mr", "--max_repeat", required=True, help="number of times a sample is repeated")
     arg_parser.add_argument("-trs", "--training_samples", required=True, help="number of training samples (after sampling)")
     # neural network parameters
     arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
@@ -155,6 +156,7 @@ if __name__ == "__main__":
     max_evals = int(args["max_evals"])
     test_share = float(args["test_share"])
     validation_share = float(args["validation_share"])
+    max_repeat = int(args["max_repeat"])
     n_training_samples = int(args["training_samples"])
     batch_size = args["batch_size"]
     units = args["units"]
@@ -187,7 +189,7 @@ if __name__ == "__main__":
     workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
     # Process the paths from workflows
     print("Dividing data...")
-    data = prepare_data.PrepareData(maximum_path_length, test_share, n_training_samples)
+    data = prepare_data.PrepareData(maximum_path_length, test_share, n_training_samples, max_repeat)
     train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, l_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
     # find the best model and start training
     predict_tool = PredictTool(num_cpus)
