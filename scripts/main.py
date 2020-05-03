@@ -126,7 +126,6 @@ if __name__ == "__main__":
     arg_parser.add_argument("-oe", "--optimize_n_epochs", required=True, help="number of iterations to run to find best model parameters")
     arg_parser.add_argument("-me", "--max_evals", required=True, help="maximum number of configuration evaluations")
     arg_parser.add_argument("-ts", "--test_share", required=True, help="share of data to be used for testing")
-    arg_parser.add_argument("-vs", "--validation_share", required=True, help="share of data to be used for validation")
     # neural network parameters
     arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
     arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden recurrent units")
@@ -148,7 +147,6 @@ if __name__ == "__main__":
     optimize_n_epochs = int(args["optimize_n_epochs"])
     max_evals = int(args["max_evals"])
     test_share = float(args["test_share"])
-    validation_share = float(args["validation_share"])
     batch_size = args["batch_size"]
     units = args["units"]
     embedding_size = args["embedding_size"]
@@ -165,7 +163,6 @@ if __name__ == "__main__":
         'optimize_n_epochs': optimize_n_epochs,
         'max_evals': max_evals,
         'test_share': test_share,
-        'validation_share': validation_share,
         'batch_size': batch_size,
         'units': units,
         'embedding_size': embedding_size,
