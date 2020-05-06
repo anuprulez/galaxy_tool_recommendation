@@ -81,8 +81,8 @@ def weighted_loss(class_weights):
         expanded_weights = K.expand_dims(weight_values, axis=-1)
         return K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights)
     return weighted_binary_crossentropy
-    
-    
+
+
 def verify_oversampling_freq(oversampled_tr_data):
     """
     Compute the frequency of tool sequences after oversampling
@@ -112,7 +112,7 @@ def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_sa
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
         yield generator_batch_data, generator_batch_labels
-    
+
 
 def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual_classes_pos, topk, standard_conn, last_tool_id, lowest_tool_ids):
     """

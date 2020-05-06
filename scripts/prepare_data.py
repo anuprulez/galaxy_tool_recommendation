@@ -244,7 +244,6 @@ class PrepareData:
             oversampled_train_labels.extend(oversampled_label.tolist())
         assert len(oversampled_train_data) == len(oversampled_train_labels)
         return oversampled_train_data, oversampled_train_labels
-        
 
     def verify_oversampling_freq(self, oversampled_tr_data):
         """
@@ -294,10 +293,9 @@ class PrepareData:
         for t_id in l_tool_tr_samples:
             tr_indices = np.array(l_tool_tr_samples[t_id])
             random.shuffle(tr_indices)
-            list_len = len(tr_indices)
             for i in range(0, self.max_repeat):
                 random_index = random.sample(range(0, len(tr_indices)), 1)
-                random_item =  tr_indices[random_index]
+                random_item = tr_indices[random_index]
                 o_train_data[ctr+i] = train_data[random_item]
                 o_train_labels[ctr+i] = train_label[random_item]
             ctr += self.max_repeat
@@ -307,10 +305,9 @@ class PrepareData:
         train_labels = np.zeros([t_size, 2 * (num_classes + 1)])
         for index, pos in enumerate(random_pos):
             train_data[index] = o_train_data[pos]
-            train_labels[index] = o_train_labels[pos]  
-        
+            train_labels[index] = o_train_labels[pos]
         return train_data, train_labels
-        
+
     def get_toolid_samples(self, train_data, l_tool_freq):
         l_tool_tr_samples = dict()
         for tool_id in l_tool_freq:
