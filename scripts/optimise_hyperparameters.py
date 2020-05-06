@@ -20,12 +20,10 @@ class HyperparameterOptimisation:
         """ Init method. """
 
     @classmethod
-    def train_model(self, config, reverse_dictionary, train_data, train_labels, class_weights):
+    def train_model(self, config, reverse_dictionary, train_data, train_labels, test_data, test_labels, l_tool_tr_samples, class_weights):
         """
         Train a model and report accuracy
         """
-        l_dense_activations = config["activation_dense"].split(",")
-        l_output_activations = config["activation_output"].split(",")
         # convert items to integer
 
         l_batch_size = list(map(int, config["batch_size"].split(",")))
@@ -38,7 +36,6 @@ class HyperparameterOptimisation:
         l_spatial_dropout = list(map(float, config["spatial_dropout"].split(",")))
 
         optimize_n_epochs = int(config["optimize_n_epochs"])
-        validation_split = float(config["validation_share"])
 
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
@@ -51,8 +48,6 @@ class HyperparameterOptimisation:
             "units": hp.quniform("units", l_units[0], l_units[1], 1),
             "batch_size": hp.quniform("batch_size", l_batch_size[0], l_batch_size[1], 1),
             "embedding_size": hp.quniform("embedding_size", l_embedding_size[0], l_embedding_size[1], 1),
-            "activation_dense": hp.choice("activation_dense", l_dense_activations),
-            "activation_output": hp.choice("activation_output", l_output_activations),
             "learning_rate": hp.loguniform("learning_rate", np.log(l_learning_rate[0]), np.log(l_learning_rate[1])),
             "dropout": hp.uniform("dropout", l_dropout[0], l_dropout[1]),
             "spatial_dropout": hp.uniform("spatial_dropout", l_spatial_dropout[0], l_spatial_dropout[1]),
@@ -63,22 +58,28 @@ class HyperparameterOptimisation:
             model.add(Embedding(dimensions, int(params["embedding_size"]), input_length=maximum_path_length))
             model.add(SpatialDropout1D(params["spatial_dropout"]))
             model.add(Flatten())
-            model.add(Dense(int(params["units"]), input_shape=(maximum_path_length,), activation=params["activation_dense"]))
+            model.add(Dense(int(params["units"]), input_shape=(maximum_path_length,), activation="elu"))
             model.add(Dropout(params["dropout"]))
-            model.add(Dense(int(params["units"]), activation=params["activation_dense"]))
+            model.add(Dense(int(params["units"]), activation="elu"))
             model.add(Dropout(params["dropout"]))
-            model.add(Dense(dimensions, activation=params["activation_output"]))
+            model.add(Dense(2 * dimensions, activation="sigmoid"))
             optimizer = RMSprop(lr=params["learning_rate"])
             model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer)
-            model_fit = model.fit(
-                train_data,
-                train_labels,
-                batch_size=int(params["batch_size"]),
+            batch_size = int(params["batch_size"])
+            print(model.summary())
+            model_fit = model.fit_generator(
+                utils.balanced_sample_generator(
+                    train_data,
+                    train_labels,
+                    batch_size,
+                    l_tool_tr_samples
+                ),
+                steps_per_epoch=len(train_data) // batch_size,
                 epochs=optimize_n_epochs,
-                shuffle="batch",
+                callbacks=[early_stopping],
+                validation_data=(test_data, test_labels),
                 verbose=2,
-                validation_split=validation_split,
-                #callbacks=[early_stopping]
+                shuffle=True
             )
             return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
         # minimize the objective function using the set of parameters above
@@ -89,10 +90,5 @@ class HyperparameterOptimisation:
         # set the best params with respective values
         for item in learned_params:
             item_val = learned_params[item]
-            if item == 'activation_output':
-                best_model_params[item] = l_output_activations[item_val]
-            elif item == 'activation_dense':
-                best_model_params[item] = l_dense_activations[item_val]
-            else:
-                best_model_params[item] = item_val
+            best_model_params[item] = item_val
         return best_model_params, best_model
