@@ -45,7 +45,7 @@ As the deep learning training time is high (> 24 hrs), the following steps shoul
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction_gru_wc`
 
-3. Execute training script `train.sh`. Please check that the complete workflow file (`worflow-connection-04-20.tsv`) is being used in the training script.
+3. Execute training script `train.sh`.
 
 The training script has following input parameters:
 
@@ -81,7 +81,7 @@ The training script has following input parameters:
    - `<range of spatial dropout>`: Similar to dropout, this is used to reduce overfitting in the embedding layer. This parameter should be optimised as well. E.g. `0.0,0.5`.
     
    - `<range of recurrent dropout>`: Similar to dropout and spatial dropout, this is used to reduce overfitting in the recurrent layers (hidden). This parameter should be optimised as well. E.g. `0.0,0.5`.
-    
+
    - `<range of learning rates>`: The learning rate specifies the speed of learning. A higher value ensures fast learning (the optimiser may diverge) and a lower value causes slow learning (may not reach the optimum). This parameter should be optimised as well. E.g. `0.0001, 0.1`.
 
    - `<number of CPUs>`: This takes the number of CPUs to be allocated to parallelise the training of the neural network. E.g. `4`.
@@ -92,12 +92,11 @@ The training script has following input parameters:
 
 4. The training of the neural network takes a long time (> 24 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
 
-## The following steps are only necessary for deploying on Galaxy server.
+## The following steps are only necessary for deploying on any Galaxy server.
 
-5. Upload new model to: https://github.com/anuprulez/download_store/tree/tool_recommendation_model/tool_recommendation_model. 
+5. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data
 
 6. In the `galaxy.yml.sample` config file, make the following changes:
     - Enable and then set the property `enable_tool_recommendations` to `true`.
-    - Enable and then set the property `tool_recommendation_model_path` to `https://github.com/anuprulez/download_store/tree/tool_recommendation_model/tool_recommendation_model`.
 
-7. Now go to the workflow editor and choose any tool from the toolbox. Then, you can see a `right-arrow` in top-right of the tool. Click on it to see the recommended tools to be used after the previously chosen tool.
+7. Now go to the workflow editor and choose any tool from the toolbox. Then, you can see a `right-arrow` in top-right of the tool. Click on it to see the recommended tools to be used after the previously chosen tool. Tools are recommended after every tool execution too.
