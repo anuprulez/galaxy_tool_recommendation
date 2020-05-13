@@ -22,6 +22,8 @@ Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/ma
 
 License: MIT License
 
+**Note**: Initial work to create tool recommendation model is stored at https://github.com/anuprulez/similar_galaxy_workflow. This repository storing the history of work until October, 2019 will not be used in future. The current repository (https://github.com/anuprulez/galaxy_tool_recommendation) will be used for current and future developments.
+
 ## How to create a sample tool recommendation model
 
 As the deep learning training time is high (> 24 hrs), the following steps should be used to create a sample tool recommendation model on a subset of workflows:
