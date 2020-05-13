@@ -42,7 +42,7 @@ License: MIT License
 
 ## Data description:
 
-1. Execute data extraction script `extract_data.sh` to extract two tabular files - `tool-popularity-20-04.tsv` and `worflow-connection-20-04.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity-20-04.tsv`) contains information about the usage of tools per month. The second file (`worflow-connection-20-04.tsv`) contains workflows present as the connections of tools. Save these tabular files. These tabular files are present under `/data` folder and can be used to run deep learning training by following steps.
+Execute data extraction script `extract_data.sh` to extract two tabular files - `tool-popularity-20-04.tsv` and `worflow-connection-20-04.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity-20-04.tsv`) contains information about the usage of tools per month. The second file (`worflow-connection-20-04.tsv`) contains workflows present as the connections of tools. Save these tabular files. These tabular files are present under `/data` folder and can be used to run deep learning training by following steps.
 
 
 ### Description of all parameters mentioned in the training script:
@@ -75,7 +75,7 @@ License: MIT License
    - `<range of dropout>`: A neural network tends to overfit (especially when it is stronger). Therefore, to avoid or minimize overfitting, dropout is used. The fraction specified by dropout is the fraction of units "deleted" randomly from the network to impose randomness which helps in avoiding overfitting. This parameter should be optimised as well. E.g. `0.0,0.5`.
     
    - `<range of spatial dropout>`: Similar to dropout, this is used to reduce overfitting in the embedding layer. This parameter should be optimised as well. E.g. `0.0,0.5`.
-    
+
    - `<range of recurrent dropout>`: Similar to dropout and spatial dropout, this is used to reduce overfitting in the recurrent layers (hidden). This parameter should be optimised as well. E.g. `0.0,0.5`.
 
    - `<range of learning rates>`: The learning rate specifies the speed of learning. A higher value ensures fast learning (the optimiser may diverge) and a lower value causes slow learning (may not reach the optimum). This parameter should be optimised as well. E.g. `0.0001, 0.1`.
@@ -83,25 +83,25 @@ License: MIT License
    - `<number of CPUs>`: This takes the number of CPUs to be allocated to parallelise the training of the neural network. E.g. `4`.
 
 ### (To reproduce this work on complete set of workflows) Example command:
-   
+
    `python scripts/main.py -wf data/worflow-connection-20-04.tsv -tu data/tool-popularity-20-04.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 10 -oe 5 -me 20 -ts 0.2 -bs '32,256' -ut '32,256' -es '32,256' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -cpus 4`
 
-4. Once the script finishes, `H5` model file is created at the given location (`path to trained model file`).
+Once the script finishes, `H5` model file is created at the given location (`path to trained model file`).
 
 ## (For Galaxy admins) The following steps are only necessary for deploying on any Galaxy server.
 
-5. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data. Change this path only if there is a different model.
+1. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data. Change this path only if there is a different model.
 
-6. In the `galaxy.yml.sample` config file, make the following changes:
+2. In the `galaxy.yml.sample` config file, make the following changes:
     - Enable and then set the property `enable_tool_recommendations` to `true`.
-    
-7. In order to allow Galaxy admins to add/remove tools from the list of recommendations, the following steps can be used:
+
+3. In order to allow Galaxy admins to add/remove tools from the list of recommendations, the following steps can be used:
     - A Galaxy config file has been provided (https://github.com/galaxyproject/galaxy/blob/dev/config/tool_recommendations_overwrite.yml.sample) to offer following features and instructions to use these features are given in the file itself:
-        a. Enable `admin_tool_recommendations_path` in Galaxy's config file at `config/galaxy.yml.sample`.
-        b. Add tool(s) and mark them "deprecated".
-        c. Add new tool(s) to the list of recommendations.
-        d. Overwrite all recommendations (predicted by trained model). (Enable `overwrite_model_recommendations` and set to `true` in Galaxy's config file at `config/galaxy.yml.sample`)
-    
+        - Enable `admin_tool_recommendations_path` in Galaxy's config file at `config/galaxy.yml.sample`.
+        - Add tool(s) and mark them "deprecated".
+        - Add new tool(s) to the list of recommendations.
+        - Overwrite all recommendations (predicted by trained model). (Enable `overwrite_model_recommendations` and set to `true` in Galaxy's config file at `config/galaxy.yml.sample`).
+
 ## For Galaxy end-users
 
-7. Open the workflow editor and choose any tool from the toolbox. Then, hover on the `right-arrow` icon in top-right of the tool to see the recommended tools in a pop-over. Moreover, execute a tool and see recommended tools for further analysis in a tree visualisation.
+Open the workflow editor and choose any tool from the toolbox. Then, hover on the `right-arrow` icon in top-right of the tool to see the recommended tools in a pop-over. Moreover, execute a tool and see recommended tools for further analysis in a tree visualisation.
