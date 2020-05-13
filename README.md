@@ -90,7 +90,7 @@ Execute data extraction script `extract_data.sh` to extract two tabular files - 
 
 Once the script finishes, `H5` model file is created at the given location (`path to trained model file`).
 
-## (For Galaxy admins) The following steps are only necessary for deploying on any Galaxy server.
+## (For Galaxy admins) The following steps are only necessary for deploying on any Galaxy server:
 
 1. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data/blob/master/tool_recommendation_model.hdf5. Change this path only if there is a different model.
 
@@ -104,6 +104,10 @@ Once the script finishes, `H5` model file is created at the given location (`pat
         - Add new tool(s) to the list of recommendations.
         - Overwrite all recommendations (predicted by trained model). (Enable `overwrite_model_recommendations` and set to `true` in Galaxy's config file at `config/galaxy.yml.sample`).
 
-## For Galaxy end-users
+## For Galaxy end-users:
 
 Open the workflow editor and choose any tool from the toolbox. Then, hover on the `right-arrow` icon in top-right of the tool to see the recommended tools in a pop-over. Moreover, execute a tool and see recommended tools for further analysis in a tree visualisation.
+
+## For contributors:
+
+Information about contributors and how to contribute is present in `CONTRIBUTING.md` file.
