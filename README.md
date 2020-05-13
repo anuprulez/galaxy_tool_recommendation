@@ -80,4 +80,4 @@ The training script has following input parameters:
   
   `python scripts/main.py -wf data/worflow-connection-20-04.tsv -tu data/tool-popularity-20-04.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 10 -oe 5 -me 20 -ts 0.2 -bs '32,256' -ut '32,512' -es '32,512' -dt '0.0,0.5' -sd '0.0,0.5' -lr '0.00001,0.1' -cpus 4`
 
-4. The training of the neural network takes a long time (> 12 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
+The training of the neural network takes a long time (> 12 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
