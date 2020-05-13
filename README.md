@@ -24,9 +24,9 @@ License: MIT License
 
 **Note**: Initial work to create tool recommendation model is stored at https://github.com/anuprulez/similar_galaxy_workflow. This repository storing the history of work until October, 2019 will not be used in future. The current repository (https://github.com/anuprulez/galaxy_tool_recommendation) will be used for current and future developments.
 
-## How to create a sample tool recommendation model
+## (To reproduce this work) How to create a sample tool recommendation model:
 
-As the deep learning training time is high (> 24 hrs), the following steps should be used to create a sample tool recommendation model on a subset of workflows:
+**Note**: To reproduce this work after training on complete model, it is required to have a large compute resource (with 20-30 GB RAM) and it takes > 24 hrs on a VMs with 20 cores. However, the following steps can be used to create a sample tool recommendation model on a subset of workflows:
 
 1. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
@@ -34,31 +34,25 @@ As the deep learning training time is high (> 24 hrs), the following steps shoul
 
 2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
 
-3. After successful finish (~2-3 minutes), a trained model is created at `data/tool_recommendation_model.hdf5`.
+3. After successful finish (~2-3 minutes), a trained model is created at `data/<<file name>>.hdf5`.
 
-4. A model trained on all workflows is present at `ipython_script/data/` which can be used to predict tools using the IPython notebook 
-`ipython_script/tool_recommendation_gru_wc.ipynb`
+4. Put this trained model file at `ipython_script/data/<<file name>>.hdf5` and execute the ipython notebook.
 
-## How to run the project on complete data to create tool recommendation model
+5. A model trained on all workflows is present at `ipython_script/data/tool_recommendation_model_20_04.hdf5` which can be used to predict tools using the IPython notebook `ipython_script/tool_recommendation_gru_wc.ipynb`
+
+## Data description:
 
 1. Execute data extraction script `extract_data.sh` to extract two tabular files - `tool-popularity-20-04.tsv` and `worflow-connection-20-04.tsv`. This script should be executed on a Galaxy instance's database (ideally should be executed by a Galaxy admin). There are two methods in the script one each to generate two tabular files. The first file (`tool-popularity-20-04.tsv`) contains information about the usage of tools per month. The second file (`worflow-connection-20-04.tsv`) contains workflows present as the connections of tools. Save these tabular files. These tabular files are present under `/data` folder and can be used to run deep learning training by following steps.
 
-2. Install the dependencies by executing the following lines if not done before:
-    *    `conda env create -f environment.yml`
-    *    `conda activate tool_prediction_gru_wc`
-
-3. Execute training script `train.sh`.
-
-The training script has following input parameters:
-
-    `python <main python script> -wf <path to workflow file> -tu <path to tool usage file> -om <path to the final model file> -cd <cutoff date> -pl <maximum length of tool path> -ep <number of training iterations> -oe <number of iterations to optimise hyperparamters> -me <maximum number of evaluation to optimise hyperparameters> -ts <fraction of test data> -bs <range of batch sizes> -ut <range of hidden units> -es <range of embedding sizes> -dt <range of dropout> -sd <range of spatial dropout> -rd <range of recurrent dropout> -lr <range of learning rates> -cpus <number of CPUs>`
 
 ### Description of all parameters mentioned in the training script:
+
+`python <main python script> -wf <path to workflow file> -tu <path to tool usage file> -om <path to the final model file> -cd <cutoff date> -pl <maximum length of tool path> -ep <number of training iterations> -oe <number of iterations to optimise hyperparamters> -me <maximum number of evaluation to optimise hyperparameters> -ts <fraction of test data> -bs <range of batch sizes> -ut <range of hidden units> -es <range of embedding sizes> -dt <range of dropout> -sd <range of spatial dropout> -rd <range of recurrent dropout> -lr <range of learning rates> -cpus <number of CPUs>`
 
    - `<main python script>`: This script is the entry point of the entire analysis. It is present at `scripts/main.py`.
    - `<path to workflow file>`: It is a path to a tabular file containing Galaxy workflows. E.g. `data/worflow-connection-20-04.tsv`.
    - `<path to tool popularity file>`: It is a path to a tabular file containing usage frequencies of Galaxy tools. E.g. `data/tool-popularity-20-04.tsv`.
-   - `<path to trained model file>`: It is a path of the final trained model (`h5` file). E.g. `data/tool_recommendation_model.hdf5`.
+   - `<path to trained model file>`: It is a path of the final trained model (`h5` file). E.g. `data/<<file name>>.hdf5`.
     
    - `<cutoff date>`: It is used to set the earliest date from which the usage frequencies of tools should be considered. The format of the date is YYYY-MM-DD. This date should be in the past. E.g. `2017-12-01`.
     
@@ -88,17 +82,26 @@ The training script has following input parameters:
 
    - `<number of CPUs>`: This takes the number of CPUs to be allocated to parallelise the training of the neural network. E.g. `4`.
 
-### An example command:
+### (To reproduce this work on complete set of workflows) Example command:
    
-   `python scripts/main.py -wf data/worflow-connection-20-04.tsv -tu data/tool-popularity-20-04.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 2 -oe 2 -me 2 -ts 0.2 -bs '32,256' -ut '32,256' -es '32,256' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -cpus 4`
+   `python scripts/main.py -wf data/worflow-connection-20-04.tsv -tu data/tool-popularity-20-04.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 10 -oe 5 -me 20 -ts 0.2 -bs '32,256' -ut '32,256' -es '32,256' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -cpus 4`
 
-4. The training of the neural network takes a long time (> 24 hours) for the complete data. Once the script finishes, `h5` model file is created at the given location (`path to trained model file`).
+4. Once the script finishes, `H5` model file is created at the given location (`path to trained model file`).
 
-## The following steps are only necessary for deploying on any Galaxy server.
+## (For Galaxy admins) The following steps are only necessary for deploying on any Galaxy server.
 
-5. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data
+5. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data. Change this path only if there is a different model.
 
 6. In the `galaxy.yml.sample` config file, make the following changes:
     - Enable and then set the property `enable_tool_recommendations` to `true`.
+    
+7. In order to allow Galaxy admins to add/remove tools from the list of recommendations, the following steps can be used:
+    - A Galaxy config file has been provided (https://github.com/galaxyproject/galaxy/blob/dev/config/tool_recommendations_overwrite.yml.sample) to offer following features and instructions to use these features are given in the file itself:
+        a. Enable `admin_tool_recommendations_path` in Galaxy's config file at `config/galaxy.yml.sample`.
+        b. Add tool(s) and mark them "deprecated".
+        c. Add new tool(s) to the list of recommendations.
+        d. Overwrite all recommendations (predicted by trained model). (Enable `overwrite_model_recommendations` and set to `true` in Galaxy's config file at `config/galaxy.yml.sample`)
+    
+## For Galaxy end-users
 
-7. Now go to the workflow editor and choose any tool from the toolbox. Then, you can see a `right-arrow` in top-right of the tool. Click on it to see the recommended tools to be used after the previously chosen tool. Tools are recommended after every tool execution too.
+7. Open the workflow editor and choose any tool from the toolbox. Then, hover on the `right-arrow` icon in top-right of the tool to see the recommended tools in a pop-over. Moreover, execute a tool and see recommended tools for further analysis in a tree visualisation.
