@@ -1,5 +1,7 @@
 # Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network)
 
+[![DOI](https://zenodo.org/badge/241409061.svg)](https://zenodo.org/badge/latestdoi/241409061)
+
 ## General information
 
 Project name: Galaxy tool recommendation
