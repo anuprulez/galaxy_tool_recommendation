@@ -18,12 +18,13 @@ class PredictTool:
     def __init__(self):
         """ Init method. """
 
-    def create_model(self, multilabels_paths, data_dictionary, class_weights, compatible_next_tools, model_path):
+    def create_model(self, multilabels_paths, data_dictionary, class_weights, compatible_next_tools, model_path, standard_connections):
         data = {
             "multilabels_paths": multilabels_paths,
             "data_dictionary": data_dictionary,
             "compatible_next_tools": compatible_next_tools,
             "class_weights": class_weights,
+            "standard_connections": standard_connections
         }
         utils.save_model(data, model_path)
 
@@ -68,14 +69,14 @@ if __name__ == "__main__":
 
     # Extract and process workflows
     connections = extract_workflow_connections.ExtractWorkflowConnections()
-    workflow_paths, compatible_next_tools = connections.read_tabular_file(workflows_path)
+    workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
     # Process the paths from workflows
     print("Dividing data...")
     data = prepare_data.PrepareData(maximum_path_length)
     multilabels_paths, data_dictionary, reverse_dictionary, class_weights, usage_pred = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools)
     # create model and test predicted tools
     predict_tool = PredictTool()
-    predict_tool.create_model(multilabels_paths, data_dictionary, class_weights, compatible_next_tools, model_path)
+    predict_tool.create_model(multilabels_paths, data_dictionary, class_weights, compatible_next_tools, model_path, standard_connections)
     print()
     predict_tool.predict_tools(model_path)
     end_time = time.time()
