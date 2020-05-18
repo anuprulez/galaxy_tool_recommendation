@@ -8,7 +8,7 @@ import matplotlib.gridspec as gridspec
 
 warnings.filterwarnings("ignore")
 
-base_path = 'data/'
+base_path = 'data_20_04/'
 
 all_approaches_path = ['dnn/', 'dnn_wc/', 'cnn/', 'cnn_wc/', 'gru/', 'gru_wc/']
 
@@ -28,7 +28,7 @@ epochs = 10
 
 loss_ylim = (0.0, 1.0)
 usage_ylim = (2.5, 5.0)
-precision_ylim = (0.8, 1.0)
+
 gs = gridspec.GridSpec(3,2)
 leg_loc = 3
 leg_size = 18
@@ -137,7 +137,7 @@ def assemble_loss():
         mean_te_loss = np.mean(test_loss, axis=0)
         plt_title = titles[idx]
         plot_loss(ax, mean_tr_loss, mean_tr_loss - loss_tr_y1, mean_tr_loss + loss_tr_y2, mean_te_loss, mean_te_loss - loss_te_y1, mean_te_loss + loss_te_y2, plt_title + "", "Training iterations (epochs)", "Mean loss", ['Training loss', 'Test (validation) loss'])
-assemble_loss()
+#assemble_loss()
 plt.show()
 
 
@@ -203,7 +203,7 @@ assemble_usage()
 plt.show()
 
 
-def plot_accuracy(ax, x_val1, y1_top1, y2_top1, x_val2, y1_top2, y2_top2, x_val3, y1_top3, y2_top3, title, xlabel, ylabel, leg):
+def plot_accuracy(ax, x_val1, y1_top1, y2_top1, x_val2, y1_top2, y2_top2, x_val3, y1_top3, y2_top3, title, xlabel, ylabel, leg, precision_ylim=(0.8, 1.0)):
     x_pos = np.arange(len(x_val1))
     ax.plot(x_pos, x_val1, 'r')
     ax.plot(x_pos, x_val2, 'b')
@@ -268,6 +268,56 @@ assemble_accuracy()
 plt.show()
 
 
+def assemble_published_precision():
+    precision_ylim = (0.25, 1.0)
+    fig = plt.figure(figsize=fig_size)
+    fig.suptitle('Mean published precision@k for multiple neural network architectures', size=size_title + 2)
+    for idx, approach in enumerate(all_approaches_path):
+        if idx == 0:
+            ax = plt.subplot(gs[0,0])
+            ax.set_ylabel("Precision@k", size=size_label)
+        elif idx == 1:
+            ax = plt.subplot(gs[0,1])
+        elif idx == 2:
+            ax = plt.subplot(gs[1,0])
+            ax.set_ylabel("Precision@k", size=size_label)
+        elif idx == 3:
+            ax = plt.subplot(gs[1,1])
+        elif idx == 4:
+            ax = plt.subplot(gs[2,0])
+            ax.set_xlabel("Training iterations (epochs)", size=size_label)
+            ax.set_ylabel("Precision@k", size=size_label)
+        else:
+            ax = plt.subplot(gs[2,1])
+            ax.set_xlabel("Training iterations (epochs)", size=size_label)
+
+        precision_acc_top1 = list()
+        precision_acc_top2 = list()
+        precision_acc_top3 = list()
+
+        for i in range(1, runs+1):
+            path = base_path + approach + 'run' + str(i) + '/'
+            precision_path = path + 'published_precision.txt'
+            try:
+                top1_p, top2_p, top3_p = extract_precision(precision_path)
+                precision_acc_top1.append(top1_p)
+                precision_acc_top2.append(top2_p)
+                precision_acc_top3.append(top3_p)
+            except Exception:
+                continue
+
+        mean_top1_acc = np.mean(precision_acc_top1, axis=0)
+        mean_top2_acc = np.mean(precision_acc_top2, axis=0)
+        mean_top3_acc = np.mean(precision_acc_top3, axis=0)
+
+        y1_top1, y2_top1 = compute_fill_between(precision_acc_top1)
+        y1_top2, y2_top2 = compute_fill_between(precision_acc_top2)
+        y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
+        plt_title = titles[idx]
+        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
+assemble_published_precision()
+plt.show()
+
 ############## Plot data distribution
 
 '''paths_path = 'data/rnn_custom_loss/run1/paths.txt'
@@ -311,7 +361,7 @@ def plot_path_size_distribution(x_val, title, xlabel, ylabel, xlabels):
 ################################################################ Tool usage
 
 
-import csv
+'''import csv
 import numpy as np
 import collections
 
@@ -386,4 +436,4 @@ def plot_tool_usage(tool_names):
 
 
 plot_tool_usage(tool_names)
-
+'''
