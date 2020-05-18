@@ -1,4 +1,4 @@
-# Tool recommender system in Galaxy by storing sequences of tools
+# Tool Recommender in Galaxy using stored tool sequences
 
 ## General information
 
