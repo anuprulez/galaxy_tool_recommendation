@@ -229,7 +229,7 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
     return mean_usage, mean_precision, mean_pub_prec, mean_lowest_pub_prec, mean_lowest_norm_prec, len(epo_lowest_tools_pub_prec)
 
 
-def save_results(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights):
+def save_results(results):
     if "validation_loss" in results:
         np.savetxt("data/validation_loss.txt", results["validation_loss"])
     if "train_loss" in results:

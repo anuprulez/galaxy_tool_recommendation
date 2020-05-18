@@ -49,7 +49,7 @@ class HyperparameterOptimisation:
         def create_model(params):
             model = Sequential()
             model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(GRU(int(params["units"]), return_sequences=True, activation="elu"]))
+            model.add(GRU(int(params["units"]), return_sequences=True, activation="elu"))
             model.add(GRU(int(params["units"]), return_sequences=False, activation="elu"))
             model.add(Dense(2 * dimensions, activation="sigmoid"))
             optimizer_rms = RMSprop(lr=params["learning_rate"])
