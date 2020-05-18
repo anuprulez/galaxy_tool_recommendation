@@ -1,26 +1,24 @@
-# Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network)
-
-[![DOI](https://zenodo.org/badge/241409061.svg)](https://zenodo.org/badge/latestdoi/241409061)
+# Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network with no regularisation)
 
 ## General information
 
 Project name: Galaxy tool recommendation
 
-Project home page: https://github.com/anuprulez/galaxy_tool_recommendation
+Project home page: https://github.com/anuprulez/galaxy_tool_recommendation/tree/no_regularisation
 
-Data: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/data
+Data: https://github.com/anuprulez/galaxy_tool_recommendation/tree/no_regularisation/data
 
 Operating system(s): Linux
 
 Programming language: Python
 
-Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/scripts
+Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/no_regularisation/scripts
 
-iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/ipython_script/tool_recommendation_gru_wc.ipynb
+iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/tree/no_regularisation/ipython_script/tool_recommendation_gru_wc_no_reg.ipynb
 
-Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.2.4,matplotlib=3.1.1
+Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.2.4
 
-Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh
+Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/no_regularisation/train.sh
 
 License: MIT License
 
@@ -34,7 +32,7 @@ License: MIT License
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction_gru_wc`
 
-2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
+2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/no_regularisation/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
 
 3. After successful finish (~2-3 minutes), a trained model is created at `data/<<file name>>.hdf5`.
 
@@ -48,7 +46,7 @@ Execute data extraction script `extract_data.sh` to extract two tabular files - 
 
 ### Description of all parameters mentioned in the training script:
 
-`python <main python script> -wf <path to workflow file> -tu <path to tool usage file> -om <path to the final model file> -cd <cutoff date> -pl <maximum length of tool path> -ep <number of training iterations> -oe <number of iterations to optimise hyperparamters> -me <maximum number of evaluation to optimise hyperparameters> -ts <fraction of test data> -bs <range of batch sizes> -ut <range of hidden units> -es <range of embedding sizes> -dt <range of dropout> -sd <range of spatial dropout> -rd <range of recurrent dropout> -lr <range of learning rates> -cpus <number of CPUs>`
+`python <main python script> -wf <path to workflow file> -tu <path to tool usage file> -om <path to the final model file> -cd <cutoff date> -pl <maximum length of tool path> -ep <number of training iterations> -oe <number of iterations to optimise hyperparamters> -me <maximum number of evaluation to optimise hyperparameters> -ts <fraction of test data> -bs <range of batch sizes> -ut <range of hidden units> -es <range of embedding sizes> -lr <range of learning rates> -cpus <number of CPUs>`
 
    - `<main python script>`: This script is the entry point of the entire analysis. It is present at `scripts/main.py`.
    
@@ -76,40 +74,12 @@ Execute data extraction script `extract_data.sh` to extract two tabular files - 
 
    - `<range of embedding sizes>`: For each tool, a fixed-size vector is learned and this fixed-size is known as the embedding size. This size remains same for all the tools. A lower number may underfit and a higher number may overfit. This parameter should be optimised as well. E.g. `32,512`.
 
-   - `<range of dropout>`: A neural network tends to overfit (especially when it is stronger). Therefore, to avoid or minimize overfitting, dropout is used. The fraction specified by dropout is the fraction of units "deleted" randomly from the network to impose randomness which helps in avoiding overfitting. This parameter should be optimised as well. E.g. `0.0,0.5`.
-    
-   - `<range of spatial dropout>`: Similar to dropout, this is used to reduce overfitting in the embedding layer. This parameter should be optimised as well. E.g. `0.0,0.5`.
-
-   - `<range of recurrent dropout>`: Similar to dropout and spatial dropout, this is used to reduce overfitting in the recurrent layers (hidden). This parameter should be optimised as well. E.g. `0.0,0.5`.
-
    - `<range of learning rates>`: The learning rate specifies the speed of learning. A higher value ensures fast learning (the optimiser may diverge) and a lower value causes slow learning (may not reach the optimum). This parameter should be optimised as well. E.g. `0.0001, 0.1`.
 
    - `<number of CPUs>`: This takes the number of CPUs to be allocated to parallelise the training of the neural network. E.g. `4`.
 
 ### (To reproduce this work on complete set of workflows) Example command:
 
-   `python scripts/main.py -wf data/worflow-connection-20-04.tsv -tu data/tool-popularity-20-04.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 10 -oe 5 -me 20 -ts 0.2 -bs '32,256' -ut '32,256' -es '32,256' -dt '0.0,0.5' -sd '0.0,0.5' -rd '0.0,0.5' -lr '0.00001,0.1' -cpus 4`
+   `python scripts/main.py -wf data/worflow-connection-20-04.tsv -tu data/tool-popularity-20-04.tsv -om data/tool_recommendation_model.hdf5 -cd '2017-12-01' -pl 25 -ep 10 -oe 5 -me 20 -ts 0.2 -bs '32,256' -ut '32,256' -es '32,256' -lr '0.00001,0.1' -cpus 4`
 
-Once the script finishes, `H5` model file is created at the given location (`path to trained model file`).
-
-## (For Galaxy admins) The following steps are only necessary for deploying on any Galaxy server:
-
-1. (Already done!) The latest model is uploaded at: https://github.com/galaxyproject/galaxy-test-data/blob/master/tool_recommendation_model.hdf5. Change this path only if there is a different model.
-
-2. In the `galaxy.yml.sample` config file, make the following changes:
-    - Enable and then set the property `enable_tool_recommendations` to `true`.
-
-3. In order to allow Galaxy admins to add/remove tools from the list of recommendations, the following steps can be used:
-    - A Galaxy config file has been provided (https://github.com/galaxyproject/galaxy/blob/dev/config/tool_recommendations_overwrite.yml.sample) to offer following features and instructions to use these features are given in the file itself:
-        - Enable `admin_tool_recommendations_path` in Galaxy's config file at `config/galaxy.yml.sample`.
-        - Add tool(s) and mark them "deprecated".
-        - Add new tool(s) to the list of recommendations.
-        - Overwrite all recommendations (predicted by trained model). (Enable `overwrite_model_recommendations` and set to `true` in Galaxy's config file at `config/galaxy.yml.sample`).
-
-## For Galaxy end-users:
-
-Open the workflow editor and choose any tool from the toolbox. Then, hover on the `right-arrow` icon in top-right of the tool to see the recommended tools in a pop-over. Moreover, execute a tool and see recommended tools for further analysis in a tree visualisation.
-
-## For contributors:
-
-Information about contributors and how to contribute is present in `CONTRIBUTING.md` file.
+Once the script finishes, `H5` model file is created at the given location (`path to trained model file`)
