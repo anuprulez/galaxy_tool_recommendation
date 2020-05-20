@@ -163,12 +163,20 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
         pred_t_name = reverse_data_dictionary[int(standard_topk_prediction_pos)]
         if last_tool_name in standard_conn:
             pub_tools = standard_conn[last_tool_name]
-        if pred_t_name in pub_tools:
-            pub_precision = 1.0
-            if last_tool_id in lowest_tool_ids:
-                lowest_pub_prec = 1.0
-            if standard_topk_prediction_pos in usage_scores:
-                usage_wt_score.append(np.log(usage_scores[standard_topk_prediction_pos] + 1.0))
+            if pred_t_name in pub_tools:
+                pub_precision = 1.0
+                # count precision only when there is actually true published tools
+                if last_tool_id in lowest_tool_ids:
+                    lowest_pub_prec = 1.0
+                else:
+                    lowest_pub_prec = np.nan
+                if standard_topk_prediction_pos in usage_scores:
+                    usage_wt_score.append(np.log(usage_scores[standard_topk_prediction_pos] + 1.0))
+        else:
+            # count precision only when there is actually true published tools
+            # else set to np.nan. Set to 0 only when there is wrong prediction
+            pub_precision = np.nan
+            lowest_pub_prec = np.nan
     # compute scores for normal recommendations
     if normal_topk_prediction_pos in reverse_data_dictionary:
         pred_t_name = reverse_data_dictionary[int(normal_topk_prediction_pos)]
@@ -178,6 +186,8 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
             top_precision = 1.0
             if last_tool_id in lowest_tool_ids:
                 lowest_norm_prec = 1.0
+            else:
+                lowest_norm_prec = np.nan
     if len(usage_wt_score) > 0:
         mean_usage = np.mean(usage_wt_score)
     return mean_usage, top_precision, pub_precision, lowest_pub_prec, lowest_norm_prec
@@ -202,7 +212,7 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
     epo_pub_prec = np.zeros([len(y), len(topk_list)])
     epo_lowest_tools_pub_prec = list()
     epo_lowest_tools_norm_prec = list()
-
+    lowest_counter = 0
     # loop over all the test samples and find prediction precision
     for i in range(size):
         lowest_pub_topk = list()
@@ -215,18 +225,18 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
             precision[i][index] = absolute_precision
             usage_weights[i][index] = usg_wt_score
             epo_pub_prec[i][index] = pub_prec
-            if last_tool_id in lowest_tool_ids:
-                lowest_pub_topk.append(lowest_p_prec)
-                lowest_norm_topk.append(lowest_n_prec)
+            lowest_pub_topk.append(lowest_p_prec)
+            lowest_norm_topk.append(lowest_n_prec)
+        epo_lowest_tools_pub_prec.append(lowest_pub_topk)
+        epo_lowest_tools_norm_prec.append(lowest_norm_topk)
         if last_tool_id in lowest_tool_ids:
-            epo_lowest_tools_pub_prec.append(lowest_pub_topk)
-            epo_lowest_tools_norm_prec.append(lowest_norm_topk)
+            lowest_counter += 1
     mean_precision = np.mean(precision, axis=0)
     mean_usage = np.mean(usage_weights, axis=0)
-    mean_pub_prec = np.mean(epo_pub_prec, axis=0)
-    mean_lowest_pub_prec = np.mean(epo_lowest_tools_pub_prec, axis=0)
-    mean_lowest_norm_prec = np.mean(epo_lowest_tools_norm_prec, axis=0)
-    return mean_usage, mean_precision, mean_pub_prec, mean_lowest_pub_prec, mean_lowest_norm_prec, len(epo_lowest_tools_pub_prec)
+    mean_pub_prec = np.nanmean(epo_pub_prec, axis=0)
+    mean_lowest_pub_prec = np.nanmean(epo_lowest_tools_pub_prec, axis=0)
+    mean_lowest_norm_prec = np.nanmean(epo_lowest_tools_norm_prec, axis=0)    
+    return mean_usage, mean_precision, mean_pub_prec, mean_lowest_pub_prec, mean_lowest_norm_prec, lowest_counter)
 
 
 def save_results(results):

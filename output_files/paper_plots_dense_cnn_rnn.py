@@ -318,6 +318,108 @@ def assemble_published_precision():
 assemble_published_precision()
 plt.show()
 
+
+def assemble_lowest_normal_precision():
+    precision_ylim = (0.25, 1.0)
+    fig = plt.figure(figsize=fig_size)
+    fig.suptitle('Mean precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
+    for idx, approach in enumerate(all_approaches_path):
+        if idx == 0:
+            ax = plt.subplot(gs[0,0])
+            ax.set_ylabel("Precision@k", size=size_label)
+        elif idx == 1:
+            ax = plt.subplot(gs[0,1])
+        elif idx == 2:
+            ax = plt.subplot(gs[1,0])
+            ax.set_ylabel("Precision@k", size=size_label)
+        elif idx == 3:
+            ax = plt.subplot(gs[1,1])
+        elif idx == 4:
+            ax = plt.subplot(gs[2,0])
+            ax.set_xlabel("Training iterations (epochs)", size=size_label)
+            ax.set_ylabel("Precision@k", size=size_label)
+        else:
+            ax = plt.subplot(gs[2,1])
+            ax.set_xlabel("Training iterations (epochs)", size=size_label)
+
+        precision_acc_top1 = list()
+        precision_acc_top2 = list()
+        precision_acc_top3 = list()
+
+        for i in range(1, runs+1):
+            path = base_path + approach + 'run' + str(i) + '/'
+            precision_path = path + 'lowest_norm_precision.txt'
+            try:
+                top1_p, top2_p, top3_p = extract_precision(precision_path)
+                precision_acc_top1.append(top1_p)
+                precision_acc_top2.append(top2_p)
+                precision_acc_top3.append(top3_p)
+            except Exception:
+                continue
+
+        mean_top1_acc = np.mean(precision_acc_top1, axis=0)
+        mean_top2_acc = np.mean(precision_acc_top2, axis=0)
+        mean_top3_acc = np.mean(precision_acc_top3, axis=0)
+
+        y1_top1, y2_top1 = compute_fill_between(precision_acc_top1)
+        y1_top2, y2_top2 = compute_fill_between(precision_acc_top2)
+        y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
+        plt_title = titles[idx]
+        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
+assemble_lowest_normal_precision()
+plt.show()
+
+
+def assemble_lowest_published_precision():
+    precision_ylim = (0.0, 1.0)
+    fig = plt.figure(figsize=fig_size)
+    fig.suptitle('Mean published precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
+    for idx, approach in enumerate(all_approaches_path):
+        if idx == 0:
+            ax = plt.subplot(gs[0,0])
+            ax.set_ylabel("Precision@k", size=size_label)
+        elif idx == 1:
+            ax = plt.subplot(gs[0,1])
+        elif idx == 2:
+            ax = plt.subplot(gs[1,0])
+            ax.set_ylabel("Precision@k", size=size_label)
+        elif idx == 3:
+            ax = plt.subplot(gs[1,1])
+        elif idx == 4:
+            ax = plt.subplot(gs[2,0])
+            ax.set_xlabel("Training iterations (epochs)", size=size_label)
+            ax.set_ylabel("Precision@k", size=size_label)
+        else:
+            ax = plt.subplot(gs[2,1])
+            ax.set_xlabel("Training iterations (epochs)", size=size_label)
+
+        precision_acc_top1 = list()
+        precision_acc_top2 = list()
+        precision_acc_top3 = list()
+
+        for i in range(1, runs+1):
+            path = base_path + approach + 'run' + str(i) + '/'
+            precision_path = path + 'lowest_pub_precision.txt'
+            try:
+                top1_p, top2_p, top3_p = extract_precision(precision_path)
+                precision_acc_top1.append(top1_p)
+                precision_acc_top2.append(top2_p)
+                precision_acc_top3.append(top3_p)
+            except Exception:
+                continue
+
+        mean_top1_acc = np.mean(precision_acc_top1, axis=0)
+        mean_top2_acc = np.mean(precision_acc_top2, axis=0)
+        mean_top3_acc = np.mean(precision_acc_top3, axis=0)
+
+        y1_top1, y2_top1 = compute_fill_between(precision_acc_top1)
+        y1_top2, y2_top2 = compute_fill_between(precision_acc_top2)
+        y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
+        plt_title = titles[idx]
+        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
+assemble_lowest_published_precision()
+plt.show()
+
 ############## Plot data distribution
 
 '''paths_path = 'data/rnn_custom_loss/run1/paths.txt'
