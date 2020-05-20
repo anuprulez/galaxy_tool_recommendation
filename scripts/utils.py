@@ -236,7 +236,7 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
     mean_pub_prec = np.nanmean(epo_pub_prec, axis=0)
     mean_lowest_pub_prec = np.nanmean(epo_lowest_tools_pub_prec, axis=0)
     mean_lowest_norm_prec = np.nanmean(epo_lowest_tools_norm_prec, axis=0)    
-    return mean_usage, mean_precision, mean_pub_prec, mean_lowest_pub_prec, mean_lowest_norm_prec, lowest_counter)
+    return mean_usage, mean_precision, mean_pub_prec, mean_lowest_pub_prec, mean_lowest_norm_prec, lowest_counter
 
 
 def save_results(results):
