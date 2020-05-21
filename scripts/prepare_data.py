@@ -204,120 +204,51 @@ class PrepareData:
                 u_score += 1.0
             class_weights[key] = np.round(np.log(u_score), 6)
         return class_weights
-
-    def get_train_last_tool_freq(self, train_paths, reverse_dictionary):
+    
+    def get_train_tool_freq(self, train_paths):
         """
-        Get the frequency of last tool of each tool sequence
-        to estimate the frequency of tool sequences
+        Get the frequency of tools in the training data
         """
-        last_tool_freq = dict()
-        inv_freq = dict()
+        tools_freq = dict()
+        tools_freq_inv = dict()
+        tools_freq_inv_norm = dict()
         for path in train_paths:
-            last_tool = path.split(",")[-1]
-            if last_tool not in last_tool_freq:
-                last_tool_freq[last_tool] = 0
-            last_tool_freq[last_tool] += 1
-        max_freq = max(last_tool_freq.values())
-        for t in last_tool_freq:
-            inv_freq[t] = int(np.round(max_freq / float(last_tool_freq[t]), 0))
-        utils.write_file("data/last_tool_freq.txt", last_tool_freq)
-        utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
-        return last_tool_freq, inv_freq
+            tools = path.split(",")
+            for t in tools:
+                if t not in tools_freq:
+                    tools_freq[t] = 0
+                tools_freq[t] += 1
+                
+        max_freq = max(list(tools_freq.values()))
+        #print(max_freq)
+        for t in tools_freq:
+            tools_freq_inv[t] = max_freq / float(tools_freq[t])
+            
+        sum_freq_inv = np.sum(list(tools_freq_inv.values()))
+        #print(sum_freq_inv)
+        for t in tools_freq_inv:
+            tools_freq_inv_norm[t] = tools_freq_inv[t] / float(sum_freq_inv)
+        #print(tools_freq_inv_norm)
+        print()
+        '''print(tools_freq)
+        print()
+        print(tools_freq_inv)
+        print()
+        print(tools_freq_inv_norm)
+        print()
+        print(np.sum(list(tools_freq_inv_norm.values())))'''
+        return tools_freq, tools_freq_inv_norm
 
-    def oversample_training(self, train_data, train_labels, inv_freq, max_repeat=25):
-        """
-        Oversample training data by adding tool sequences which are
-        under-represented to balance the training data
-        """
-        oversampled_train_data = list()
-        oversampled_train_labels = list()
-        for index, tr_sample in enumerate(train_data):
-            last_tool_id = str(int(tr_sample[-1]))
-            label_vec = train_labels[index]
-            n_repeat = inv_freq[last_tool_id]
-            # limit repeat of lists to avoid memory error
-            if n_repeat > max_repeat:
-                n_repeat = max_repeat
-            oversampled_tr = np.array([tr_sample] * n_repeat)
-            oversampled_label = np.array([label_vec] * n_repeat)
-            oversampled_train_data.extend(oversampled_tr.tolist())
-            oversampled_train_labels.extend(oversampled_label.tolist())
-        assert len(oversampled_train_data) == len(oversampled_train_labels)
-        return oversampled_train_data, oversampled_train_labels
-
-    def verify_oversampling_freq(self, oversampled_tr_data):
-        """
-        Compute the frequency of tool sequences after oversampling
-        """
-        freq_dict = dict()
-        for tr_data in oversampled_tr_data:
-            last_tool_id = str(int(tr_data[-1]))
-            if last_tool_id not in freq_dict:
-                freq_dict[last_tool_id] = 0
-            freq_dict[last_tool_id] += 1
-        utils.write_file("data/oversampled_last_tool_freq.txt", freq_dict)
-
-    def sample_train_data(self, oversampled_train_data, oversampled_train_labels, num_classes):
-        """
-        Sample training data from oversampled set
-        """
-        t_size = self.train_size
-        n_oversample = len(oversampled_train_data)
-        if t_size > n_oversample:
-            t_size = n_oversample
-        # randomize and create undersampled train data from randomized oversampled data
-        random_pos = random.sample(range(0, t_size), t_size)
-        train_data = np.zeros([t_size, self.max_tool_sequence_len])
-        train_labels = np.zeros([t_size, 2 * (num_classes + 1)])
-        for index, pos in enumerate(random_pos):
-            train_data[index] = oversampled_train_data[pos]
-            train_labels[index] = oversampled_train_labels[pos]
-        return train_data, train_labels
-
-    def balance_train_data(self, train_data, train_label, l_tool_freq, num_classes):
-        """
-        Repeat all samples equally and balance train data
-        """
-        l_tool_tr_samples = dict()
-        for tool_id in l_tool_freq:
+    def get_toolid_samples(self, train_data, tool_freq):
+        tr_tool_samples = dict()
+        for tool_id in tool_freq:
             for index, tr_sample in enumerate(train_data):
-                last_tool_id = str(int(tr_sample[-1]))
-                if last_tool_id == tool_id:
-                    if last_tool_id not in l_tool_tr_samples:
-                        l_tool_tr_samples[last_tool_id] = list()
-                    l_tool_tr_samples[last_tool_id].append(index)
-        t_size = len(l_tool_tr_samples) * self.max_repeat
-        o_train_data = np.zeros([t_size, self.max_tool_sequence_len])
-        o_train_labels = np.zeros([t_size, 2 * (num_classes + 1)])
-        ctr = 0
-        for t_id in l_tool_tr_samples:
-            tr_indices = np.array(l_tool_tr_samples[t_id])
-            random.shuffle(tr_indices)
-            for i in range(0, self.max_repeat):
-                random_index = random.sample(range(0, len(tr_indices)), 1)
-                random_item = tr_indices[random_index]
-                o_train_data[ctr+i] = train_data[random_item]
-                o_train_labels[ctr+i] = train_label[random_item]
-            ctr += self.max_repeat
-        # randomize
-        random_pos = random.sample(range(0, t_size), t_size)
-        train_data = np.zeros([t_size, self.max_tool_sequence_len])
-        train_labels = np.zeros([t_size, 2 * (num_classes + 1)])
-        for index, pos in enumerate(random_pos):
-            train_data[index] = o_train_data[pos]
-            train_labels[index] = o_train_labels[pos]
-        return train_data, train_labels
-
-    def get_toolid_samples(self, train_data, l_tool_freq):
-        l_tool_tr_samples = dict()
-        for tool_id in l_tool_freq:
-            for index, tr_sample in enumerate(train_data):
-                last_tool_id = str(int(tr_sample[-1]))
-                if last_tool_id == tool_id:
-                    if last_tool_id not in l_tool_tr_samples:
-                        l_tool_tr_samples[last_tool_id] = list()
-                    l_tool_tr_samples[last_tool_id].append(index)
-        return l_tool_tr_samples
+                tr_sample_list = [int(i) for i in tr_sample.tolist()]
+                if int(tool_id) in tr_sample_list:
+                    if tool_id not in tr_tool_samples:
+                        tr_tool_samples[tool_id] = list()
+                    tr_tool_samples[tool_id].append(index)
+        return tr_tool_samples
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
@@ -341,7 +272,7 @@ class PrepareData:
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
 
         # get sample frequency
-        l_tool_freq, inv_last_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
+        train_tool_freq, tools_freq_inv_norm = self.get_train_tool_freq(train_paths_dict)
 
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
@@ -351,7 +282,7 @@ class PrepareData:
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
 
-        l_tool_tr_samples = self.get_toolid_samples(train_data, l_tool_freq)
+        tool_tr_samples = self.get_toolid_samples(train_data, train_tool_freq)
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -363,4 +294,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
 
-        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, l_tool_tr_samples
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, train_tool_freq, tool_tr_samples, tools_freq_inv_norm
