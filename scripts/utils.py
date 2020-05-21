@@ -100,12 +100,9 @@ def verify_oversampling_freq(sampled_tr_data, rev_dict):
     for t in tools_freq:
         if t != 0:
             t_freq_names[rev_dict[int(t)]] = tools_freq[t]
-    #print(dict(sorted(tools_freq.items(), key=lambda kv: kv[1], reverse=True)))
+    print(dict(sorted(tools_freq.items(), key=lambda kv: kv[1], reverse=True)))
     print()
-    print(dict(sorted(t_freq_names.items(), key=lambda kv: kv[1], reverse=True)))
-    print()
-    #print(np.sum(list(t_freq_names.values())))
-    print("==============================")
+    print(dict(sorted(t_freq_names.items(), key=lambda kv: kv[0], reverse=True)))
 
 
 def balanced_sample_generator(train_data, train_labels, batch_size, tool_tr_samples, tools_freq_inv_norm, rev_dict):
@@ -121,14 +118,12 @@ def balanced_sample_generator(train_data, train_labels, batch_size, tool_tr_samp
         generated_tool_ids = choice(tool_ids, batch_size, p=p_dist)
         random.shuffle(generated_tool_ids)
         for i in range(batch_size):
-            #random_toolid_index = random.sample(range(0, len(tool_ids)), 1)[0]
-            random_toolid =  generated_tool_ids[i] #tool_ids[random_toolid_index]
+            random_toolid =  generated_tool_ids[i]
             sample_indices = tool_tr_samples[str(random_toolid)]
             random_index = random.sample(range(0, len(sample_indices)), 1)[0]
             random_tr_index = sample_indices[random_index]
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
-        verify_oversampling_freq(generator_batch_data, rev_dict)
         yield generator_batch_data, generator_batch_labels
 
 

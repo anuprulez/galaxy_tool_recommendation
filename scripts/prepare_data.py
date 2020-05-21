@@ -218,25 +218,14 @@ class PrepareData:
                 if t not in tools_freq:
                     tools_freq[t] = 0
                 tools_freq[t] += 1
-                
         max_freq = max(list(tools_freq.values()))
-        #print(max_freq)
+        # create inverse frequency distribution
         for t in tools_freq:
             tools_freq_inv[t] = max_freq / float(tools_freq[t])
-            
+        # normalize to create probability distribution 
         sum_freq_inv = np.sum(list(tools_freq_inv.values()))
-        #print(sum_freq_inv)
         for t in tools_freq_inv:
             tools_freq_inv_norm[t] = tools_freq_inv[t] / float(sum_freq_inv)
-        #print(tools_freq_inv_norm)
-        print()
-        '''print(tools_freq)
-        print()
-        print(tools_freq_inv)
-        print()
-        print(tools_freq_inv_norm)
-        print()
-        print(np.sum(list(tools_freq_inv_norm.values())))'''
         return tools_freq, tools_freq_inv_norm
 
     def get_toolid_samples(self, train_data, tool_freq):
