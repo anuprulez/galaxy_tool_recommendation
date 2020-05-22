@@ -205,7 +205,7 @@ class PrepareData:
             class_weights[key] = np.round(np.log(u_score), 6)
         return class_weights
     
-    def get_train_tool_freq(self, train_paths):
+    '''def get_train_tool_freq(self, train_paths):
         """
         Get the frequency of tools in the training data
         """
@@ -237,6 +237,45 @@ class PrepareData:
                     if tool_id not in tr_tool_samples:
                         tr_tool_samples[tool_id] = list()
                     tr_tool_samples[tool_id].append(index)
+        return tr_tool_samples'''
+        
+    def get_train_tool_freq(self, train_labels):
+        """
+        Get the frequency of tools in the training data
+        """
+        labels_freq = dict()
+        labels_freq_inv = dict()
+        labels_freq_inv_norm = dict()
+        half_dim = train_labels.shape[1] / 2
+        for label in train_labels:
+            labels = np.where(label > 0)[0]
+            for t in labels:
+                t = str(t)
+                if t not in labels_freq:
+                    labels_freq[t] = 0
+                labels_freq[t] += 1
+        max_freq = max(list(labels_freq.values()))
+        # create inverse frequency distribution
+        for t in labels_freq:
+            labels_freq_inv[t] = max_freq / float(labels_freq[t])
+        # normalize to create probability distribution 
+        sum_freq_inv = np.sum(list(labels_freq_inv.values()))
+        for t in labels_freq_inv:
+            labels_freq_inv_norm[t] = labels_freq_inv[t] / float(sum_freq_inv)
+        return labels_freq, labels_freq_inv_norm
+
+    def get_toolid_samples(self, train_labels, labels_freq):
+        tr_tool_samples = dict()
+        all_labels = list()
+        for tool_id in labels_freq:
+            for index, tr_label in enumerate(train_labels):
+                tr_label = np.where(tr_label > 0)[0]
+                tr_labels_list = [int(i) for i in tr_label.tolist()]
+                all_labels.extend(tr_labels_list)
+                if int(tool_id) in tr_labels_list:
+                    if tool_id not in tr_tool_samples:
+                        tr_tool_samples[tool_id] = list()
+                    tr_tool_samples[tool_id].append(index)
         return tr_tool_samples
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
@@ -260,9 +299,6 @@ class PrepareData:
         print("Complete data: %d" % len(multilabels_paths))
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
 
-        # get sample frequency
-        train_tool_freq, tools_freq_inv_norm = self.get_train_tool_freq(train_paths_dict)
-
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
 
@@ -270,8 +306,10 @@ class PrepareData:
         # pad training and test data with leading zeros
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
-
-        tool_tr_samples = self.get_toolid_samples(train_data, train_tool_freq)
+        
+        # get frequency, inverse frequency of labels
+        train_tool_freq, tools_freq_inv_norm = self.get_train_tool_freq(train_labels)
+        tool_tr_samples = self.get_toolid_samples(train_labels, train_tool_freq)
 
         # Predict tools usage
         print("Predicting tools' usage...")

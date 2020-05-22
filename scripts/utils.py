@@ -89,9 +89,11 @@ def verify_oversampling_freq(sampled_tr_data, rev_dict):
     """
     Compute the frequency of tool sequences after uniform sampling
     """ 
+    #print(rev_dict)
     tools_freq = dict()
-    for path in sampled_tr_data:
-        t_path = [int(i) for i in path.tolist()]
+    half_dim = sampled_tr_data.shape[1] / 2
+    for label in sampled_tr_data:
+        t_path = np.where(label > 0)[0]
         for t in t_path:
             if t not in tools_freq:
                 tools_freq[t] = 0
@@ -99,10 +101,13 @@ def verify_oversampling_freq(sampled_tr_data, rev_dict):
     t_freq_names = dict()
     for t in tools_freq:
         if t != 0:
-            t_freq_names[rev_dict[int(t)]] = tools_freq[t]
+            orig_pos = t
+            if t > half_dim:
+                orig_pos = int(t) - int(half_dim)
+            t_freq_names[rev_dict[int(orig_pos)]] = tools_freq[t]
     print(dict(sorted(tools_freq.items(), key=lambda kv: kv[1], reverse=True)))
     print()
-    print(dict(sorted(t_freq_names.items(), key=lambda kv: kv[0], reverse=True)))
+    print(dict(sorted(t_freq_names.items(), key=lambda kv: kv[0], reverse=False)))
 
 
 def balanced_sample_generator(train_data, train_labels, batch_size, tool_tr_samples, tools_freq_inv_norm, rev_dict):
@@ -119,11 +124,12 @@ def balanced_sample_generator(train_data, train_labels, batch_size, tool_tr_samp
         random.shuffle(generated_tool_ids)
         for i in range(batch_size):
             random_toolid =  generated_tool_ids[i]
-            sample_indices = tool_tr_samples[str(random_toolid)]
+            sample_indices = tool_tr_samples[random_toolid]
             random_index = random.sample(range(0, len(sample_indices)), 1)[0]
             random_tr_index = sample_indices[random_index]
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
+        #verify_oversampling_freq(generator_batch_labels, rev_dict)
         yield generator_batch_data, generator_batch_labels
 
 
