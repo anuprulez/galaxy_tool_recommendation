@@ -371,7 +371,7 @@ plt.show()
 
 
 def assemble_lowest_published_precision():
-    precision_ylim = (0.0, 1.0)
+    precision_ylim = (0.0, 0.4)
     fig = plt.figure(figsize=fig_size)
     fig.suptitle('Mean published precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
     for idx, approach in enumerate(all_approaches_path):
