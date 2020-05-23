@@ -246,7 +246,6 @@ class PrepareData:
         labels_freq = dict()
         labels_freq_inv = dict()
         labels_freq_inv_norm = dict()
-        half_dim = train_labels.shape[1] / 2
         for label in train_labels:
             labels = np.where(label > 0)[0]
             for t in labels:
@@ -266,16 +265,17 @@ class PrepareData:
 
     def get_toolid_samples(self, train_labels, labels_freq):
         tr_tool_samples = dict()
-        all_labels = list()
         for tool_id in labels_freq:
             for index, tr_label in enumerate(train_labels):
                 tr_label = np.where(tr_label > 0)[0]
                 tr_labels_list = [int(i) for i in tr_label.tolist()]
-                all_labels.extend(tr_labels_list)
                 if int(tool_id) in tr_labels_list:
                     if tool_id not in tr_tool_samples:
                         tr_tool_samples[tool_id] = list()
                     tr_tool_samples[tool_id].append(index)
+        # remove duplicate sample indices
+        for t_id in tr_tool_samples:
+            tr_tool_samples[t_id] = list(set(tr_tool_samples[t_id]))
         return tr_tool_samples
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
@@ -307,6 +307,7 @@ class PrepareData:
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
         
+        print("Estimating label frequency...")
         # get frequency, inverse frequency of labels
         train_tool_freq, tools_freq_inv_norm = self.get_train_tool_freq(train_labels)
         tool_tr_samples = self.get_toolid_samples(train_labels, train_tool_freq)
