@@ -204,79 +204,41 @@ class PrepareData:
                 u_score += 1.0
             class_weights[key] = np.round(np.log(u_score), 6)
         return class_weights
-    
-    '''def get_train_tool_freq(self, train_paths):
+
+    def get_train_last_tool_freq(self, train_paths, reverse_dictionary):
         """
-        Get the frequency of tools in the training data
+        Get the frequency of last tool of each tool sequence
+        to estimate the frequency of tool sequences
         """
-        tools_freq = dict()
-        tools_freq_inv = dict()
-        tools_freq_inv_norm = dict()
+        last_tool_freq = dict()
+        inv_freq = dict()
+        inv_freq_norm = dict()
         for path in train_paths:
-            tools = path.split(",")
-            for t in tools:
-                if t not in tools_freq:
-                    tools_freq[t] = 0
-                tools_freq[t] += 1
-        max_freq = max(list(tools_freq.values()))
-        # create inverse frequency distribution
-        for t in tools_freq:
-            tools_freq_inv[t] = max_freq / float(tools_freq[t])
-        # normalize to create probability distribution 
-        sum_freq_inv = np.sum(list(tools_freq_inv.values()))
-        for t in tools_freq_inv:
-            tools_freq_inv_norm[t] = tools_freq_inv[t] / float(sum_freq_inv)
-        return tools_freq, tools_freq_inv_norm
+            last_tool = path.split(",")[-1]
+            if last_tool not in last_tool_freq:
+                last_tool_freq[last_tool] = 0
+            last_tool_freq[last_tool] += 1
+        max_freq = max(last_tool_freq.values())
+        for t in last_tool_freq:
+            inv_freq[t] = int(np.round(max_freq / float(last_tool_freq[t]), 0))
+        freq_sum = np.sum(list(inv_freq.values()))
+        for t in inv_freq:
+            inv_freq_norm[t] = inv_freq[t] / float(freq_sum)
+        utils.write_file("data/last_tool_freq.txt", last_tool_freq)
+        utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
+        utils.write_file("data/inv_freq_norm.txt", inv_freq_norm)
+        return last_tool_freq, inv_freq, inv_freq_norm
 
-    def get_toolid_samples(self, train_data, tool_freq):
-        tr_tool_samples = dict()
-        for tool_id in tool_freq:
+    def get_toolid_samples(self, train_data, l_tool_freq):
+        l_tool_tr_samples = dict()
+        for tool_id in l_tool_freq:
             for index, tr_sample in enumerate(train_data):
-                tr_sample_list = [int(i) for i in tr_sample.tolist()]
-                if int(tool_id) in tr_sample_list:
-                    if tool_id not in tr_tool_samples:
-                        tr_tool_samples[tool_id] = list()
-                    tr_tool_samples[tool_id].append(index)
-        return tr_tool_samples'''
-        
-    def get_train_tool_freq(self, train_labels):
-        """
-        Get the frequency of tools in the training data
-        """
-        labels_freq = dict()
-        labels_freq_inv = dict()
-        labels_freq_inv_norm = dict()
-        for label in train_labels:
-            labels = np.where(label > 0)[0]
-            for t in labels:
-                t = str(t)
-                if t not in labels_freq:
-                    labels_freq[t] = 0
-                labels_freq[t] += 1
-        max_freq = max(list(labels_freq.values()))
-        # create inverse frequency distribution
-        for t in labels_freq:
-            labels_freq_inv[t] = max_freq / float(labels_freq[t])
-        # normalize to create probability distribution 
-        sum_freq_inv = np.sum(list(labels_freq_inv.values()))
-        for t in labels_freq_inv:
-            labels_freq_inv_norm[t] = labels_freq_inv[t] / float(sum_freq_inv)
-        return labels_freq, labels_freq_inv_norm
-
-    def get_toolid_samples(self, train_labels, labels_freq):
-        tr_tool_samples = dict()
-        for tool_id in labels_freq:
-            for index, tr_label in enumerate(train_labels):
-                tr_label = np.where(tr_label > 0)[0]
-                tr_labels_list = [int(i) for i in tr_label.tolist()]
-                if int(tool_id) in tr_labels_list:
-                    if tool_id not in tr_tool_samples:
-                        tr_tool_samples[tool_id] = list()
-                    tr_tool_samples[tool_id].append(index)
-        # remove duplicate sample indices
-        for t_id in tr_tool_samples:
-            tr_tool_samples[t_id] = list(set(tr_tool_samples[t_id]))
-        return tr_tool_samples
+                last_tool_id = str(int(tr_sample[-1]))
+                if last_tool_id == tool_id:
+                    if last_tool_id not in l_tool_tr_samples:
+                        l_tool_tr_samples[last_tool_id] = list()
+                    l_tool_tr_samples[last_tool_id].append(index)
+        return l_tool_tr_samples
 
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
@@ -307,10 +269,9 @@ class PrepareData:
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
         
-        print("Estimating label frequency...")
-        # get frequency, inverse frequency of labels
-        train_tool_freq, tools_freq_inv_norm = self.get_train_tool_freq(train_labels)
-        tool_tr_samples = self.get_toolid_samples(train_labels, train_tool_freq)
+        print("Estimating sample frequency...")
+        l_tool_freq, inv_last_tool_freq, inv_freq_norm = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
+        l_tool_tr_samples = self.get_toolid_samples(train_data, l_tool_freq)
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -322,4 +283,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
 
-        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, train_tool_freq, tool_tr_samples, tools_freq_inv_norm
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, inv_freq_norm, l_tool_tr_samples

@@ -5,7 +5,6 @@ import h5py
 import random
 from numpy.random import choice
 
-
 from keras import backend as K
 
 
@@ -85,51 +84,44 @@ def weighted_loss(class_weights):
     return weighted_binary_crossentropy
 
 
-def verify_oversampling_freq(sampled_tr_data, rev_dict):
+def verify_oversampling_freq(oversampled_tr_data, rev_dict):
     """
-    Compute the frequency of tool sequences after uniform sampling
-    """ 
-    #print(rev_dict)
-    tools_freq = dict()
-    half_dim = sampled_tr_data.shape[1] / 2
-    for label in sampled_tr_data:
-        t_path = np.where(label > 0)[0]
-        for t in t_path:
-            if t not in tools_freq:
-                tools_freq[t] = 0
-            tools_freq[t] += 1
-    t_freq_names = dict()
-    for t in tools_freq:
-        if t != 0:
-            orig_pos = t
-            if t > half_dim:
-                orig_pos = int(t) - int(half_dim)
-            t_freq_names[rev_dict[int(orig_pos)]] = tools_freq[t]
-    print(dict(sorted(tools_freq.items(), key=lambda kv: kv[1], reverse=True)))
+    Compute the frequency of tool sequences after oversampling
+    """
+    freq_dict = dict()
+    freq_dict_names = dict()
+    for tr_data in oversampled_tr_data:
+        last_tool_id = str(int(tr_data[-1]))
+        if last_tool_id not in freq_dict:
+            freq_dict[last_tool_id] = 0
+            freq_dict_names[rev_dict[int(last_tool_id)]] = 0
+        freq_dict[last_tool_id] += 1
+        freq_dict_names[rev_dict[int(last_tool_id)]] += 1
+    print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
     print()
-    print(dict(sorted(t_freq_names.items(), key=lambda kv: kv[0], reverse=False)))
+    print(dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True)))
 
 
-def balanced_sample_generator(train_data, train_labels, batch_size, tool_tr_samples, tools_freq_inv_norm, rev_dict):
+def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples, inv_freq_norm, reverse_dictionary):
     while True:
+        p_dist = list()
         dimension = train_data.shape[1]
         n_classes = train_labels.shape[1]
-        p_dist = list()
-        tool_ids = list(tool_tr_samples.keys())
-        for t in tool_ids:
-            p_dist.append(tools_freq_inv_norm[t])
+        tool_ids = list(l_tool_tr_samples.keys())
+        random.shuffle(tool_ids)
         generator_batch_data = np.zeros([batch_size, dimension])
         generator_batch_labels = np.zeros([batch_size, n_classes])
+        for t in tool_ids:
+            p_dist.append(inv_freq_norm[t])
         generated_tool_ids = choice(tool_ids, batch_size, p=p_dist)
-        random.shuffle(generated_tool_ids)
         for i in range(batch_size):
-            random_toolid =  generated_tool_ids[i]
-            sample_indices = tool_tr_samples[random_toolid]
+            random_toolid = generated_tool_ids[i]
+            sample_indices = l_tool_tr_samples[str(random_toolid)]
             random_index = random.sample(range(0, len(sample_indices)), 1)[0]
             random_tr_index = sample_indices[random_index]
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
-        #verify_oversampling_freq(generator_batch_labels, rev_dict)
+        #verify_oversampling_freq(generator_batch_data, reverse_dictionary)
         yield generator_batch_data, generator_batch_labels
 
 
