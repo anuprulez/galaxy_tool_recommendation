@@ -253,6 +253,8 @@ class PrepareData:
 
         print("Complete data: %d" % len(multilabels_paths))
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
+        
+        utils.write_file("data/test_paths_dict.txt", test_paths_dict)
 
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))

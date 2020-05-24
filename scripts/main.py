@@ -49,9 +49,6 @@ class PredictTool:
         callbacks_list = [predict_callback_test]
         
         batch_size = int(best_params["batch_size"])
-        
-        import sys
-        sys.exit()
 
         print("Start training on the best model...")
         train_performance = dict()
