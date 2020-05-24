@@ -97,23 +97,31 @@ def verify_oversampling_freq(oversampled_tr_data, rev_dict):
             freq_dict_names[rev_dict[int(last_tool_id)]] = 0
         freq_dict[last_tool_id] += 1
         freq_dict_names[rev_dict[int(last_tool_id)]] += 1
-    print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
-    print()
-    print(dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True)))
+    #print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
+    s_freq = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
+    #print(s_freq)
+    return s_freq
 
 
-def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples, inv_freq_norm, reverse_dictionary):
+def collect_sampled_tool_freq(collected_dict, c_freq):
+    for t in c_freq:
+        if t not in collected_dict:
+            collected_dict[t] = int(c_freq[t])
+        else:
+            collected_dict[t] += int(c_freq[t])
+    return collected_dict
+
+
+def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples, reverse_dictionary):
+    l_tool_frequencies = dict()
     while True:
-        p_dist = list()
         dimension = train_data.shape[1]
         n_classes = train_labels.shape[1]
         tool_ids = list(l_tool_tr_samples.keys())
         random.shuffle(tool_ids)
         generator_batch_data = np.zeros([batch_size, dimension])
         generator_batch_labels = np.zeros([batch_size, n_classes])
-        for t in tool_ids:
-            p_dist.append(inv_freq_norm[t])
-        generated_tool_ids = choice(tool_ids, batch_size, p=p_dist)
+        generated_tool_ids = choice(tool_ids, batch_size)
         for i in range(batch_size):
             random_toolid = generated_tool_ids[i]
             sample_indices = l_tool_tr_samples[str(random_toolid)]
@@ -121,7 +129,9 @@ def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_sa
             random_tr_index = sample_indices[random_index]
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
-        #verify_oversampling_freq(generator_batch_data, reverse_dictionary)
+        freq = verify_oversampling_freq(generator_batch_data, reverse_dictionary)
+        l_tool_frequencies = collect_sampled_tool_freq(l_tool_frequencies, freq)
+        write_file("data/generated_tool_frequencies.txt", l_tool_frequencies)
         yield generator_batch_data, generator_batch_labels
 
 

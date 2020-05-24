@@ -211,23 +211,16 @@ class PrepareData:
         to estimate the frequency of tool sequences
         """
         last_tool_freq = dict()
-        inv_freq = dict()
-        inv_freq_norm = dict()
+        freq_dict_names = dict()
         for path in train_paths:
             last_tool = path.split(",")[-1]
             if last_tool not in last_tool_freq:
                 last_tool_freq[last_tool] = 0
+                freq_dict_names[reverse_dictionary[int(last_tool)]] = 0
             last_tool_freq[last_tool] += 1
-        max_freq = max(last_tool_freq.values())
-        for t in last_tool_freq:
-            inv_freq[t] = int(np.round(max_freq / float(last_tool_freq[t]), 0))
-        freq_sum = np.sum(list(inv_freq.values()))
-        for t in inv_freq:
-            inv_freq_norm[t] = inv_freq[t] / float(freq_sum)
-        utils.write_file("data/last_tool_freq.txt", last_tool_freq)
-        utils.write_file("data/inverse_last_tool_freq.txt", inv_freq)
-        utils.write_file("data/inv_freq_norm.txt", inv_freq_norm)
-        return last_tool_freq, inv_freq, inv_freq_norm
+            freq_dict_names[reverse_dictionary[int(last_tool)]] += 1
+        utils.write_file("data/freq_dict_names.txt", freq_dict_names)
+        return last_tool_freq
 
     def get_toolid_samples(self, train_data, l_tool_freq):
         l_tool_tr_samples = dict()
@@ -270,7 +263,7 @@ class PrepareData:
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
         
         print("Estimating sample frequency...")
-        l_tool_freq, inv_last_tool_freq, inv_freq_norm = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
+        l_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
         l_tool_tr_samples = self.get_toolid_samples(train_data, l_tool_freq)
 
         # Predict tools usage
@@ -283,4 +276,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
 
-        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, inv_freq_norm, l_tool_tr_samples
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, l_tool_tr_samples
