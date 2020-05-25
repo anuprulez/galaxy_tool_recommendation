@@ -20,7 +20,7 @@ class HyperparameterOptimisation:
         """ Init method. """
 
     @classmethod
-    def train_model(self, config, reverse_dictionary, train_data, train_labels, test_data, test_labels, l_tool_tr_samples, class_weights):
+    def train_model(self, config, reverse_dictionary, train_data, train_labels, test_data, test_labels, tool_tr_samples, class_weights):
         """
         Train a model and report accuracy
         """
@@ -72,7 +72,8 @@ class HyperparameterOptimisation:
                     train_data,
                     train_labels,
                     batch_size,
-                    l_tool_tr_samples
+                    tool_tr_samples,
+                    reverse_dictionary
                 ),
                 steps_per_epoch=len(train_data) // batch_size,
                 epochs=optimize_n_epochs,
