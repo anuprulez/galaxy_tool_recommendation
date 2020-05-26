@@ -8,7 +8,7 @@ import matplotlib.gridspec as gridspec
 
 warnings.filterwarnings("ignore")
 
-base_path = 'data_20_04/'
+base_path = 'data_20_05/'
 
 all_approaches_path = ['dnn/', 'dnn_wc/', 'cnn/', 'cnn_wc/', 'gru/', 'gru_wc/']
 
@@ -76,7 +76,7 @@ def compute_fill_between(a_list):
     return y1, y2
 
 
-def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
+'''def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
     x_val1 = x_val1[:epochs]
     x_val2 = x_val2[:epochs]
     loss_tr_y1 = loss_tr_y1[:epochs]
@@ -418,7 +418,53 @@ def assemble_lowest_published_precision():
         plt_title = titles[idx]
         plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
 assemble_lowest_published_precision()
-plt.show()
+plt.show()'''
+
+# =================== Plot bar plots for frequency for GRU WC =============================
+def plot_freq(y_val, title, xlabel, ylabel, leg):
+    x_pos = np.arange(len(y_val))
+    plt.bar(x_pos, y_val, color='b')
+    plt.title(title, size=size_title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    #ax.legend(leg, loc=leg_loc, prop={'size': leg_size})
+    plt.grid(True)
+    plt.show()
+  
+def assemble_freq(title, file_name, order_tools=None):
+    fig = plt.figure(figsize=fig_size)
+    tool_freq_dict = dict()
+    for i in range(1, runs+1):
+        path = base_path + 'gru_wc' + '/run' + str(i) + '/'
+        freq_path = path + file_name 
+        try:
+            with open(freq_path, 'r') as f:
+                data = json.loads(f.read())
+                for t in data:
+                    if t not in tool_freq_dict:
+                        tool_freq_dict[t] = list()
+                    tool_freq_dict[t].append(data[t])
+        except Exception as e:
+            print(e)
+            continue
+    t_names = list()
+    t_values = list()
+    if not order_tools:
+        for t in tool_freq_dict:
+            mean_frq = np.mean(tool_freq_dict[t])
+            tool_freq_dict[t] = mean_frq
+            t_names.append(t)
+            t_values.append(mean_frq)
+        plot_freq(t_values, title, "Tools", "Frequency of last tools", [])
+        return t_names
+    else:
+        for t in order_tools:
+            mean_frq = np.mean(tool_freq_dict[t])
+            t_values.append(mean_frq) 
+        plot_freq(t_values, title, "Tools", "Frequency of last tools", [])
+        
+order_tools = assemble_freq("Original frequency of last tools in original train tool sequences", 'freq_dict_names.txt')
+assemble_freq("Frequency of last tools in sampled train tool sequences", 'generated_tool_frequencies.txt', order_tools)
 
 ############## Plot data distribution
 
