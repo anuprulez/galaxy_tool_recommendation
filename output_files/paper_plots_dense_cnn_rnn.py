@@ -481,7 +481,7 @@ def plot_scatter(xval, yval1, yval2, title, xlabel, ylabel, leg):
 
 
 def assemble_low_precision(title, file_name):
-    n_calibrations = 10
+    n_calibrations = 20
     runs = 1
     run_pub_prec = np.zeros((runs, n_calibrations))
     run_norm_prec = np.zeros((runs, n_calibrations))
@@ -514,9 +514,9 @@ def assemble_low_precision(title, file_name):
     mean_last_t_freq = np.mean(run_last_t_freq, axis=0)
     mean_paths = np.mean(run_paths, axis=0)
     
-    plot_scatter(mean_last_t_freq, mean_pub_prec, mean_norm_prec, title, "Frequency of last tools in test tool sequences", "Top 1 Precision", ["Standard", "Normal"])
-    
-assemble_low_precision("Precision vs frequency of last tools of test tool sequences", "test_paths_low_freq_tool_perf.txt")
+    plot_scatter(mean_last_t_freq, mean_pub_prec, mean_norm_prec, title, "Frequency of last tools in train tool sequences", "Top 1 Precision for test tool sequences", ["Standard", "Normal"])
+plt_title = "Precision of test tool seqs. vs frequencies of their last tools in train tool seqs."
+assemble_low_precision(plt_title, "test_paths_low_freq_tool_perf.txt")
 ############## Plot data distribution
 
 '''paths_path = 'data/rnn_custom_loss/run1/paths.txt'
