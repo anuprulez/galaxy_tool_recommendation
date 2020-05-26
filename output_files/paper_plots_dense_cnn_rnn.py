@@ -421,7 +421,7 @@ assemble_lowest_published_precision()
 plt.show()'''
 
 # =================== Plot bar plots for frequency for GRU WC =============================
-def plot_freq(y_val, title, xlabel, ylabel, leg):
+'''def plot_freq(y_val, title, xlabel, ylabel, leg):
     x_pos = np.arange(len(y_val))
     plt.bar(x_pos, y_val, color='b')
     plt.title(title, size=size_title)
@@ -464,8 +464,59 @@ def assemble_freq(title, file_name, order_tools=None):
         plot_freq(t_values, title, "Tools", "Frequency of last tools", [])
         
 order_tools = assemble_freq("Original frequency of last tools in original train tool sequences", 'freq_dict_names.txt')
-assemble_freq("Frequency of last tools in sampled train tool sequences", 'generated_tool_frequencies.txt', order_tools)
+assemble_freq("Frequency of last tools in sampled train tool sequences", 'generated_tool_frequencies.txt', order_tools)'''
 
+# ================== Plot precision for low freq tools
+
+def plot_scatter(xval, yval1, yval2, title, xlabel, ylabel, leg):
+    plt.scatter(xval, yval1, c='r')
+    plt.scatter(xval, yval2, c='b')
+    plt.legend(leg, loc=leg_loc, prop={'size': leg_size})
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.ylim(0.5, 1.2)
+    plt.title(title)
+    plt.grid(True)
+    plt.show()
+
+
+def assemble_low_precision(title, file_name):
+    n_calibrations = 10
+    runs = 1
+    run_pub_prec = np.zeros((runs, n_calibrations))
+    run_norm_prec = np.zeros((runs, n_calibrations))
+    run_last_t_freq = np.zeros((runs, n_calibrations))
+    run_paths = np.zeros((runs, n_calibrations))
+    fig = plt.figure(figsize=fig_size)
+    tool_freq_dict = dict()
+    for i in range(1, runs+1):
+        path = base_path + 'gru_wc' + '/run' + str(i) + '/'
+        low_freq_prec_path = path + file_name 
+        try:
+            with open(low_freq_prec_path, 'r') as f:
+                data = f.read()
+                split_d = data.split("\t")
+                pub_prec = split_d[0]
+                norm_prec = split_d[1]
+                last_t_mean_freq = split_d[2]
+                n_paths = split_d[3]
+                
+                run_pub_prec[i-1][:] = pub_prec.split(",")
+                run_norm_prec[i-1][:] = norm_prec.split(",")
+                run_last_t_freq[i-1][:] = last_t_mean_freq.split(",")
+                run_paths[i-1][:] = n_paths.split(",")
+                
+        except Exception as e:
+            print(e)
+            continue
+    mean_pub_prec = np.mean(run_pub_prec, axis=0)
+    mean_norm_prec = np.mean(run_norm_prec, axis=0)
+    mean_last_t_freq = np.mean(run_last_t_freq, axis=0)
+    mean_paths = np.mean(run_paths, axis=0)
+    
+    plot_scatter(mean_last_t_freq, mean_pub_prec, mean_norm_prec, title, "Frequency of last tools in test tool sequences", "Top 1 Precision", ["Standard", "Normal"])
+    
+assemble_low_precision("Precision vs frequency of last tools of test tool sequences", "test_paths_low_freq_tool_perf.txt")
 ############## Plot data distribution
 
 '''paths_path = 'data/rnn_custom_loss/run1/paths.txt'
