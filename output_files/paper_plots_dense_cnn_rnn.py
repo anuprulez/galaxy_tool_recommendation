@@ -474,14 +474,14 @@ def plot_scatter(xval, yval1, yval2, title, xlabel, ylabel, leg):
     plt.legend(leg, loc=leg_loc, prop={'size': leg_size})
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.ylim(0.5, 1.2)
+    plt.ylim(-0.1, 1.1)
     plt.title(title)
     plt.grid(True)
     plt.show()
 
 
 def assemble_low_precision(title, file_name):
-    n_calibrations = 20
+    n_calibrations = 50
     runs = 1
     run_pub_prec = np.zeros((runs, n_calibrations))
     run_norm_prec = np.zeros((runs, n_calibrations))
@@ -509,10 +509,10 @@ def assemble_low_precision(title, file_name):
         except Exception as e:
             print(e)
             continue
-    mean_pub_prec = np.mean(run_pub_prec, axis=0)
-    mean_norm_prec = np.mean(run_norm_prec, axis=0)
-    mean_last_t_freq = np.mean(run_last_t_freq, axis=0)
-    mean_paths = np.mean(run_paths, axis=0)
+    mean_pub_prec = np.nanmean(run_pub_prec, axis=0)
+    mean_norm_prec = np.nanmean(run_norm_prec, axis=0)
+    mean_last_t_freq = np.nanmean(run_last_t_freq, axis=0)
+    mean_paths = np.nanmean(run_paths, axis=0)
     
     plot_scatter(mean_last_t_freq, mean_pub_prec, mean_norm_prec, title, "Frequency of last tools in train tool sequences", "Top 1 Precision for test tool sequences", ["Standard", "Normal"])
 plt_title = "Precision of test tool seqs. vs frequencies of their last tools in train tool seqs."
