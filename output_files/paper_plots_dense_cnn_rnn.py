@@ -27,10 +27,11 @@ runs = 10
 epochs = 10
 
 loss_ylim = (0.0, 1.0)
-usage_ylim = (2.5, 5.0)
+usage_ylim = (1.0, 5.0)
+top_legend = ['Top1', 'Top2']
 
 gs = gridspec.GridSpec(3,2)
-leg_loc = 3
+leg_loc = 4
 leg_size = 18
 
 
@@ -76,7 +77,7 @@ def compute_fill_between(a_list):
     return y1, y2
 
 
-'''def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
+def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
     x_val1 = x_val1[:epochs]
     x_val2 = x_val2[:epochs]
     loss_tr_y1 = loss_tr_y1[:epochs]
@@ -145,11 +146,11 @@ def plot_usage(ax, x_val1, y1_top1, y2_top1, x_val2, y1_top2, y2_top2, x_val3, y
     x_pos = np.arange(len(x_val1))
     ax.plot(x_pos, x_val1, 'r')
     ax.plot(x_pos, x_val2, 'b')
-    ax.plot(x_pos, x_val3, 'g')
+    #ax.plot(x_pos, x_val3, 'g')
     ax.set_title(title, size=size_title)
     ax.fill_between(x_pos, y1_top1, y2_top1, color = 'r', alpha = alpha_fade)
     ax.fill_between(x_pos, y1_top2, y2_top2, color = 'b', alpha = alpha_fade)
-    ax.fill_between(x_pos, y1_top3, y2_top3, color = 'g', alpha = alpha_fade)
+    #ax.fill_between(x_pos, y1_top3, y2_top3, color = 'g', alpha = alpha_fade)
     ax.legend(leg, loc=leg_loc, prop={'size': leg_size})
     ax.set_ylim(usage_ylim)
     ax.grid(True)
@@ -197,29 +198,29 @@ def assemble_usage():
         y1_top2, y2_top2 = compute_fill_between(usage_top2)
         y1_top3, y2_top3 = compute_fill_between(usage_top3)
         plt_title = titles[idx]
-
-        plot_usage(ax, mean_top1_usage, mean_top1_usage - y1_top1, mean_top1_usage + y2_top1, mean_top2_usage, mean_top2_usage - y1_top2, mean_top2_usage + y2_top2, mean_top3_usage, mean_top3_usage - y1_top3, mean_top3_usage + y2_top3, plt_title, "Training iterations (epochs)", "Mean log usage frequency", ['Top1', 'Top2', 'Top3'])
+        leg = top_legend
+        plot_usage(ax, mean_top1_usage, mean_top1_usage - y1_top1, mean_top1_usage + y2_top1, mean_top2_usage, mean_top2_usage - y1_top2, mean_top2_usage + y2_top2, mean_top3_usage, mean_top3_usage - y1_top3, mean_top3_usage + y2_top3, plt_title, "Training iterations (epochs)", "Mean log usage frequency", leg)
 assemble_usage()
 plt.show()
 
 
-def plot_accuracy(ax, x_val1, y1_top1, y2_top1, x_val2, y1_top2, y2_top2, x_val3, y1_top3, y2_top3, title, xlabel, ylabel, leg, precision_ylim=(0.8, 1.0)):
+def plot_accuracy(ax, x_val1, y1_top1, y2_top1, x_val2, y1_top2, y2_top2, x_val3, y1_top3, y2_top3, title, xlabel, ylabel, leg=top_legend, precision_ylim=(0.4, 1.2)):
     x_pos = np.arange(len(x_val1))
     ax.plot(x_pos, x_val1, 'r')
     ax.plot(x_pos, x_val2, 'b')
-    ax.plot(x_pos, x_val3, 'g')
+    #ax.plot(x_pos, x_val3, 'g')
 
     ax.set_title(title, size=size_title)
     ax.fill_between(x_pos, y1_top1, y2_top1, color = 'r', alpha = alpha_fade)
     ax.fill_between(x_pos, y1_top2, y2_top2, color = 'b', alpha = alpha_fade)
-    ax.fill_between(x_pos, y1_top3, y2_top3, color = 'g', alpha = alpha_fade)
-    ax.legend(leg, loc=leg_loc, prop={'size': leg_size})
+    #ax.fill_between(x_pos, y1_top3, y2_top3, color = 'g', alpha = alpha_fade)
+    ax.legend(top_legend, loc=leg_loc, prop={'size': leg_size})
     ax.set_ylim(precision_ylim)
     plt.grid(True)
 
-def assemble_accuracy():
+def assemble_accuracy(sup_title):
     fig = plt.figure(figsize=fig_size)
-    fig.suptitle('Mean precision@k for multiple neural network architectures', size=size_title + 2)
+    fig.suptitle(sup_title, size=size_title + 2)
     for idx, approach in enumerate(all_approaches_path):
         if idx == 0:
             ax = plt.subplot(gs[0,0])
@@ -263,15 +264,15 @@ def assemble_accuracy():
         y1_top2, y2_top2 = compute_fill_between(precision_acc_top2)
         y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
         plt_title = titles[idx]
-        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'])
-assemble_accuracy()
+        
+        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k")
+assemble_accuracy('Mean normal precision@k for multiple neural network architectures')
 plt.show()
 
 
-def assemble_published_precision():
-    precision_ylim = (0.25, 1.0)
+def assemble_published_precision(sup_title):
     fig = plt.figure(figsize=fig_size)
-    fig.suptitle('Mean published precision@k for multiple neural network architectures', size=size_title + 2)
+    fig.suptitle(sup_title, size=size_title + 2)
     for idx, approach in enumerate(all_approaches_path):
         if idx == 0:
             ax = plt.subplot(gs[0,0])
@@ -314,8 +315,8 @@ def assemble_published_precision():
         y1_top2, y2_top2 = compute_fill_between(precision_acc_top2)
         y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
         plt_title = titles[idx]
-        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
-assemble_published_precision()
+        plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k")
+assemble_published_precision('Mean standard precision@k for multiple neural network architectures')
 plt.show()
 
 
@@ -366,14 +367,14 @@ def assemble_lowest_normal_precision():
         y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
         plt_title = titles[idx]
         plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
-assemble_lowest_normal_precision()
+#assemble_lowest_normal_precision()
 plt.show()
 
 
 def assemble_lowest_published_precision():
     precision_ylim = (0.0, 0.4)
     fig = plt.figure(figsize=fig_size)
-    fig.suptitle('Mean published precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
+    fig.suptitle('Mean standard precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
     for idx, approach in enumerate(all_approaches_path):
         if idx == 0:
             ax = plt.subplot(gs[0,0])
@@ -417,13 +418,13 @@ def assemble_lowest_published_precision():
         y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
         plt_title = titles[idx]
         plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k", ['Top1', 'Top2', 'Top3'], precision_ylim)
-assemble_lowest_published_precision()
-plt.show()'''
+#assemble_lowest_published_precision()
+plt.show()
 
 # =================== Plot bar plots for frequency for GRU WC =============================
-'''def plot_freq(y_val, title, xlabel, ylabel, leg):
+def plot_freq(y_val, title, xlabel, ylabel, leg):
     x_pos = np.arange(len(y_val))
-    plt.bar(x_pos, y_val, color='b')
+    plt.plot(x_pos, y_val, color='b')
     plt.title(title, size=size_title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -455,34 +456,32 @@ def assemble_freq(title, file_name, order_tools=None):
             tool_freq_dict[t] = mean_frq
             t_names.append(t)
             t_values.append(mean_frq)
-        plot_freq(t_values, title, "Tools", "Frequency of last tools", [])
-        return t_names
+        plot_freq(t_values, title, "Number of tools", "Frequency", [])
     else:
         for t in order_tools:
             mean_frq = np.mean(tool_freq_dict[t])
             t_values.append(mean_frq) 
-        plot_freq(t_values, title, "Tools", "Frequency of last tools", [])
+        plot_freq(t_values, title, "Number of tools", "Frequency", [])
         
-order_tools = assemble_freq("Original frequency of last tools in original train tool sequences", 'freq_dict_names.txt')
-assemble_freq("Frequency of last tools in sampled train tool sequences", 'generated_tool_frequencies.txt', order_tools)'''
+order_tools = assemble_freq("Mean frequency of last tools in train tool sequences", 'freq_dict_names.txt')
+assemble_freq("Mean frequency of last tools in train tool sequences", 'generated_tool_frequencies.txt', order_tools)
 
 # ================== Plot precision for low freq tools
 
-def plot_scatter(xval, yval1, yval2, title, xlabel, ylabel, leg):
-    plt.scatter(xval, yval1, c='r')
-    plt.scatter(xval, yval2, c='b')
-    plt.legend(leg, loc=leg_loc, prop={'size': leg_size})
+def plot_scatter(xval, yval1, title, xlabel, ylabel):
+    plt.scatter(xval, yval1, c='b')
+    #plt.legend(leg, loc=leg_loc, prop={'size': leg_size})
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.ylim(-0.1, 1.1)
     plt.title(title)
     plt.grid(True)
     plt.show()
+    
 
-
-def assemble_low_precision(title, file_name):
+def assemble_low_precision(file_name):
     n_calibrations = 50
-    runs = 1
+    runs = 10
     run_pub_prec = np.zeros((runs, n_calibrations))
     run_norm_prec = np.zeros((runs, n_calibrations))
     run_last_t_freq = np.zeros((runs, n_calibrations))
@@ -514,9 +513,12 @@ def assemble_low_precision(title, file_name):
     mean_last_t_freq = np.nanmean(run_last_t_freq, axis=0)
     mean_paths = np.nanmean(run_paths, axis=0)
     
-    plot_scatter(mean_last_t_freq, mean_pub_prec, mean_norm_prec, title, "Frequency of last tools in train tool sequences", "Top 1 Precision for test tool sequences", ["Standard", "Normal"])
-plt_title = "Precision of test tool seqs. vs frequencies of their last tools in train tool seqs."
-assemble_low_precision(plt_title, "test_paths_low_freq_tool_perf.txt")
+    plt_title = "Mean normal precision@k vs frequencies of last tools"
+    plot_scatter(mean_last_t_freq, mean_norm_prec, plt_title, "Frequency of last tools in train tool sequences", "Top 1 precision for test tool sequences")
+    plt_title = "Mean standard precision@k vs frequencies of last tools"
+    plot_scatter(mean_last_t_freq, mean_pub_prec, plt_title, "Frequency of last tools in train tool sequences", "Top 1 precision for test tool sequences")
+
+assemble_low_precision("test_paths_low_freq_tool_perf.txt")
 ############## Plot data distribution
 
 '''paths_path = 'data/rnn_custom_loss/run1/paths.txt'
