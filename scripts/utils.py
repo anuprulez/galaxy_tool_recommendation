@@ -5,6 +5,8 @@ import h5py
 import random
 from numpy.random import choice
 
+from sklearn.metrics import log_loss
+
 from keras import backend as K
 
 
@@ -70,18 +72,14 @@ def remove_file(file_path):
         os.remove(file_path)
 
 
-def weighted_loss(class_weights):
-    """
-    Create a weighted loss function. Penalise the misclassification
-    of classes more with the higher usage
-    """
+def compute_weighted_loss(y_true, y_pred, class_weights):
     weight_values = list(class_weights.values())
     weight_values.extend(weight_values)
-    def weighted_binary_crossentropy(y_true, y_pred):
-        # add another dimension to compute dot product
-        expanded_weights = K.expand_dims(weight_values, axis=-1)
-        return K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights)
-    return weighted_binary_crossentropy
+    expanded_weights = K.expand_dims(weight_values, axis=-1)
+    y_true = K.cast(y_true, dtype='float32')
+    y_pred = K.cast(y_pred, dtype='float32')
+    loss = K.get_value(K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights))
+    return np.mean(loss)
 
 
 def verify_oversampling_freq(oversampled_tr_data, rev_dict):
@@ -135,7 +133,7 @@ def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_sa
         yield generator_batch_data, generator_batch_labels
 
 
-def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual_classes_pos, topk, standard_conn, last_tool_id, lowest_tool_ids):
+def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual_classes_pos, topk, standard_conn, last_tool_id):
     """
     Compute absolute and compatible precision
     """
@@ -144,14 +142,12 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
     mean_usage = 0.0
     usage_wt_score = list()
     pub_precision = 0.0
-    lowest_pub_prec = 0.0
-    lowest_norm_prec = 0.0
     pub_tools = list()
     actual_next_tool_names = list()
     test_sample = np.reshape(x, (1, len(x)))
 
     # predict next tools for a test path
-    prediction = model.predict(test_sample, verbose=0)
+    prediction = model.predict(test_sample)
 
     # divide the predicted vector into two halves - one for published and
     # another for normal workflows
@@ -186,18 +182,12 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
             pub_tools = standard_conn[last_tool_name]
             if pred_t_name in pub_tools:
                 pub_precision = 1.0
-                # count precision only when there is actually true published tools
-                if last_tool_id in lowest_tool_ids:
-                    lowest_pub_prec = 1.0
-                else:
-                    lowest_pub_prec = np.nan
                 if standard_topk_prediction_pos in usage_scores:
                     usage_wt_score.append(np.log(usage_scores[standard_topk_prediction_pos] + 1.0))
         else:
             # count precision only when there is actually true published tools
             # else set to np.nan. Set to 0 only when there is wrong prediction
             pub_precision = np.nan
-            lowest_pub_prec = np.nan
     # compute scores for normal recommendations
     if normal_topk_prediction_pos in reverse_data_dictionary:
         pred_t_name = reverse_data_dictionary[int(normal_topk_prediction_pos)]
@@ -205,23 +195,12 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
             if normal_topk_prediction_pos in usage_scores:
                 usage_wt_score.append(np.log(usage_scores[normal_topk_prediction_pos] + 1.0))
             top_precision = 1.0
-            if last_tool_id in lowest_tool_ids:
-                lowest_norm_prec = 1.0
-            else:
-                lowest_norm_prec = np.nan
     if len(usage_wt_score) > 0:
         mean_usage = np.mean(usage_wt_score)
-    return mean_usage, top_precision, pub_precision, lowest_pub_prec, lowest_norm_prec
+    return mean_usage, top_precision, pub_precision
 
 
-def get_lowest_tools(l_tool_freq, fraction=0.25):
-    l_tool_freq = dict(sorted(l_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
-    tool_ids = list(l_tool_freq.keys())
-    lowest_ids = tool_ids[-int(len(tool_ids) * fraction):]
-    return lowest_ids
-
-
-def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_conn, lowest_tool_ids, topk_list=[1, 2, 3]):
+def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_conn, topk_list=[1, 2, 3]):
     """
     Verify the model on test data
     """
@@ -231,33 +210,20 @@ def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_co
     precision = np.zeros([len(y), len(topk_list)])
     usage_weights = np.zeros([len(y), len(topk_list)])
     epo_pub_prec = np.zeros([len(y), len(topk_list)])
-    epo_lowest_tools_pub_prec = list()
-    epo_lowest_tools_norm_prec = list()
-    lowest_counter = 0
     # loop over all the test samples and find prediction precision
     for i in range(size):
-        lowest_pub_topk = list()
-        lowest_norm_topk = list()
         actual_classes_pos = np.where(y[i] > 0)[0]
         test_sample = x[i, :]
         last_tool_id = str(int(test_sample[-1]))
         for index, abs_topk in enumerate(topk_list):
-            usg_wt_score, absolute_precision, pub_prec, lowest_p_prec, lowest_n_prec = compute_precision(model, test_sample, y, reverse_data_dictionary, usage_scores, actual_classes_pos, abs_topk, standard_conn, last_tool_id, lowest_tool_ids)
+            usg_wt_score, absolute_precision, pub_prec = compute_precision(model, test_sample, y, reverse_data_dictionary, usage_scores, actual_classes_pos, abs_topk, standard_conn, last_tool_id)
             precision[i][index] = absolute_precision
             usage_weights[i][index] = usg_wt_score
             epo_pub_prec[i][index] = pub_prec
-            lowest_pub_topk.append(lowest_p_prec)
-            lowest_norm_topk.append(lowest_n_prec)
-        epo_lowest_tools_pub_prec.append(lowest_pub_topk)
-        epo_lowest_tools_norm_prec.append(lowest_norm_topk)
-        if last_tool_id in lowest_tool_ids:
-            lowest_counter += 1
     mean_precision = np.mean(precision, axis=0)
     mean_usage = np.mean(usage_weights, axis=0)
     mean_pub_prec = np.nanmean(epo_pub_prec, axis=0)
-    mean_lowest_pub_prec = np.nanmean(epo_lowest_tools_pub_prec, axis=0)
-    mean_lowest_norm_prec = np.nanmean(epo_lowest_tools_norm_prec, axis=0)
-    return mean_usage, mean_precision, mean_pub_prec, mean_lowest_pub_prec, mean_lowest_norm_prec, lowest_counter
+    return mean_usage, mean_precision, mean_pub_prec
 
 
 def save_results(results):
@@ -273,10 +239,6 @@ def save_results(results):
         np.savetxt("data/published_precision.txt", results["published_precision"])
     if "standard_connections" in results:
         write_file("data/standard_connections.txt", results["standard_connections"])
-    if "lowest_pub_precision" in results:
-        np.savetxt("data/lowest_pub_precision.txt", results["lowest_pub_precision"])
-    if "lowest_norm_precision" in results:
-        np.savetxt("data/lowest_norm_precision.txt", results["lowest_norm_precision"])
 
 
 def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections):
