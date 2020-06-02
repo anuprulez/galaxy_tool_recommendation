@@ -43,7 +43,8 @@ class HyperparameterOptimisation:
 
         def classifier(params):
             rf_classifier = RandomForestClassifier(**params)
-            trained_clf = rf_classifier.fit(train_data, train_labels)
+            tr_data, tr_labels = utils.balanced_sample_generator(train_data, train_labels, train_data.shape[0], tool_tr_samples, reverse_dictionary)
+            trained_clf = rf_classifier.fit(tr_data, tr_labels)
             y_pred = trained_clf.predict(test_data)
             return utils.compute_weighted_loss(test_labels, y_pred, class_weights), trained_clf
 
@@ -66,6 +67,4 @@ class HyperparameterOptimisation:
             else:
                 val = learned_params[item]
             best_model_params[item] = val
-        print(learned_params)
-        print(best_model_params)
         return best_model_params, best_model

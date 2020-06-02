@@ -4,6 +4,7 @@ import json
 import h5py
 import random
 from numpy.random import choice
+import pickle
 
 from sklearn.metrics import log_loss
 
@@ -45,25 +46,18 @@ def format_tool_id(tool_link):
     return tool_id
 
 
-def set_trained_model(dump_file, model_values):
+def set_trained_model(output_model, trained_model, model_values):
     """
     Create an h5 file with the trained weights and associated dicts
     """
-    hf_file = h5py.File(dump_file, 'w')
+    from joblib import dump
+    hf_file = h5py.File(output_model, 'w')
     for key in model_values:
         value = model_values[key]
-        if key == 'model_weights':
-            for idx, item in enumerate(value):
-                w_key = "weight_" + str(idx)
-                if w_key in hf_file:
-                    hf_file.modify(w_key, item)
-                else:
-                    hf_file.create_dataset(w_key, data=item)
+        if key == 'model':
+            dump(value, trained_model)
         else:
-            if key in hf_file:
-                hf_file.modify(key, json.dumps(value))
-            else:
-                hf_file.create_dataset(key, data=json.dumps(value))
+            hf_file.create_dataset(key, data=json.dumps(value))
     hf_file.close()
 
 
@@ -110,27 +104,26 @@ def collect_sampled_tool_freq(collected_dict, c_freq):
     return collected_dict
 
 
-def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples, reverse_dictionary):
+def balanced_sample_generator(train_data, train_labels, new_size, l_tool_tr_samples, reverse_dictionary):
     l_tool_frequencies = dict()
-    while True:
-        dimension = train_data.shape[1]
-        n_classes = train_labels.shape[1]
-        tool_ids = list(l_tool_tr_samples.keys())
-        random.shuffle(tool_ids)
-        generator_batch_data = np.zeros([batch_size, dimension])
-        generator_batch_labels = np.zeros([batch_size, n_classes])
-        generated_tool_ids = choice(tool_ids, batch_size)
-        for i in range(batch_size):
-            random_toolid = generated_tool_ids[i]
-            sample_indices = l_tool_tr_samples[str(random_toolid)]
-            random_index = random.sample(range(0, len(sample_indices)), 1)[0]
-            random_tr_index = sample_indices[random_index]
-            generator_batch_data[i] = train_data[random_tr_index]
-            generator_batch_labels[i] = train_labels[random_tr_index]
-        freq = verify_oversampling_freq(generator_batch_data, reverse_dictionary)
-        l_tool_frequencies = collect_sampled_tool_freq(l_tool_frequencies, freq)
-        write_file("data/generated_tool_frequencies.txt", l_tool_frequencies)
-        yield generator_batch_data, generator_batch_labels
+    dimension = train_data.shape[1]
+    n_classes = train_labels.shape[1]
+    tool_ids = list(l_tool_tr_samples.keys())
+    random.shuffle(tool_ids)
+    generator_batch_data = np.zeros([new_size, dimension])
+    generator_batch_labels = np.zeros([new_size, n_classes])
+    generated_tool_ids = choice(tool_ids, new_size)
+    for i in range(new_size):
+        random_toolid = generated_tool_ids[i]
+        sample_indices = l_tool_tr_samples[str(random_toolid)]
+        random_index = random.sample(range(0, len(sample_indices)), 1)[0]
+        random_tr_index = sample_indices[random_index]
+        generator_batch_data[i] = train_data[random_tr_index]
+        generator_batch_labels[i] = train_labels[random_tr_index]
+    freq = verify_oversampling_freq(generator_batch_data, reverse_dictionary)
+    l_tool_frequencies = collect_sampled_tool_freq(l_tool_frequencies, freq)
+    write_file("data/generated_tool_frequencies.txt", l_tool_frequencies)
+    return generator_batch_data, generator_batch_labels
 
 
 def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual_classes_pos, topk, standard_conn, last_tool_id):
@@ -241,21 +234,18 @@ def save_results(results):
         write_file("data/standard_connections.txt", results["standard_connections"])
 
 
-def save_model(results, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections):
+def save_model(results, data_dictionary, compatible_next_tools, output_model_path, trained_model_path, class_weights, standard_connections):
     # save files
     trained_model = results["model"]
     best_model_parameters = results["best_parameters"]
-    model_config = trained_model.to_json()
-    model_weights = trained_model.get_weights()
     model_values = {
         'data_dictionary': data_dictionary,
-        'model_config': model_config,
         'best_parameters': best_model_parameters,
-        'model_weights': model_weights,
+        'model': trained_model,
         "compatible_tools": compatible_next_tools,
         "class_weights": class_weights,
         "standard_connections": standard_connections
     }
-    set_trained_model(trained_model_path, model_values)
+    set_trained_model(output_model_path, trained_model_path, model_values)
     results["standard_connections"] = standard_connections
     save_results(results)

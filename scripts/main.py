@@ -83,7 +83,8 @@ if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-wf", "--workflow_file", required=True, help="workflows tabular file")
     arg_parser.add_argument("-tu", "--tool_usage_file", required=True, help="tool usage file")
-    arg_parser.add_argument("-om", "--output_model", required=True, help="trained model file")
+    arg_parser.add_argument("-om", "--output_model", required=True, help="model file")
+    arg_parser.add_argument("-tm", "--trained_model", required=True, help="trained model file")
     # data parameters
     arg_parser.add_argument("-cd", "--cutoff_date", required=True, help="earliest date for taking tool usage")
     arg_parser.add_argument("-pl", "--maximum_path_length", required=True, help="maximum length of tool path")
@@ -103,7 +104,8 @@ if __name__ == "__main__":
     workflows_path = args["workflow_file"]
     cutoff_date = args["cutoff_date"]
     maximum_path_length = int(args["maximum_path_length"])
-    trained_model_path = args["output_model"]
+    output_model_path = args["output_model"]
+    trained_model_path = args["trained_model"]
     max_evals = int(args["max_evals"])
     test_share = float(args["test_share"])
 
@@ -144,7 +146,7 @@ if __name__ == "__main__":
     print(results_weighted["best_parameters"])
     print()
     utils.write_file("data/train_last_tools.txt", train_tool_freq)
-    '''utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections)'''
+    utils.save_model(results_weighted, data_dictionary, compatible_next_tools, output_model_path, trained_model_path, class_weights, standard_connections)
     end_time = time.time()
     print()
     print("Program finished in %s seconds" % str(end_time - start_time))
