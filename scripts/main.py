@@ -31,7 +31,7 @@ class PredictTool:
         )
         K.set_session(tf.Session(config=cpu_config))
 
-    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples):
+    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples):
         """
         Define recurrent neural network and train sequential data
         """
@@ -39,7 +39,7 @@ class PredictTool:
         train_performance = dict()
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
         best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, tool_tr_samples, class_weights)
-        evaluate_m = EvaluateModel(test_data, test_labels, reverse_dictionary, n_epochs, usage_pred, standard_connections, best_model)
+        evaluate_m = EvaluateModel(test_data, test_labels, reverse_dictionary, usage_pred, standard_connections, best_model)
         usage_weights, precision, published_precision = evaluate_m.evaluate_test()
 
         train_performance["precision"] = precision
@@ -51,14 +51,13 @@ class PredictTool:
 
 
 class EvaluateModel():
-    def __init__(self, test_data, test_labels, reverse_data_dictionary, n_epochs, usg_scores, standard_connections, best_model):
+    def __init__(self, test_data, test_labels, reverse_data_dictionary, usg_scores, standard_connections, best_model):
         self.test_data = test_data
         self.test_labels = test_labels
         self.reverse_data_dictionary = reverse_data_dictionary
         self.precision = list()
         self.usage_weights = list()
         self.published_precision = list()
-        self.n_epochs = n_epochs
         self.pred_usage_scores = usg_scores
         self.standard_connections = standard_connections
         self.model = best_model
@@ -88,18 +87,14 @@ if __name__ == "__main__":
     # data parameters
     arg_parser.add_argument("-cd", "--cutoff_date", required=True, help="earliest date for taking tool usage")
     arg_parser.add_argument("-pl", "--maximum_path_length", required=True, help="maximum length of tool path")
-    arg_parser.add_argument("-ep", "--n_epochs", required=True, help="number of iterations to run to create model")
-    arg_parser.add_argument("-oe", "--optimize_n_epochs", required=True, help="number of iterations to run to find best model parameters")
     arg_parser.add_argument("-me", "--max_evals", required=True, help="maximum number of configuration evaluations")
     arg_parser.add_argument("-ts", "--test_share", required=True, help="share of data to be used for testing")
     # neural network parameters
-    arg_parser.add_argument("-bs", "--batch_size", required=True, help="size of the tranining batch i.e. the number of samples per batch")
-    arg_parser.add_argument("-ut", "--units", required=True, help="number of hidden recurrent units")
-    arg_parser.add_argument("-es", "--embedding_size", required=True, help="size of the fixed vector learned for each tool")
-    arg_parser.add_argument("-dt", "--dropout", required=True, help="percentage of neurons to be dropped")
-    arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
-    arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
-    arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
+    arg_parser.add_argument("-ne", "--num_estimators", required=True, help="number of estimators")
+    arg_parser.add_argument("-ct", "--criterion", required=True, help="function to measure the quality of a split")
+    arg_parser.add_argument("-mss", "--min_samples_split", required=True, help="size of the fixed vector learned for each tool")
+    arg_parser.add_argument("-md", "--max_depth", required=True, help="maximum depth of the tree")
+    arg_parser.add_argument("-mf", "--max_features", required=True, help="number of features to consider when looking for the best split")
     arg_parser.add_argument("-cpus", "--num_cpus", required=True, help="number of cpus for parallelism")
 
     # get argument values
@@ -109,17 +104,14 @@ if __name__ == "__main__":
     cutoff_date = args["cutoff_date"]
     maximum_path_length = int(args["maximum_path_length"])
     trained_model_path = args["output_model"]
-    n_epochs = int(args["n_epochs"])
-    optimize_n_epochs = int(args["optimize_n_epochs"])
     max_evals = int(args["max_evals"])
     test_share = float(args["test_share"])
-    batch_size = args["batch_size"]
-    units = args["units"]
-    embedding_size = args["embedding_size"]
-    dropout = args["dropout"]
-    spatial_dropout = args["spatial_dropout"]
-    recurrent_dropout = args["recurrent_dropout"]
-    learning_rate = args["learning_rate"]
+
+    n_estimators = args["num_estimators"]
+    criterion = args["criterion"]
+    min_samples_split = args["min_samples_split"]
+    max_depth = args["max_depth"]
+    max_features = args["max_features"]
     num_cpus = int(args["num_cpus"])
 
     config = {
@@ -127,6 +119,11 @@ if __name__ == "__main__":
         'maximum_path_length': maximum_path_length,
         'max_evals': max_evals,
         'test_share': test_share,
+        'n_estimators': n_estimators,
+        'criterion': criterion,
+        'min_samples_split': min_samples_split,
+        'max_depth': max_depth,
+        'max_features': max_features,
         'num_cpus': num_cpus
     }
 
@@ -141,7 +138,7 @@ if __name__ == "__main__":
     predict_tool = PredictTool(num_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
-    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples)
+    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples)
     print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])

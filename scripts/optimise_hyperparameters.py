@@ -20,26 +20,25 @@ class HyperparameterOptimisation:
         """
         Train a model and report accuracy
         """
-        # convert items to integer
-        '''l_batch_size = list(map(int, config["batch_size"].split(",")))
-        l_embedding_size = list(map(int, config["embedding_size"].split(",")))
-        l_units = list(map(int, config["units"].split(",")))
+        l_estimators = list(map(int, config["n_estimators"].split(",")))
+        l_criterion = config["criterion"].split(",")
+        l_max_depth = list(map(int, config["max_depth"].split(",")))
+        l_min_samples_split = list(map(float, config["min_samples_split"].split(",")))
+        l_max_features = config["max_features"].split(",")
+        l_max_features.append(None)
+        l_bootstrap = [True, False]
 
-        # convert items to float
-        l_learning_rate = list(map(float, config["learning_rate"].split(",")))
-        l_dropout = list(map(float, config["dropout"].split(",")))
-        l_spatial_dropout = list(map(float, config["spatial_dropout"].split(",")))
-        l_recurrent_dropout = list(map(float, config["recurrent_dropout"].split(",")))
-
-        optimize_n_epochs = int(config["optimize_n_epochs"])'''
-
-        # get dimensions
         dimensions = len(reverse_dictionary) + 1
         best_model_params = dict()
 
         search_space = {
-            'n_estimators': hp.choice('n_estimators', range(10, 20))
-            'n_jobs': 
+            'n_estimators': hp.choice('n_estimators', range(l_estimators[0], l_estimators[1])),
+            'max_depth': hp.choice('max_depth', range(l_max_depth[0], l_max_depth[1])),
+            'min_samples_split': hp.loguniform("min_samples_split", np.log(l_min_samples_split[0]), np.log(l_min_samples_split[1])),
+            'criterion': hp.choice('criterion', l_criterion),
+            'max_features': hp.choice('max_features', l_max_features),
+            'bootstrap': hp.choice('bootstrap', l_bootstrap),
+            'n_jobs': int(config["num_cpus"])
         }
 
         def classifier(params):
@@ -58,7 +57,15 @@ class HyperparameterOptimisation:
         best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
         # set the best params with respective values
         for item in learned_params:
-            item_val = learned_params[item]
-            best_model_params[item] = item_val
+            if item == "criterion":
+                val = l_criterion[learned_params[item]]
+            elif item == "bootstrap":
+                val = l_bootstrap[learned_params[item]]
+            elif item == "max_features":
+                val = l_max_features[learned_params[item]]
+            else:
+                val = learned_params[item]
+            best_model_params[item] = val
+        print(learned_params)
         print(best_model_params)
         return best_model_params, best_model
