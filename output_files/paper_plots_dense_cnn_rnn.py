@@ -463,8 +463,8 @@ def assemble_freq(title, file_name, order_tools=None):
             t_values.append(mean_frq) 
         plot_freq(t_values, title, "Number of tools", "Frequency", [])
         
-order_tools = assemble_freq("Mean frequency of last tools in train tool sequences", 'freq_dict_names.txt')
-assemble_freq("Mean frequency of last tools in train tool sequences", 'generated_tool_frequencies.txt', order_tools)
+order_tools = assemble_freq("Mean frequency (before uniform sampling) of last tools in train tool sequences", 'freq_dict_names.txt')
+assemble_freq("Mean frequency (after uniform sampling) of last tools in train tool sequences", 'generated_tool_frequencies.txt', order_tools)
 
 # ================== Plot precision for low freq tools
 
