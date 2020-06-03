@@ -20,16 +20,8 @@ import utils
 
 class PredictTool:
 
-    def __init__(self, num_cpus):
+    def __init__(self):
         """ Init method. """
-        # set the number of cpus
-        cpu_config = tf.ConfigProto(
-            device_count={"CPU": num_cpus},
-            intra_op_parallelism_threads=num_cpus,
-            inter_op_parallelism_threads=num_cpus,
-            allow_soft_placement=True
-        )
-        K.set_session(tf.Session(config=cpu_config))
 
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples):
         """
@@ -137,7 +129,7 @@ if __name__ == "__main__":
     data = prepare_data.PrepareData(maximum_path_length, test_share)
     train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, train_tool_freq, tool_tr_samples = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
     # find the best model and start training
-    predict_tool = PredictTool(num_cpus)
+    predict_tool = PredictTool()
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
     results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples)
