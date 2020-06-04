@@ -5,8 +5,7 @@ Find the optimal combination of hyperparameters
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-from  sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score
+from  sklearn.ensemble import ExtraTreesClassifier
 
 import utils
 
@@ -42,7 +41,7 @@ class HyperparameterOptimisation:
         }
 
         def classifier(params):
-            rf_classifier = RandomForestClassifier(**params)
+            rf_classifier = ExtraTreesClassifier(**params)
             tr_data, tr_labels = utils.balanced_sample_generator(train_data, train_labels, train_data.shape[0], tool_tr_samples, reverse_dictionary)
             trained_clf = rf_classifier.fit(tr_data, tr_labels)
             y_pred = trained_clf.predict(test_data)

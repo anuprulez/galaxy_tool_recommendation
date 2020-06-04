@@ -74,7 +74,7 @@ Execute data extraction script `extract_data.sh` to extract two tabular files - 
 
    - `<range of minimum samples split>`: The minimum number of samples required to split an internal node. E.g. `0.0001,1.0`.
 
-   - `<range of max features>`: The number of features to consider when looking for the best split. E.g. `auto,sqrt,log2,None`.
+   - `<max features>`: The number of features to consider when looking for the best split. E.g. `auto,sqrt,log2,None`.
 
    - `<number of CPUs>`: This takes the number of CPUs to be allocated to parallelise the training of the neural network. E.g. `4`.
 
