@@ -77,7 +77,7 @@ def compute_fill_between(a_list):
     return y1, y2
 
 
-def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
+'''def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
     x_val1 = x_val1[:epochs]
     x_val2 = x_val2[:epochs]
     loss_tr_y1 = loss_tr_y1[:epochs]
@@ -518,7 +518,54 @@ def assemble_low_precision(file_name):
     plt_title = "Mean standard precision@k vs frequencies of last tools"
     plot_scatter(mean_last_t_freq, mean_pub_prec, plt_title, "Frequency of last tools in train tool sequences", "Top 1 precision for test tool sequences")
 
-assemble_low_precision("test_paths_low_freq_tool_perf.txt")
+assemble_low_precision("test_paths_low_freq_tool_perf.txt")'''
+
+###########3 Bar plot for extra trees
+
+def read_p(file_p):
+    with open(file_p, 'r') as f:
+        data = f.read()
+        data = data.split("\n")
+        data.remove('')
+        data = data[0].split(' ')
+        data = list(map(float, data))
+    return data
+
+def plot_extra_trees():
+    normal_path = "data_20_05/extra_trees/precision.txt"
+    published_path = "data_20_05/extra_trees/published_precision.txt"
+
+    normal_p = read_p(normal_path)
+    published_p = read_p(published_path)
+    
+    top1_n = normal_p[0]
+    top2_n = normal_p[1]
+    
+    top1_p = published_p[0]
+    top2_p = published_p[1]
+    
+    print(top1_n, top2_n)
+    print(top1_p, top2_p)
+
+    fig = plt.figure()
+    X = [0.0, 0.2, 0.4, 0.6]
+    #ax = fig.add_axes([0,0,1,1])
+    plt.bar(0.00, [top1_n], color = 'b', width = 0.1)
+    plt.bar(0.2, [top2_n], color = 'b', width = 0.1)
+    plt.bar(0.4, [top1_p], color = 'r', width = 0.1)
+    plt.bar(0.6, [top2_n], color = 'r', width = 0.1)
+
+    x_ticks = ["Top-1 Normal", "Top-2 Normal", "Top-1 Standard", "Top-2 Standard"]
+
+    plt.ylabel('Precision')
+    plt.title('Normal and standard precision@k using ExtraTrees classifier')
+    plt.xticks(X)
+    plt.xticks(X, x_ticks)
+    plt.grid(True)
+    plt.show()
+
+plot_extra_trees()
+
 ############## Plot data distribution
 
 '''paths_path = 'data/rnn_custom_loss/run1/paths.txt'

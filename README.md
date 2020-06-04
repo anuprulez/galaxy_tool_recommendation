@@ -18,7 +18,7 @@ Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/master/scr
 
 iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/ipython_script/tool_recommendation_gru_wc.ipynb
 
-Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.2.4,matplotlib=3.1.1
+Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.1.2, matplotlib=3.1.1
 
 Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh
 
