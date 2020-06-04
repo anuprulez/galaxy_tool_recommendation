@@ -1,4 +1,4 @@
-# Tool recommender system in Galaxy using random forest classifier
+# Tool recommender system in Galaxy using extra trees classifier
 
 ## General information
 
@@ -14,9 +14,9 @@ Programming language: Python
 
 Scripts: https://github.com/anuprulez/galaxy_tool_recommendation/tree/sklearn_rf/scripts
 
-iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/blob/sklearn_rf/ipython_script/tool_recommendation_sklearn_random_forest.ipynb
+iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/blob/sklearn_rf/ipython_script/tool_recommendation_sklearn_extra_trees.ipynb
 
-Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.2.4, matplotlib=3.1.1
+Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.1.2, matplotlib=3.1.1
 
 Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/sklearn_rf/train.sh
 
@@ -38,7 +38,7 @@ License: MIT License
 
 4. Put these trained model files at `ipython_script/data/` and execute the ipython notebook.
 
-5. Trained models are present at `ipython_script/data/` which can be used to predict tools using the IPython notebook `ipython_script/tool_recommendation_sklearn_random_forest.ipynb`
+5. Trained models are present at `ipython_script/data/` which can be used to predict tools using the IPython notebook `ipython_script/tool_recommendation_sklearn_extra_trees.ipynb`
 
 ## Data description:
 
