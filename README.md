@@ -1,4 +1,4 @@
-# Tool recommender system in Galaxy using extra trees classifier
+# Tool recommender system in Galaxy using ExtraTrees classifier
 
 ## General information
 

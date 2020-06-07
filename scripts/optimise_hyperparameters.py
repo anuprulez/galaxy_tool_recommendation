@@ -32,17 +32,17 @@ class HyperparameterOptimisation:
         best_model_params = dict()
 
         search_space = {
-            #'n_estimators': hp.choice('n_estimators', range(l_estimators[0], l_estimators[1])),
+            'n_estimators': hp.choice('n_estimators', range(l_estimators[0], l_estimators[1])),
             'max_depth': hp.choice('max_depth', range(l_max_depth[0], l_max_depth[1])),
             'min_samples_split': hp.loguniform("min_samples_split", np.log(l_min_samples_split[0]), np.log(l_min_samples_split[1])),
             'criterion': hp.choice('criterion', l_criterion),
             'max_features': hp.choice('max_features', l_max_features),
-            #'bootstrap': hp.choice('bootstrap', l_bootstrap),
-            #'n_jobs': int(config["num_cpus"])
+            'bootstrap': hp.choice('bootstrap', l_bootstrap),
+            'n_jobs': int(config["num_cpus"])
         }
 
         def classifier(params):
-            rf_classifier = DecisionTreeClassifier(**params)
+            rf_classifier = ExtraTreesClassifier(**params)
             tr_data, tr_labels = utils.balanced_sample_generator(train_data, train_labels, train_data.shape[0], tool_tr_samples, reverse_dictionary)
             trained_clf = rf_classifier.fit(tr_data, tr_labels)
             y_pred = trained_clf.predict(test_data)
