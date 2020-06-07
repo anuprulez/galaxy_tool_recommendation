@@ -77,7 +77,7 @@ def compute_fill_between(a_list):
     return y1, y2
 
 
-'''def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
+def plot_loss(ax, x_val1, loss_tr_y1, loss_tr_y2, x_val2, loss_te_y1, loss_te_y2, title, xlabel, ylabel, leg):
     x_val1 = x_val1[:epochs]
     x_val2 = x_val2[:epochs]
     loss_tr_y1 = loss_tr_y1[:epochs]
@@ -518,7 +518,7 @@ def assemble_low_precision(file_name):
     plt_title = "Mean standard precision@k vs frequencies of last tools"
     plot_scatter(mean_last_t_freq, mean_pub_prec, plt_title, "Frequency of last tools in train tool sequences", "Top 1 precision for test tool sequences")
 
-assemble_low_precision("test_paths_low_freq_tool_perf.txt")'''
+assemble_low_precision("test_paths_low_freq_tool_perf.txt")
 
 ###########3 Bar plot for extra trees
 
