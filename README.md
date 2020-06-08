@@ -28,7 +28,7 @@ As the deep learning training time is high (> 12 hrs), the following steps shoul
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction_dnn_wc`
     
-2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/dnn_wc/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
+2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/dnn_wc/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-20-04.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
 
 3. After successful finish (~2-3 minutes), a trained model is created at `data/tool_recommendation_model.hdf5`.
 
