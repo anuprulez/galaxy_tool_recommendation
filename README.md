@@ -32,7 +32,7 @@ License: MIT License
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction_et`
 
-2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/sklearn_rf/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
+2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/sklearn_rf/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-20-04.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
 
 3. After successful finish (~2-3 minutes), two model files are created - one is created at `data/<<file name>>.hdf5` and another at `data/<<file name 2>>.joblib`.
 
