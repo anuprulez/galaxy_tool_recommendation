@@ -28,19 +28,19 @@ License: MIT License
 
 ## (To reproduce this work) How to create a sample tool recommendation model:
 
-**Note**: To reproduce this work after training on complete model, it is required to have a large compute resource (with 20-30 GB RAM) and it takes > 24 hrs on a VMs with 20 cores. However, the following steps can be used to create a sample tool recommendation model on a subset of workflows:
+**Note**: To reproduce this work after training on complete model, it is required to have a decent compute resource (with at least 10 GB RAM) and it takes > 24 hrs to create a trained model on complete set of workflows (~ 18,000). However, the following steps can be used to create a sample tool recommendation model on a subset of workflows:
 
 1. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
     *    `conda activate tool_prediction_gru_wc`
 
-2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
+2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-20-04.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
 
 3. After successful finish (~2-3 minutes), a trained model is created at `data/<<file name>>.hdf5`.
 
 4. Put this trained model file at `ipython_script/data/<<file name>>.hdf5` and execute the ipython notebook.
 
-5. A model trained on all workflows is present at `ipython_script/data/tool_recommendation_model_20_04.hdf5` which can be used to predict tools using the IPython notebook `ipython_script/tool_recommendation_gru_wc.ipynb`
+5. A model trained on all workflows is present at `ipython_script/data/tool_recommendation_model_20_05.hdf5` which can be used to predict tools using the IPython notebook `ipython_script/tool_recommendation_gru_wc.ipynb`
 
 ## Data description:
 
