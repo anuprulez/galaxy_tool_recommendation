@@ -26,7 +26,7 @@ License: MIT License
 
 ## (To reproduce this work) How to create a sample tool recommendation model:
 
-**Note**: To reproduce this work after training on complete model, it is required to have a large compute resource (with 20-30 GB RAM) and it takes > 24 hrs on a VMs with 20 cores. However, the following steps can be used to create a sample tool recommendation model on a subset of workflows:
+**Note**: To reproduce this work after training on complete model, it is required to have a large compute resource and it takes > 24 hrs. However, the following steps can be used to create a sample tool recommendation model on a subset of workflows:
 
 1. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
