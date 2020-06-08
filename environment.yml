@@ -1,4 +1,4 @@
-name: tool_prediction_gru_wc
+name: tool_prediction_no_regularisation
 channels:
 - conda-forge
 - bioconda

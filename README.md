@@ -30,7 +30,7 @@ License: MIT License
 
 1. Install the dependencies by executing the following lines:
     *    `conda env create -f environment.yml`
-    *    `conda activate tool_prediction_gru_wc`
+    *    `conda activate tool_prediction_no_regularisation`
 
 2. Execute `sh train.sh` (https://github.com/anuprulez/galaxy_tool_recommendation/blob/no_regularisation/train.sh). It runs on a subset of workflows. Use file `data/worflow-connection-04-20.tsv` in the training script to train on complete set of workflows (It takes a long time to finish).
 
