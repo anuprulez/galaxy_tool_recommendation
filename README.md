@@ -24,7 +24,17 @@ Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/ma
 
 License: MIT License
 
-**Note**: Initial work to create tool recommendation model is stored at https://github.com/anuprulez/similar_galaxy_workflow. This repository storing the history of work until October, 2019 will not be used in future. The current repository (https://github.com/anuprulez/galaxy_tool_recommendation) will be used for current and future developments.
+## History of the work
+
+Initial work to create tool recommendation model is stored at https://github.com/anuprulez/similar_galaxy_workflow. This repository storing the history of work until October, 2019 will not be used in future. The current repository (https://github.com/anuprulez/galaxy_tool_recommendation) will be used for current and future developments.
+
+## Description of other branches in this repository
+- Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network) (branch: [master](https://github.com/anuprulez/galaxy_tool_recommendation))
+- Tool recommender system in Galaxy using deep learning (Dense neural network) (branch: [dnn_wc](https://github.com/anuprulez/galaxy_tool_recommendation/tree/dnn_wc))
+- Tool recommender system in Galaxy using deep learning (Convolutional neural network) (branch: [cnn_wc](https://github.com/anuprulez/galaxy_tool_recommendation/tree/cnn_wc))
+- Tool Recommender in Galaxy using stored tool sequences (branch: [statistical_model](https://github.com/anuprulez/galaxy_tool_recommendation/tree/statistical_model))
+- Tool recommender system in Galaxy using ExtraTrees classifier (branch: [sklearn_rf](https://github.com/anuprulez/galaxy_tool_recommendation/tree/sklearn_rf))
+- Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network with no regularisation) (branch: [no_regularisation](https://github.com/anuprulez/galaxy_tool_recommendation/tree/no_regularisation))
 
 ## (To reproduce this work) How to create a sample tool recommendation model:
 
