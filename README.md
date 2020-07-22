@@ -1,6 +1,6 @@
 # Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network)
 
-[![DOI](https://zenodo.org/badge/241409061.svg)](https://zenodo.org/badge/latestdoi/241409061)
+[![DOI](https://zenodo.org/badge/241409061.svg)](https://zenodo.org/badge/latestdoi/241409061) [![bio.tools entry](https://img.shields.io/badge/bio.tools-tool_recommender_system_in_galaxy-blue.svg)](https://bio.tools/tool_recommender_system_in_galaxy) [![RRID entry](https://img.shields.io/badge/RRID-SCR_018491-blue.svg)](https://scicrunch.org/scicrunch/Resources/source/nlx_144509-1/search?q=SCR_018491&l=SCR_018491)
 
 ## General information
 
@@ -24,7 +24,21 @@ Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/ma
 
 License: MIT License
 
-**Note**: Initial work to create tool recommendation model is stored at https://github.com/anuprulez/similar_galaxy_workflow. This repository storing the history of work until October, 2019 will not be used in future. The current repository (https://github.com/anuprulez/galaxy_tool_recommendation) will be used for current and future developments.
+RRID: SCR_018491
+
+bioToolsID: tool_recommender_system_in_galaxy
+
+## History of the work
+
+Initial work to create tool recommendation model is stored at https://github.com/anuprulez/similar_galaxy_workflow. This repository storing the history of work until October, 2019 will not be used in future. The current repository (https://github.com/anuprulez/galaxy_tool_recommendation) will be used for current and future developments.
+
+## Description of other branches in this repository
+- Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network) (branch: [master](https://github.com/anuprulez/galaxy_tool_recommendation))
+- Tool recommender system in Galaxy using deep learning (Dense neural network) (branch: [dnn_wc](https://github.com/anuprulez/galaxy_tool_recommendation/tree/dnn_wc))
+- Tool recommender system in Galaxy using deep learning (Convolutional neural network) (branch: [cnn_wc](https://github.com/anuprulez/galaxy_tool_recommendation/tree/cnn_wc))
+- Tool Recommender in Galaxy using stored tool sequences (branch: [statistical_model](https://github.com/anuprulez/galaxy_tool_recommendation/tree/statistical_model))
+- Tool recommender system in Galaxy using ExtraTrees classifier (branch: [sklearn_rf](https://github.com/anuprulez/galaxy_tool_recommendation/tree/sklearn_rf))
+- Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network with no regularisation) (branch: [no_regularisation](https://github.com/anuprulez/galaxy_tool_recommendation/tree/no_regularisation))
 
 ## (To reproduce this work) How to create a sample tool recommendation model:
 
