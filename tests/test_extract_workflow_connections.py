@@ -1,5 +1,6 @@
 import unittest
-
+from scripts import utils
+from scripts import extract_workflow_connections
 
 class TestWorkflows(unittest.TestCase):
     """ """
