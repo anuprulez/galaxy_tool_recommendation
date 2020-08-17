@@ -1,0 +1,8 @@
+language: python
+python:
+  - "3.6"
+cache: pip3
+install:
+  - pip3 install -r requirements.txt
+script:
+ - python3 test_extract_workflow_connections.py
