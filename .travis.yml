@@ -1,8 +1,15 @@
 language: python
 python:
-  - "3.6"
-cache: pip
+  - 3.6
+before_install:
+  - python --version
+  - pip install -U pip
+  - pip install -U pytest
+  - pip install codecov
 install:
   - pip install -r requirements.txt
+  - pip install ".[test]" .
 script:
- - python3 -m unittest tests.test_extract_workflow_connections
+  - pytest #python3 -m unittest tests.test_extract_workflow_connections
+#after_success:
+#  - codecov # submit coverage
