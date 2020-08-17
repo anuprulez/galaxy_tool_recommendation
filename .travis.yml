@@ -5,4 +5,4 @@ cache: pip
 install:
   - pip install -r requirements.txt
 script:
- - python tests.test_extract_workflow_connections.py
+ - python3 -m unittest tests.test_extract_workflow_connections
