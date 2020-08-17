@@ -8,7 +8,7 @@ before_install:
   - pip install codecov
 install:
   - pip install -r requirements.txt
-  - pip install ".[test]" .
+  - pip install ".[scripts]" .
 script:
   - pytest #python3 -m unittest tests.test_extract_workflow_connections
 #after_success:
