@@ -1,5 +1,7 @@
 # Tool recommender system in Galaxy using deep learning (Dense neural network)
 
+[![Build Status](https://travis-ci.org/anuprulez/galaxy_tool_recommendation.svg?branch=add_tests)](https://travis-ci.org/anuprulez/galaxy_tool_recommendation)
+
 ## General information
 
 Project name: Galaxy tool recommendation
