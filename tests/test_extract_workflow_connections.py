@@ -1,4 +1,9 @@
 import unittest
+
+import os
+import sys
+sys.path.append("../scripts/")
+
 from scripts import utils
 from scripts import extract_workflow_connections
 
