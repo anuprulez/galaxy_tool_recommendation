@@ -11,7 +11,7 @@ class TestExtractWorkflowConnections(unittest.TestCase):
         unique_paths, compatible_next_tools, standard_connections = extract_wf.read_tabular_file(workflow_file_path)
         assert len(unique_paths) > 0
         assert len(compatible_next_tools) > 0
-        assert len(standard_connections) > 0
+        assert len(standard_connections) == 0
 
 
 if __name__ == "__main__":
