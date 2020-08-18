@@ -6,7 +6,7 @@ input and output tools
 import csv
 import random
 
-from utils import format_tool_id
+from scripts.utils import format_tool_id
 
 
 class ExtractWorkflowConnections:
