@@ -10,7 +10,7 @@ from keras.layers import Dense, Dropout, Flatten, Embedding, SpatialDropout1D
 from keras.optimizers import RMSprop
 from keras.callbacks import EarlyStopping
 
-import utils
+from scripts import utils
 
 
 class HyperparameterOptimisation:
