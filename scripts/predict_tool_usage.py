@@ -12,7 +12,7 @@ from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 
-import utils
+from scripts import utils
 
 warnings.filterwarnings("ignore")
 

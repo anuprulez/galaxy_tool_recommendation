@@ -12,7 +12,7 @@ from keras.layers.core import SpatialDropout1D
 from keras.optimizers import RMSprop
 from keras.callbacks import EarlyStopping
 
-import utils
+from scripts import utils
 
 
 class HyperparameterOptimisation:

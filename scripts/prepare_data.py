@@ -9,8 +9,8 @@ import collections
 import numpy as np
 import random
 
-import predict_tool_usage
-import utils
+from scripts import predict_tool_usage
+from scripts import utils
 
 main_path = os.getcwd()
 

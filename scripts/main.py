@@ -6,16 +6,22 @@ using machine learning (recurrent neural network)
 import numpy as np
 import argparse
 import time
+import sys
+import os
+
+PACKAGE_PARENT = '..'
+SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 
 # machine learning library
 import tensorflow as tf
 from keras import backend as K
 import keras.callbacks as callbacks
 
-import extract_workflow_connections
-import prepare_data
-import optimise_hyperparameters
-import utils
+from scripts import extract_workflow_connections
+from scripts import prepare_data
+from scripts import optimise_hyperparameters
+from scripts import utils
 
 
 class PredictTool:

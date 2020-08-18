@@ -1,0 +1,100 @@
+3	2013-02-07 16:48:46.721866	5	Grep1	1.0.1	7	Remove beginning1	1.0.0	f	t	f
+3	2013-02-07 16:48:46.721866	6	Cut1	1.0.1	8	addValue	1.0.0	f	t	f
+3	2013-02-07 16:48:46.721866	7	Remove beginning1	1.0.0	9	Cut1	1.0.1	f	t	f
+3	2013-02-07 16:48:46.721866	7	Remove beginning1	1.0.0	6	Cut1	1.0.1	f	t	f
+3	2013-02-07 16:48:46.721866	8	addValue	1.0.0	11	Paste1	1.0.0	f	t	f
+3	2013-02-07 16:48:46.721866	9	Cut1	1.0.1	11	Paste1	1.0.0	f	t	f
+3	2013-02-07 16:48:46.721866	11	Paste1	1.0.0	10	addValue	1.0.0	f	t	f
+3	2013-02-07 16:48:46.721866	12			5	Grep1	1.0.1	f	t	f
+4	2013-02-07 16:48:55.340018	13	cat1	1.0.0	22	barchart_gnuplot	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	14	bedtools_intersectBed		16	wc_gnu	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	15	bedtools_intersectBed		17	sort1	1.0.1	f	t	f
+4	2013-02-07 16:48:55.340018	16	wc_gnu	1.0.0	18	addValue	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	17	sort1	1.0.1	19	cshl_awk_tool		f	t	f
+4	2013-02-07 16:48:55.340018	18	addValue	1.0.0	13	cat1	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	19	cshl_awk_tool		21	cshl_uniq_tool	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	20	Count1	1.0.0	13	cat1	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	21	cshl_uniq_tool	1.0.0	20	Count1	1.0.0	f	t	f
+4	2013-02-07 16:48:55.340018	23			15	bedtools_intersectBed		f	t	f
+4	2013-02-07 16:48:55.340018	23			14	bedtools_intersectBed		f	t	f
+4	2013-02-07 16:48:55.340018	24			15	bedtools_intersectBed		f	t	f
+4	2013-02-07 16:48:55.340018	24			14	bedtools_intersectBed		f	t	f
+5	2013-02-07 16:49:04.367628	25	addValue	1.0.0	26	cat1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	26	cat1	1.0.0	67	barchart_gnuplot	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	27	Cut1	1.0.1	59	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	28	Cut1	1.0.1	59	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	29	Cut1	1.0.1	66	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	30	Cut1	1.0.1	66	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	31	Cut1	1.0.1	36	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	32	Cut1	1.0.1	36	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	33	Cut1	1.0.1	60	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	34	Cut1	1.0.1	60	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	35	Paste1	1.0.0	65	Add_a_column1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	36	Paste1	1.0.0	64	Add_a_column1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	37	addValue	1.0.0	26	cat1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	38	addValue	1.0.0	26	cat1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	39	Filter1	1.1.0	46	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	39	Filter1	1.1.0	45	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	40	gops_coverage_1	1.0.0	44	Filter1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	40	gops_coverage_1	1.0.0	43	Filter1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	40	gops_coverage_1	1.0.0	42	Filter1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	40	gops_coverage_1	1.0.0	41	cshl_grep_tool	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	40	gops_coverage_1	1.0.0	39	Filter1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	41	cshl_grep_tool	1.0.0	52	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	41	cshl_grep_tool	1.0.0	51	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	42	Filter1	1.1.0	50	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	42	Filter1	1.1.0	49	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	43	Filter1	1.1.0	56	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	43	Filter1	1.1.0	55	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	44	Filter1	1.1.0	54	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	44	Filter1	1.1.0	53	Summary_Statistics1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	45	Summary_Statistics1	1.1.0	57	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	46	Summary_Statistics1	1.1.0	58	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	47	addValue	1.0.0	26	cat1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	48	addValue	1.0.0	26	cat1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	49	Summary_Statistics1	1.1.0	32	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	50	Summary_Statistics1	1.1.0	31	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	51	Summary_Statistics1	1.1.0	34	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	52	Summary_Statistics1	1.1.0	33	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	53	Summary_Statistics1	1.1.0	28	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	54	Summary_Statistics1	1.1.0	27	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	55	Summary_Statistics1	1.1.0	30	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	56	Summary_Statistics1	1.1.0	29	Cut1	1.0.1	f	t	f
+5	2013-02-07 16:49:04.367628	57	Cut1	1.0.1	35	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	58	Cut1	1.0.1	35	Paste1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	59	Paste1	1.0.0	62	Add_a_column1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	60	Paste1	1.0.0	63	Add_a_column1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	61	Add_a_column1	1.1.0	25	addValue	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	62	Add_a_column1	1.1.0	38	addValue	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	63	Add_a_column1	1.1.0	37	addValue	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	64	Add_a_column1	1.1.0	47	addValue	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	65	Add_a_column1	1.1.0	48	addValue	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	66	Paste1	1.0.0	61	Add_a_column1	1.1.0	f	t	f
+5	2013-02-07 16:49:04.367628	68			40	gops_coverage_1	1.0.0	f	t	f
+5	2013-02-07 16:49:04.367628	69			40	gops_coverage_1	1.0.0	f	t	f
+6	2013-02-07 16:57:18.016313	71			70	cshl_awk_tool1	1.0.0	f	t	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	t	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	t	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	82	Grep1	1.0.1	84	Remove beginning1	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	t	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	t	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
+9	2013-02-07 16:59:41.215802	83	Cut1	1.0.1	85	addValue	1.0.0	f	f	f
