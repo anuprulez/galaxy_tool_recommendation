@@ -5,12 +5,9 @@ Find the optimal combination of hyperparameters
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-from keras.models import Sequential
-from keras.layers import Dense, GRU, Dropout
-from keras.layers.embeddings import Embedding
-from keras.layers.core import SpatialDropout1D
-from keras.optimizers import RMSprop
-from keras.callbacks import EarlyStopping
+import tensorflow as tf
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras import backend as K
 
 from scripts import utils
 
@@ -39,6 +36,8 @@ class HyperparameterOptimisation:
 
         # get dimensions
         dimensions = len(reverse_dictionary) + 1
+        max_len = train_data.shape[1]
+        
         best_model_params = dict()
         early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, min_delta=1e-1, restore_best_weights=True)
 
@@ -52,19 +51,41 @@ class HyperparameterOptimisation:
             "spatial_dropout": hp.uniform("spatial_dropout", l_spatial_dropout[0], l_spatial_dropout[1]),
             "recurrent_dropout": hp.uniform("recurrent_dropout", l_recurrent_dropout[0], l_recurrent_dropout[1])
         }
-
+        
         def create_model(params):
-            model = Sequential()
-            model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(SpatialDropout1D(params["spatial_dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=True, activation="elu"))
-            model.add(Dropout(params["dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation="elu"))
-            model.add(Dropout(params["dropout"]))
-            model.add(Dense(2 * dimensions, activation="sigmoid"))
-            optimizer_rms = RMSprop(lr=params["learning_rate"])
+
+            embedding_size = int(params["embedding_size"])
+            gru_units = int(params["units"])
+            spatial1d_dropout = float(params["spatial_dropout"])
+            dropout = float(params["dropout"])
+            recurrent_dropout = float(params["recurrent_dropout"])
+            learning_rate = params["learning_rate"]
             batch_size = int(params["batch_size"])
-            model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
+            sequence_input = tf.keras.layers.Input(shape=(max_len,), dtype='int32')
+            embedded_sequences = tf.keras.layers.Embedding(dimensions, embedding_size, input_length=max_len, mask_zero=True)(sequence_input)
+            embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial1d_dropout)(embedded_sequences)
+            gru_1 = tf.keras.layers.GRU(gru_units,
+                return_sequences=True,
+                return_state=False,
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
+            )
+            gru1_output = gru_1(embedded_sequences)
+            gru1_dropout = tf.keras.layers.Dropout(dropout)(gru1_output)
+            gru_2 = tf.keras.layers.GRU(gru_units,
+                return_sequences=True,
+                return_state=True,
+                activation='elu',
+                recurrent_dropout=recurrent_dropout
+            )
+            gru2_output, gru2_hidden = gru_2(gru1_dropout)
+            gru2_dropout = tf.keras.layers.Dropout(dropout)(gru2_hidden)
+            output = tf.keras.layers.Dense(2 * dimensions, activation='sigmoid')(gru2_dropout)
+            model = tf.keras.Model(inputs=sequence_input, outputs=output)
+            model.compile(
+                optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
+                loss=utils.weighted_loss(class_weights),
+            )
             print(model.summary())
             model_fit = model.fit_generator(
                 utils.balanced_sample_generator(

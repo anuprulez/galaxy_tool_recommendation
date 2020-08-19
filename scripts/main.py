@@ -13,8 +13,8 @@ sys.path.append(os.getcwd())
 
 # machine learning library
 import tensorflow as tf
-from keras import backend as K
-import keras.callbacks as callbacks
+from tensorflow.keras import backend as K
+from tensorflow.keras import callbacks
 
 from scripts import extract_workflow_connections
 from scripts import prepare_data
@@ -27,13 +27,8 @@ class PredictTool:
     def __init__(self, num_cpus):
         """ Init method. """
         # set the number of cpus
-        cpu_config = tf.ConfigProto(
-            device_count={"CPU": num_cpus},
-            intra_op_parallelism_threads=num_cpus,
-            inter_op_parallelism_threads=num_cpus,
-            allow_soft_placement=True
-        )
-        K.set_session(tf.Session(config=cpu_config))
+        tf.config.threading.set_inter_op_parallelism_threads(num_cpus)
+        tf.config.threading.set_intra_op_parallelism_threads(num_cpus)
 
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples):
         """
