@@ -90,7 +90,7 @@ class HyperparameterOptimisation:
                 loss=utils.weighted_loss(class_weights),
             )
             print(model.summary())
-            model_fit = model.fit_generator(
+            model_fit = model.fit(
                 utils.balanced_sample_generator(
                     train_data,
                     train_labels,

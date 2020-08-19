@@ -104,6 +104,6 @@ class ToolPopularity:
             x_pos = np.arange(len(x_val))
             x_reshaped = x_pos.reshape(len(x_pos), 1)
             y_reshaped = np.reshape(y_val, (len(x_pos), 1))
-            #prediction = np.round(self.learn_tool_popularity(x_reshaped, y_reshaped), 8)
-            usage_prediction[tool_name] = 2.0 #prediction
+            prediction = np.round(self.learn_tool_popularity(x_reshaped, y_reshaped), 8)
+            usage_prediction[tool_name] = prediction
         return usage_prediction
