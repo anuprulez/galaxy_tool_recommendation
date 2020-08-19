@@ -9,6 +9,7 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras import backend as K
 
+from scripts import layers
 from scripts import utils
 
 
@@ -61,8 +62,10 @@ class HyperparameterOptimisation:
             recurrent_dropout = float(params["recurrent_dropout"])
             learning_rate = params["learning_rate"]
             batch_size = int(params["batch_size"])
+
             sequence_input = tf.keras.layers.Input(shape=(max_len,), dtype='int32')
-            embedded_sequences = tf.keras.layers.Embedding(dimensions, embedding_size, input_length=max_len, mask_zero=True)(sequence_input)
+            embedding = layers.Embedding(dimensions, embedding_size, max_len)
+            embedded_sequences = embedding(sequence_input)
             embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial1d_dropout)(embedded_sequences)
             gru_1 = tf.keras.layers.GRU(gru_units,
                 return_sequences=True,
