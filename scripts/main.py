@@ -9,9 +9,14 @@ import time
 import sys
 import os
 
-PACKAGE_PARENT = '..'
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+#PACKAGE_PARENT = '..'
+#SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+#print(SCRIPT_DIR)
+#print(os.getcwd())
+#print(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+#sys.exit()
+#sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+sys.path.append(os.getcwd())
 
 # machine learning library
 import tensorflow as tf
