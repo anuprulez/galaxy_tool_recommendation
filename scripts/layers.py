@@ -8,6 +8,9 @@ class EmbeddingLayer(keras.layers.Layer):
         self.embedding_layer = keras.layers.Embedding(
             dimensions, embedding_size, input_length=max_len, mask_zero=mask_zero
         )
+        
+    def get_config(self):
+        return super().get_config().copy()
 
     def call(self, inputs):
         return self.embedding_layer(inputs)
@@ -20,6 +23,9 @@ class SpatialDropoutLayer(keras.layers.Layer):
             s_dropout
         )
 
+    def get_config(self):
+        return super().get_config().copy()
+    
     def call(self, inputs):
         return self.spatial_dropout_layer(inputs)
 
@@ -30,6 +36,9 @@ class DropoutLayer(keras.layers.Layer):
         self.dropout_layer = keras.layers.Dropout(
             dropout
         )
+        
+    def get_config(self):
+        return super().get_config().copy()
 
     def call(self, inputs):
         return self.dropout_layer(inputs)
@@ -45,7 +54,10 @@ class GRULayer(keras.layers.Layer):
             activation=activation,
             recurrent_dropout=recurrent_dropout
         )
-
+    
+    def get_config(self):
+        return super().get_config().copy()
+    
     def call(self, inputs):
         return self.gru_layer(inputs)
 
@@ -57,6 +69,9 @@ class DenseLayer(keras.layers.Layer):
             units,
             activation=activation,
         )
-
+    
+    def get_config(self):
+        return super().get_config().copy()
+    
     def call(self, inputs):
         return self.dense_layer(inputs)

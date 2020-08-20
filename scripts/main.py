@@ -51,7 +51,7 @@ class PredictTool:
 
         print("Start training on the best model...")
         train_performance = dict()
-        trained_model = best_model.fit_generator(
+        trained_model = best_model.fit(
             utils.balanced_sample_generator(
                 train_data,
                 train_labels,
