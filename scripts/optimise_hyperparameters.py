@@ -64,31 +64,45 @@ class HyperparameterOptimisation:
             batch_size = int(params["batch_size"])
 
             sequence_input = tf.keras.layers.Input(shape=(max_len,), dtype='int32')
-            embedding = layers.Embedding(dimensions, embedding_size, max_len)
-            embedded_sequences = embedding(sequence_input)
-            embedded_sequences = tf.keras.layers.SpatialDropout1D(spatial1d_dropout)(embedded_sequences)
-            gru_1 = tf.keras.layers.GRU(gru_units,
+            embedding_layer = layers.EmbeddingLayer(dimensions, embedding_size, max_len)
+            embedded_sequences = embedding_layer(sequence_input)
+            
+            spatial_dropout_layer = layers.SpatialDropoutLayer(spatial1d_dropout)
+            embedded_sequences = spatial_dropout_layer(embedded_sequences)
+
+            gru_1_layer = layers.GRULayer(
+                gru_units,
                 return_sequences=True,
                 return_state=False,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
             )
-            gru1_output = gru_1(embedded_sequences)
-            gru1_dropout = tf.keras.layers.Dropout(dropout)(gru1_output)
-            gru_2 = tf.keras.layers.GRU(gru_units,
+            gru1_output = gru_1_layer(embedded_sequences)
+
+            gru1_dropout_layer = layers.DropoutLayer(dropout)
+            gru1_dropout = gru1_dropout_layer(gru1_output)
+
+            gru_2_layer = layers.GRULayer(
+                gru_units,
                 return_sequences=True,
                 return_state=True,
                 activation='elu',
                 recurrent_dropout=recurrent_dropout
             )
-            gru2_output, gru2_hidden = gru_2(gru1_dropout)
-            gru2_dropout = tf.keras.layers.Dropout(dropout)(gru2_hidden)
-            output = tf.keras.layers.Dense(2 * dimensions, activation='sigmoid')(gru2_dropout)
+            gru2_output, gru2_hidden = gru_2_layer(gru1_dropout)
+
+            gru2_dropout_layer = layers.DropoutLayer(dropout)
+            gru2_dropout = gru2_dropout_layer(gru2_hidden)
+
+            output_layer = layers.DenseLayer(2 * dimensions, activation='sigmoid')
+            output = output_layer(gru2_dropout)
+
             model = tf.keras.Model(inputs=sequence_input, outputs=output)
             model.compile(
                 optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
                 loss=utils.weighted_loss(class_weights),
             )
+
             print(model.summary())
             model_fit = model.fit(
                 utils.balanced_sample_generator(
