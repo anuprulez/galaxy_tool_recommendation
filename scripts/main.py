@@ -3,15 +3,13 @@ Predict next tools in the Galaxy workflows
 using machine learning (recurrent neural network)
 """
 
-import numpy as np
 import argparse
-import time
-import sys
+import numpy as np
 import os
+import sys
+import time
 
-PACKAGE_PARENT = '..'
-SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+sys.path.append(os.getcwd())
 
 # machine learning library
 import tensorflow as tf
