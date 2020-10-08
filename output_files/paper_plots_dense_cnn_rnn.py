@@ -266,7 +266,7 @@ def assemble_accuracy(sup_title):
         plt_title = titles[idx]
         
         plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k")
-assemble_accuracy('Mean normal precision@k for multiple neural network architectures')
+assemble_accuracy('Mean unpublished precision@k for multiple neural network architectures')
 plt.show()
 
 
@@ -316,7 +316,7 @@ def assemble_published_precision(sup_title):
         y1_top3, y2_top3 = compute_fill_between(precision_acc_top3)
         plt_title = titles[idx]
         plot_accuracy(ax,mean_top1_acc, mean_top1_acc - y1_top1, mean_top1_acc + y2_top1, mean_top2_acc, mean_top2_acc - y1_top2, mean_top2_acc + y2_top2, mean_top3_acc, mean_top3_acc - y1_top3, mean_top3_acc + y2_top3, plt_title, "Training iterations (epochs)", "Mean precision@k")
-assemble_published_precision('Mean standard precision@k for multiple neural network architectures')
+assemble_published_precision('Mean published precision@k for multiple neural network architectures')
 plt.show()
 
 
@@ -374,7 +374,7 @@ plt.show()
 def assemble_lowest_published_precision():
     precision_ylim = (0.0, 0.4)
     fig = plt.figure(figsize=fig_size)
-    fig.suptitle('Mean standard precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
+    fig.suptitle('Mean published precision@k in lowest 25% of data for multiple architectures', size=size_title + 2)
     for idx, approach in enumerate(all_approaches_path):
         if idx == 0:
             ax = plt.subplot(gs[0,0])
@@ -513,9 +513,9 @@ def assemble_low_precision(file_name):
     mean_last_t_freq = np.nanmean(run_last_t_freq, axis=0)
     mean_paths = np.nanmean(run_paths, axis=0)
     
-    plt_title = "Mean normal precision@k vs frequencies of last tools"
+    plt_title = "Mean unpublished precision@k vs frequencies of last tools"
     plot_scatter(mean_last_t_freq, mean_norm_prec, plt_title, "Frequency of last tools in train tool sequences", "Top 1 precision for test tool sequences")
-    plt_title = "Mean standard precision@k vs frequencies of last tools"
+    plt_title = "Mean published precision@k vs frequencies of last tools"
     plot_scatter(mean_last_t_freq, mean_pub_prec, plt_title, "Frequency of last tools in train tool sequences", "Top 1 precision for test tool sequences")
 
 assemble_low_precision("test_paths_low_freq_tool_perf.txt")
@@ -555,10 +555,10 @@ def plot_extra_trees():
     plt.bar(0.4, [top1_p], color = 'r', width = 0.1)
     plt.bar(0.6, [top2_n], color = 'r', width = 0.1)
 
-    x_ticks = ["Top-1 Normal", "Top-2 Normal", "Top-1 Standard", "Top-2 Standard"]
+    x_ticks = ["Top-1 Unpublished", "Top-2 Unpublished", "Top-1 Published", "Top-2 Published"]
 
     plt.ylabel('Precision')
-    plt.title('Normal and standard precision@k using ExtraTrees classifier')
+    plt.title('Unpublished and Published precision@k using ExtraTrees classifier')
     plt.xticks(X)
     plt.xticks(X, x_ticks)
     plt.grid(True)
