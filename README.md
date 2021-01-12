@@ -1,5 +1,7 @@
 # Tool recommender system in Galaxy using deep learning (Gated recurrent units neural network)
 
+## Published article: https://doi.org/10.1093/gigascience/giaa152
+
 [![DOI](https://zenodo.org/badge/241409061.svg)](https://zenodo.org/badge/latestdoi/241409061) [![bio.tools entry](https://img.shields.io/badge/bio.tools-tool_recommender_system_in_galaxy-blue.svg)](https://bio.tools/tool_recommender_system_in_galaxy) [![RRID entry](https://img.shields.io/badge/RRID-SCR_018491-blue.svg)](https://scicrunch.org/scicrunch/Resources/source/nlx_144509-1/search?q=SCR_018491&l=SCR_018491) [![Build Status](https://travis-ci.org/anuprulez/galaxy_tool_recommendation.svg?branch=master)](https://travis-ci.org/anuprulez/galaxy_tool_recommendation)
 
 ## General information
