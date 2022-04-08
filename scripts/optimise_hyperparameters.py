@@ -5,12 +5,13 @@ Find the optimal combination of hyperparameters
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-from keras.models import Sequential
-from keras.layers import Dense, GRU, Dropout
-from keras.layers.embeddings import Embedding
-from keras.layers.core import SpatialDropout1D
-from keras.optimizers import RMSprop
-from keras.callbacks import EarlyStopping
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, GRU, Dropout, Embedding, SpatialDropout1D
+#from tensorflow.keras.layers.embeddings import 
+#from keras.layers.core import 
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.callbacks import EarlyStopping
 
 from scripts import utils
 
@@ -53,6 +54,8 @@ class HyperparameterOptimisation:
             "recurrent_dropout": hp.uniform("recurrent_dropout", l_recurrent_dropout[0], l_recurrent_dropout[1])
         }
 
+        print(class_weights)
+
         def create_model(params):
             model = Sequential()
             model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
@@ -64,9 +67,10 @@ class HyperparameterOptimisation:
             model.add(Dense(2 * dimensions, activation="sigmoid"))
             optimizer_rms = RMSprop(lr=params["learning_rate"])
             batch_size = int(params["batch_size"])
-            model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
+            model.compile(loss=utils.weighted_loss(class_weights, batch_size), optimizer=optimizer_rms)
             print(model.summary())
-            model_fit = model.fit_generator(
+            print(params)
+            model_fit = model.fit(
                 utils.balanced_sample_generator(
                     train_data,
                     train_labels,
@@ -81,6 +85,7 @@ class HyperparameterOptimisation:
                 verbose=2,
                 shuffle=True
             )
+            print(model_fit.history)
             return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
         # minimize the objective function using the set of parameters above
         trials = Trials()

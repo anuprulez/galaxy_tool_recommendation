@@ -5,7 +5,10 @@ import h5py
 import random
 from numpy.random import choice
 
-from keras import backend as K
+import tensorflow as tf
+#from tensorflow.compat.v2 import backend as K
+from tensorflow.keras import backend
+#crossentropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
 def read_file(file_path):
@@ -69,18 +72,28 @@ def remove_file(file_path):
     if os.path.exists(file_path):
         os.remove(file_path)
 
+'''
+def get_weighted_loss(weights):
+    def weighted_loss(y_true, y_pred):
+        return K.mean((weights[:,0]**(1-y_true))*(weights[:,1]**(y_true))*K.binary_crossentropy(y_true, y_pred), axis=-1)
+    return weighted_loss
 
-def weighted_loss(class_weights):
+'''
+
+
+def weighted_loss(class_weights, batch_size):
     """
     Create a weighted loss function. Penalise the misclassification
     of classes more with the higher usage
     """
+    
     weight_values = list(class_weights.values())
     weight_values.extend(weight_values)
     def weighted_binary_crossentropy(y_true, y_pred):
         # add another dimension to compute dot product
-        expanded_weights = K.expand_dims(weight_values, axis=-1)
-        return K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights)
+        expanded_weights = tf.expand_dims(weight_values, axis=-1)
+        bce = backend.binary_crossentropy(y_true, y_pred)
+        return backend.dot(bce, expanded_weights)
     return weighted_binary_crossentropy
 
 
@@ -129,6 +142,8 @@ def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_sa
             random_tr_index = sample_indices[random_index]
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
+            #print(generator_batch_data)
+            #print(generator_batch_labels)
         freq = verify_oversampling_freq(generator_batch_data, reverse_dictionary)
         l_tool_frequencies = collect_sampled_tool_freq(l_tool_frequencies, freq)
         write_file("data/generated_tool_frequencies.txt", l_tool_frequencies)

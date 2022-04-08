@@ -60,6 +60,8 @@ class PrepareData:
         count = collections.Counter(words).most_common()
         dictionary = dict()
         for word, _ in count:
+            word = word.lstrip()
+            word = word.rstrip()
             dictionary[word] = len(dictionary) + 1
         dictionary, reverse_dictionary = self.assemble_dictionary(dictionary, old_data_dictionary)
         return dictionary, reverse_dictionary
@@ -120,6 +122,7 @@ class PrepareData:
         train_counter = 0
         for train_seq, train_label in list(paths_dictionary.items()):
             positions = train_seq.split(",")
+            print(train_seq, train_label)
             start_pos = self.max_tool_sequence_len - len(positions)
             for id_pos, pos in enumerate(positions):
                 data_mat[train_counter][start_pos + id_pos] = int(pos)
@@ -275,7 +278,6 @@ class PrepareData:
         usage = usage_pred.extract_tool_usage(tool_usage_path, cutoff_date, dictionary)
         tool_usage_prediction = usage_pred.get_pupularity_prediction(usage)
         t_pred_usage = self.get_predicted_usage(dictionary, tool_usage_prediction)
-
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
 

@@ -13,8 +13,8 @@ sys.path.append(os.getcwd())
 
 # machine learning library
 import tensorflow as tf
-from keras import backend as K
-import keras.callbacks as callbacks
+from tensorflow.keras import backend as K
+import tensorflow.keras.callbacks as callbacks
 
 from scripts import extract_workflow_connections
 from scripts import prepare_data
@@ -27,13 +27,13 @@ class PredictTool:
     def __init__(self, num_cpus):
         """ Init method. """
         # set the number of cpus
-        cpu_config = tf.ConfigProto(
+        '''cpu_config = tf.ConfigProto(
             device_count={"CPU": num_cpus},
             intra_op_parallelism_threads=num_cpus,
             inter_op_parallelism_threads=num_cpus,
             allow_soft_placement=True
-        )
-        K.set_session(tf.Session(config=cpu_config))
+        )'''
+        #K.set_session(tf.Session(config=cpu_config))
 
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples):
         """
@@ -180,6 +180,7 @@ if __name__ == "__main__":
     # Extract and process workflows
     connections = extract_workflow_connections.ExtractWorkflowConnections()
     workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
+
     # Process the paths from workflows
     print("Dividing data...")
     data = prepare_data.PrepareData(maximum_path_length, test_share)
