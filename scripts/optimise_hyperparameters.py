@@ -54,8 +54,6 @@ class HyperparameterOptimisation:
             "recurrent_dropout": hp.uniform("recurrent_dropout", l_recurrent_dropout[0], l_recurrent_dropout[1])
         }
 
-        print(class_weights)
-
         def create_model(params):
             model = Sequential()
             model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
@@ -69,7 +67,6 @@ class HyperparameterOptimisation:
             batch_size = int(params["batch_size"])
             model.compile(loss=utils.weighted_loss(class_weights, batch_size), optimizer=optimizer_rms)
             print(model.summary())
-            print(params)
             model_fit = model.fit(
                 utils.balanced_sample_generator(
                     train_data,
@@ -85,7 +82,6 @@ class HyperparameterOptimisation:
                 verbose=2,
                 shuffle=True
             )
-            print(model_fit.history)
             return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
         # minimize the objective function using the set of parameters above
         trials = Trials()
