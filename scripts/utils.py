@@ -73,7 +73,7 @@ def remove_file(file_path):
         os.remove(file_path)
 
 
-def weighted_loss(class_weights, batch_size):
+def weighted_loss(class_weights):
     """
     Create a weighted loss function. Penalise the misclassification
     of classes more with the higher usage

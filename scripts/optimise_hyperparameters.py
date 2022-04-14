@@ -65,7 +65,7 @@ class HyperparameterOptimisation:
             model.add(Dense(2 * dimensions, activation="sigmoid"))
             optimizer_rms = RMSprop(lr=params["learning_rate"])
             batch_size = int(params["batch_size"])
-            model.compile(loss=utils.weighted_loss(class_weights, batch_size), optimizer=optimizer_rms)
+            model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
             print(model.summary())
             model_fit = model.fit(
                 utils.balanced_sample_generator(
