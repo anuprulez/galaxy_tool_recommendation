@@ -102,9 +102,7 @@ def verify_oversampling_freq(oversampled_tr_data, rev_dict):
             freq_dict_names[rev_dict[int(last_tool_id)]] = 0
         freq_dict[last_tool_id] += 1
         freq_dict_names[rev_dict[int(last_tool_id)]] += 1
-    #print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
     s_freq = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
-    #print(s_freq)
     return s_freq
 
 
@@ -134,8 +132,6 @@ def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_sa
             random_tr_index = sample_indices[random_index]
             generator_batch_data[i] = train_data[random_tr_index]
             generator_batch_labels[i] = train_labels[random_tr_index]
-            #print(generator_batch_data)
-            #print(generator_batch_labels)
         freq = verify_oversampling_freq(generator_batch_data, reverse_dictionary)
         l_tool_frequencies = collect_sampled_tool_freq(l_tool_frequencies, freq)
         write_file("data/generated_tool_frequencies.txt", l_tool_frequencies)

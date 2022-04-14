@@ -26,14 +26,6 @@ class PredictTool:
 
     def __init__(self, num_cpus):
         """ Init method. """
-        # set the number of cpus
-        '''cpu_config = tf.ConfigProto(
-            device_count={"CPU": num_cpus},
-            intra_op_parallelism_threads=num_cpus,
-            inter_op_parallelism_threads=num_cpus,
-            allow_soft_placement=True
-        )'''
-        #K.set_session(tf.Session(config=cpu_config))
 
     def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples):
         """
