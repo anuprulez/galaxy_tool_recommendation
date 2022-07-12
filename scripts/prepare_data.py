@@ -71,8 +71,8 @@ class PrepareData:
         Decompose the paths to variable length sub-paths keeping the first tool fixed
         """
         sub_paths_pos = list()
-        print(paths)
-        print("----------------")
+        #print(paths)
+        #print("----------------")
         for index, item in enumerate(paths):
             tools = item.split(",")
             len_tools = len(tools)
@@ -85,7 +85,7 @@ class PrepareData:
                     sub_paths_pos.append(",".join(tools_pos))
         #print(len(sub_paths_pos))
         sub_paths_pos = list(set(sub_paths_pos))
-        print(len(sub_paths_pos))
+        #print(len(sub_paths_pos))
         return sub_paths_pos
 
 
@@ -282,7 +282,7 @@ class PrepareData:
         print()
         print(train_labels[0:5])
         
-        print("Estimating sample frequency...")
+        '''print("Estimating sample frequency...")
         l_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
         l_tool_tr_samples = self.get_toolid_samples(train_data, l_tool_freq)
 
@@ -293,6 +293,7 @@ class PrepareData:
         tool_usage_prediction = usage_pred.get_pupularity_prediction(usage)
         t_pred_usage = self.get_predicted_usage(dictionary, tool_usage_prediction)
         # get class weights using the predicted usage for each tool
-        class_weights = self.assign_class_weights(num_classes, t_pred_usage)
+        class_weights = self.assign_class_weights(num_classes, t_pred_usage)'''
 
-        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, l_tool_tr_samples
+        #return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, l_tool_tr_samples
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict

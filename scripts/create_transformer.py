@@ -23,7 +23,7 @@ d_model = 128
 dff = 512
 num_heads = 8
 dropout_rate = 0.1
-EPOCHS = 20
+EPOCHS = 200
 
 
 def get_angles(pos, i, d_model):
@@ -388,13 +388,15 @@ def sample_true_x_y(batch_size, X_train, y_train):
     return unrolled_x, unrolled_y
 
 
-def create_train_model(inp_seqs, tar_seqs, rev_dict):
+def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, rev_dict):
     learning_rate = CustomSchedule(d_model)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
     train_loss = tf.keras.metrics.Mean(name='train_loss')
     train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
+    test_loss = tf.keras.metrics.Mean(name='test_loss')
+    test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
     transformer = Transformer(
         num_layers=num_layers,
@@ -405,19 +407,6 @@ def create_train_model(inp_seqs, tar_seqs, rev_dict):
         target_vocab_size=len(rev_dict) + 1,
         rate=dropout_rate)
 
-    checkpoint_path = './checkpoints/train'
-
-    ckpt = tf.train.Checkpoint(transformer=transformer,
-                           optimizer=optimizer)
-
-    ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
-
-    # if a checkpoint exists, restore the latest checkpoint.
-    if ckpt_manager.latest_checkpoint:
-        ckpt.restore(ckpt_manager.latest_checkpoint)
-        print('Latest checkpoint restored!!')
-
-
     n_train_batches = int(inp_seqs.shape[0] / float(BATCH_SIZE))
 
     for epoch in range(EPOCHS):
@@ -425,34 +414,41 @@ def create_train_model(inp_seqs, tar_seqs, rev_dict):
 
         train_loss.reset_states()
         train_accuracy.reset_states()
+        test_loss.reset_states()
+        test_accuracy.reset_states()
 
         for batch in range(n_train_batches):
             inp, tar = sample_true_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
+            te_inp, te_tar = sample_true_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
-            #train_step(inp, tar)
 
             tar_inp = tar[:, :-1]
             tar_real = tar[:, 1:]
 
+            te_tar_inp = te_tar[:, :-1]
+            te_tar_real = te_tar[:, 1:]
+
             with tf.GradientTape() as tape:
                 predictions, _ = transformer([inp, tar_inp], training = True)
+                te_predictions, _ = transformer([te_inp, te_tar_inp], training = False)
                 loss = loss_function(tar_real, predictions, loss_object)
+                te_loss = loss_function(te_tar_real, te_predictions, loss_object)
 
             gradients = tape.gradient(loss, transformer.trainable_variables)
             optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))
 
             train_loss(loss)
+            test_loss(te_loss)
             train_accuracy(accuracy_function(tar_real, predictions))
+            test_accuracy(accuracy_function(te_tar_real, te_predictions))
 
-            if batch % 50 == 0:
-                print(f'Epoch {epoch + 1} Batch {batch} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
+            #if batch % 50 == 0:
+            #print(f'Epoch {epoch + 1} Batch {batch} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
-            if (epoch + 1) % 5 == 0:
-                ckpt_save_path = ckpt_manager.save()
-                print(f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
             print()
-            print(f'Epoch {epoch + 1} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
-            print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
+            print(f'Epoch {epoch + 1}, Batch {batch + 1}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
+            print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
+            #print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
 
 
 '''train_step_signature = [

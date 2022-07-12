@@ -80,7 +80,7 @@ class ExtractWorkflowConnections:
         no_dup_paths = list(set(unique_paths))
 
         print("Finding compatible next tools...")
-        compatible_next_tools = self.__set_compatible_next_tools(no_dup_paths)
+        compatible_next_tools = [] #self.__set_compatible_next_tools(no_dup_paths)
         return unique_paths, compatible_next_tools, standard_connections
 
     def __collect_standard_connections(self, row):

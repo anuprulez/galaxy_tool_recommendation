@@ -22,7 +22,8 @@ class HyperparameterOptimisation:
     def __init__(self):
         """ Init method. """
 
-    def train_model(self, config, reverse_dictionary, train_data, train_labels, test_data, test_labels, tool_tr_samples, class_weights):
+    def train_model(self, config, reverse_dictionary, train_data, train_labels, test_data, test_labels):
+        # tool_tr_samples, class_weights)
         """
         Train a model and report accuracy
         """
@@ -57,8 +58,7 @@ class HyperparameterOptimisation:
 
         best_model_params = None
         best_model = None
-
         
-        create_transformer.create_train_model(train_data, train_labels, reverse_dictionary)
+        create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, reverse_dictionary)
             
         return best_model_params, best_model
