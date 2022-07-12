@@ -71,17 +71,23 @@ class PrepareData:
         Decompose the paths to variable length sub-paths keeping the first tool fixed
         """
         sub_paths_pos = list()
+        print(paths)
+        print("----------------")
         for index, item in enumerate(paths):
             tools = item.split(",")
             len_tools = len(tools)
             if len_tools <= self.max_tool_sequence_len:
-                for window in range(1, len_tools):
-                    sequence = tools[0: window + 1]
-                    tools_pos = [str(dictionary[str(tool_item)]) for tool_item in sequence]
-                    if len(tools_pos) > 1:
-                        sub_paths_pos.append(",".join(tools_pos))
+                #for window in range(1, len_tools):
+                #sequence = tools[0: window + 1]
+                sequence = tools[0: len_tools]
+                tools_pos = [str(dictionary[str(tool_item)]) for tool_item in sequence]
+                if len(tools_pos) > 1:
+                    sub_paths_pos.append(",".join(tools_pos))
+        #print(len(sub_paths_pos))
         sub_paths_pos = list(set(sub_paths_pos))
+        print(len(sub_paths_pos))
         return sub_paths_pos
+
 
     def prepare_paths_labels_dictionary(self, dictionary, reverse_dictionary, paths, compatible_next_tools):
         """
@@ -112,6 +118,16 @@ class PrepareData:
             paths_labels[item] = ",".join(list(set(paths_labels[item].split(","))))
         return paths_labels
 
+
+    def prepare_input_target_paths(self, dictionary, reverse_dictionary, paths):
+        input_target_paths = dict()
+        for item in paths:
+            input_tools = item.split(",")
+            target_tools = ",".join(input_tools[1:])
+            input_target_paths[item] = target_tools
+        return input_target_paths
+
+
     def pad_test_paths(self, paths_dictionary, num_classes):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
@@ -136,29 +152,20 @@ class PrepareData:
         Add padding to the tools sequences and create multi-hot encoded labels
         """
         size_data = len(paths_dictionary)
-        data_mat = np.zeros([size_data, self.max_tool_sequence_len])
-        label_mat = np.zeros([size_data, 2 * (num_classes + 1)])
-        pos_flag = 1.0
+        input_mat = np.zeros([size_data, self.max_tool_sequence_len])
+        target_mat = np.zeros([size_data, self.max_tool_sequence_len])
         train_counter = 0
-        for train_seq, train_label in list(paths_dictionary.items()):
-            pub_connections = list()
-            positions = train_seq.split(",")
-            last_tool_id = positions[-1]
-            last_tool_name = reverse_dictionary[int(last_tool_id)]
-            start_pos = self.max_tool_sequence_len - len(positions)
-            for id_pos, pos in enumerate(positions):
-                data_mat[train_counter][start_pos + id_pos] = int(pos)
-            if last_tool_name in standard_connections:
-                pub_connections = standard_connections[last_tool_name]
-            for label_item in train_label.split(","):
-                label_pos = int(label_item)
-                label_row = label_mat[train_counter]
-                if reverse_dictionary[label_pos] in pub_connections:
-                    label_row[label_pos] = pos_flag
-                else:
-                    label_row[label_pos + num_classes + 1] = pos_flag
+        for input_seq, target_seq in list(paths_dictionary.items()):
+            input_seq_tools = input_seq.split(",")
+            target_seq_tools = target_seq.split(",")
+            start_pos = self.max_tool_sequence_len - len(input_seq_tools)
+            for id_pos, pos in enumerate(input_seq_tools):
+                input_mat[train_counter][start_pos + id_pos] = int(pos)
+            for id_pos, pos in enumerate(target_seq_tools):
+                target_mat[train_counter][start_pos + id_pos + 1] = int(pos)
             train_counter += 1
-        return data_mat, label_mat
+        return input_mat, target_mat
+
 
     def split_test_train_data(self, multilabels_paths):
         """
@@ -208,6 +215,7 @@ class PrepareData:
             class_weights[key] = np.round(np.log(u_score), 6)
         return class_weights
 
+
     def get_train_last_tool_freq(self, train_paths, reverse_dictionary):
         """
         Get the frequency of last tool of each tool sequence
@@ -224,6 +232,7 @@ class PrepareData:
             freq_dict_names[reverse_dictionary[int(last_tool)]] += 1
         utils.write_file("data/freq_dict_names.txt", freq_dict_names)
         return last_tool_freq
+
 
     def get_toolid_samples(self, train_data, l_tool_freq):
         l_tool_tr_samples = dict()
@@ -252,11 +261,12 @@ class PrepareData:
         random.shuffle(all_unique_paths)
 
         print("Creating dictionaries...")
-        multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, rev_dict, all_unique_paths, compatible_next_tools)
+        #multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, rev_dict, all_unique_paths, compatible_next_tools)
+        multilabels_paths = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
 
         print("Complete data: %d" % len(multilabels_paths))
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
-        
+
         utils.write_file("data/rev_dict.txt", rev_dict)
         utils.write_file("data/test_paths_dict.txt", test_paths_dict)
 
@@ -267,6 +277,10 @@ class PrepareData:
         # pad training and test data with leading zeros
         test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
+
+        print(train_data[0:5])
+        print()
+        print(train_labels[0:5])
         
         print("Estimating sample frequency...")
         l_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)

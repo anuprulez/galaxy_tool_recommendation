@@ -14,6 +14,7 @@ from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.callbacks import EarlyStopping
 
 from scripts import utils
+import create_transformer
 
 
 class HyperparameterOptimisation:
@@ -54,41 +55,10 @@ class HyperparameterOptimisation:
             "recurrent_dropout": hp.uniform("recurrent_dropout", l_recurrent_dropout[0], l_recurrent_dropout[1])
         }
 
-        def create_model(params):
-            model = Sequential()
-            model.add(Embedding(dimensions, int(params["embedding_size"]), mask_zero=True))
-            model.add(SpatialDropout1D(params["spatial_dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=True, activation="elu"))
-            model.add(Dropout(params["dropout"]))
-            model.add(GRU(int(params["units"]), dropout=params["dropout"], recurrent_dropout=params["recurrent_dropout"], return_sequences=False, activation="elu"))
-            model.add(Dropout(params["dropout"]))
-            model.add(Dense(2 * dimensions, activation="sigmoid"))
-            optimizer_rms = RMSprop(lr=params["learning_rate"])
-            batch_size = int(params["batch_size"])
-            model.compile(loss=utils.weighted_loss(class_weights), optimizer=optimizer_rms)
-            print(model.summary())
-            model_fit = model.fit(
-                utils.balanced_sample_generator(
-                    train_data,
-                    train_labels,
-                    batch_size,
-                    tool_tr_samples,
-                    reverse_dictionary
-                ),
-                steps_per_epoch=len(train_data) // batch_size,
-                epochs=optimize_n_epochs,
-                callbacks=[early_stopping],
-                validation_data=(test_data, test_labels),
-                verbose=2,
-                shuffle=True
-            )
-            return {'loss': model_fit.history["val_loss"][-1], 'status': STATUS_OK, 'model': model}
-        # minimize the objective function using the set of parameters above
-        trials = Trials()
-        learned_params = fmin(create_model, params, trials=trials, algo=tpe.suggest, max_evals=int(config["max_evals"]))
-        best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
-        # set the best params with respective values
-        for item in learned_params:
-            item_val = learned_params[item]
-            best_model_params[item] = item_val
+        best_model_params = None
+        best_model = None
+
+        
+        create_transformer.create_train_model(train_data, train_labels, reverse_dictionary)
+            
         return best_model_params, best_model
