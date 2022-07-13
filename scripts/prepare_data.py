@@ -245,6 +245,7 @@ class PrepareData:
                     l_tool_tr_samples[last_tool_id].append(index)
         return l_tool_tr_samples
 
+
     def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
         """
         Convert the training and test paths into corresponding numpy matrices
@@ -260,6 +261,9 @@ class PrepareData:
         all_unique_paths = self.decompose_paths(raw_paths, dictionary)
         random.shuffle(all_unique_paths)
 
+        all_paths = ",".join(all_unique_paths)
+        utils.write_file("data/all_paths.txt", all_paths)
+
         print("Creating dictionaries...")
         #multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, rev_dict, all_unique_paths, compatible_next_tools)
         multilabels_paths = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
@@ -268,6 +272,7 @@ class PrepareData:
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
 
         utils.write_file("data/rev_dict.txt", rev_dict)
+        utils.write_file("data/f_dict.txt", dictionary)
         utils.write_file("data/test_paths_dict.txt", test_paths_dict)
 
         print("Train data: %d" % len(train_paths_dict))
@@ -281,6 +286,15 @@ class PrepareData:
         print(train_data[0:5])
         print()
         print(train_labels[0:5])
+
+        train_data = train_data[:10000]
+        train_labels = train_labels[:20000]
+
+        test_data = test_data[:2000]
+        test_labels = test_labels[:2000]
+
+        print("Train data: ", train_data.shape)
+        print("Test data: ", test_data.shape)
         
         '''print("Estimating sample frequency...")
         l_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)

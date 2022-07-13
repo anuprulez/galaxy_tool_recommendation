@@ -27,7 +27,7 @@ class PredictTool:
     def __init__(self, num_cpus):
         """ Init method. """
 
-    def find_train_best_network(self, network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs):
+    def find_train_best_network(self, network_config, forward_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs):
         #class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples
         """
         Define recurrent neural network and train sequential data
@@ -37,7 +37,7 @@ class PredictTool:
 
         print("Start hyperparameter optimisation...")
         hyper_opt = optimise_hyperparameters.HyperparameterOptimisation()
-        best_params, best_model = hyper_opt.train_model(network_config, reverse_dictionary, train_data, train_labels, test_data, test_labels) 
+        best_params, best_model = hyper_opt.train_model(network_config, forward_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels) 
         #tool_tr_samples, class_weights
 
         # define callbacks
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
     #results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples) 
-    results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs)
+    results_weighted = predict_tool.find_train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs)
     print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])

@@ -24,6 +24,7 @@ dff = 512
 num_heads = 8
 dropout_rate = 0.1
 EPOCHS = 200
+max_seq_len = 25
 
 
 def get_angles(pos, i, d_model):
@@ -388,7 +389,17 @@ def sample_true_x_y(batch_size, X_train, y_train):
     return unrolled_x, unrolled_y
 
 
-def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, rev_dict):
+def create_sample_test_data(f_dict):
+    tool_name = "bam_to_sam" #"Summary_Statistics1"
+    #seq2 = "bowtie2"
+    input_mat = np.zeros([1, 25])
+    tool_id = f_dict[tool_name]
+    print(tool_name, tool_id)
+    input_mat[:, max_seq_len - 1:max_seq_len] = tool_id
+    return input_mat
+
+
+def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
     learning_rate = CustomSchedule(d_model)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -421,7 +432,6 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, rev_dict)
             inp, tar = sample_true_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
             te_inp, te_tar = sample_true_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
-
             tar_inp = tar[:, :-1]
             tar_real = tar[:, 1:]
 
@@ -449,6 +459,118 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, rev_dict)
             print(f'Epoch {epoch + 1}, Batch {batch + 1}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
             print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
             #print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
+
+            translator = Translator(transformer)
+
+            #test_input_seq = create_sample_test_data(f_dict)
+            #print(tf.constant(test_input_seq))
+            #translated_text, translated_tokens, attention_weights = translator(tf.constant(test_input_seq), f_dict, rev_dict)
+            #translator(te_inp, te_tar, f_dict, rev_dict)
+            translator(te_inp, te_tar, f_dict, rev_dict)
+
+
+class Translator(tf.Module):
+  def __init__(self, transformer):
+    #self.tokenizers = tokenizers
+    self.transformer = transformer
+
+  def __call__(self, te_inp, te_tar, f_dict, rev_dict):
+    # input sentence is portuguese, hence adding the start and end token
+    te_f_input = tf.constant(te_inp[0])
+    te_f_input = tf.reshape(te_f_input, [1, max_seq_len])
+    sentence = te_f_input
+    #print(te_f_input)
+    #print(sentence)
+    assert isinstance(sentence, tf.Tensor)
+    if len(sentence.shape) == 0:
+      sentence = sentence[tf.newaxis]
+
+    #sentence = self.tokenizers.pt.tokenize(sentence).to_tensor()
+    encoder_input = sentence
+    print("True input seq: ", encoder_input)
+    # As the output language is english, initialize the output with the
+    # english start token.
+    #start_end = self.tokenizers.en.tokenize([''])[0]
+    #start = start_end[0][tf.newaxis]
+    #end = start_end[1][tf.newaxis]
+
+    # `tf.TensorArray` is required here (instead of a python list) so that the
+    # dynamic-loop can be traced by `tf.function`.
+    #output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
+    
+    # working code
+    '''output_array = tf.zeros([1, max_seq_len], tf.int64) #output_array.write(0, 0)
+    predictions, _ = self.transformer([encoder_input, output_array], training=False)
+    #print(predictions.shape)
+    predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
+    #print(predictions.shape)
+    predicted_id = tf.argmax(predictions, axis=-1)
+    pred_val = predicted_id.numpy()[0][0]
+    print(rev_dict[pred_val], pred_val)'''
+
+    print("true target seq: ", te_tar[0])
+    print()
+
+    # loop over target
+    target_seq = te_tar[0]
+    n_target_items = np.where(target_seq > 0)[0]
+    #output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
+    #output_array = output_array.write(0, 0)
+    '''for i in range(max_seq_len):
+        output_array = output_array.write(i, tf.constant(0, dtype=tf.int64))'''
+    np_output_array = np.zeros((1, max_seq_len))
+    #output_array = tf.reshape(output_array, [1, max_seq_len])
+    #print(output_array)
+    #print(n_target_items)
+    print("Looping predictions ...")
+    for i, index in enumerate(n_target_items):
+        print(i, index)
+        output = tf.constant(np_output_array) #tf.transpose(output_array.stack())
+        #output = tf.reshape(output, [1, max_seq_len])
+        print(output)
+        predictions, _ = self.transformer([encoder_input, output], training=False)
+        predictions = predictions[:, -1:, :]
+        predicted_id = tf.argmax(predictions, axis=-1)
+        print(predicted_id[0][0])
+        np_output_array[:, index] = predicted_id[0][0]
+        print(np_output_array)
+        print()
+    '''for i in tf.range(max_seq_len):
+      #output = tf.transpose(output_array.stack())
+      predictions, _ = self.transformer([encoder_input, output_array], training=False)
+
+      # select the last token from the seq_len dimension
+      predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
+
+      predicted_id = tf.argmax(predictions, axis=-1)
+      pred_val = predicted_id.numpy()[0][0]
+      print(i, pred_val, rev_dict[pred_val])'''
+      #print()
+      
+      # concatentate the predicted_id to the output which is given to the decoder
+      # as its input.
+      #output_array = output_array.write(i+1, predicted_id[0])
+
+      #print(output_array)
+
+      #if predicted_id == end:
+      #  break
+
+    #output = tf.transpose(output_array.stack())
+
+    #print(output_array)
+    # output.shape (1, tokens)
+    #text = tokenizers.en.detokenize(output)[0]  # shape: ()
+
+    #tokens = tokenizers.en.lookup(output)[0]
+
+    # `tf.function` prevents us from using the attention_weights that were
+    # calculated on the last iteration of the loop. So recalculate them outside
+    # the loop.
+    #_, attention_weights = self.transformer([encoder_input, output[:,:-1]], training=False)
+
+    #return text, tokens, attention_weights
+
 
 
 '''train_step_signature = [
