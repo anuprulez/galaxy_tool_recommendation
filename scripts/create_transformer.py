@@ -27,6 +27,13 @@ EPOCHS = 200
 max_seq_len = 25
 
 
+loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+train_loss = tf.keras.metrics.Mean(name='train_loss')
+train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
+test_loss = tf.keras.metrics.Mean(name='test_loss')
+test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
+
+
 def get_angles(pos, i, d_model):
   angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(d_model))
   return pos * angle_rates
@@ -402,12 +409,7 @@ def create_sample_test_data(f_dict):
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
     learning_rate = CustomSchedule(d_model)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-    loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
-
-    train_loss = tf.keras.metrics.Mean(name='train_loss')
-    train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
-    test_loss = tf.keras.metrics.Mean(name='test_loss')
-    test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
+   
 
     transformer = Transformer(
         num_layers=num_layers,
@@ -527,14 +529,24 @@ class Translator(tf.Module):
         print(i, index)
         output = tf.constant(np_output_array) #tf.transpose(output_array.stack())
         #output = tf.reshape(output, [1, max_seq_len])
-        print(output)
-        predictions, _ = self.transformer([encoder_input, output], training=False)
-        predictions = predictions[:, -1:, :]
+        #print(output)
+        orig_predictions, _ = self.transformer([encoder_input, output], training=False)
+        print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
+        predictions = orig_predictions[:, -1:, :]
         predicted_id = tf.argmax(predictions, axis=-1)
-        print(predicted_id[0][0])
+        print("Last predicted id:", predicted_id[0][0])
         np_output_array[:, index] = predicted_id[0][0]
         print(np_output_array)
         print()
+
+    print("Overall loss and accuracy:")
+    #target_seq = tf.reshape(te_tar[0], [1, max_seq_len])
+    #print(target_seq, orig_predictions)
+    prediction_loss = loss_function(target_seq, orig_predictions, loss_object)
+    test_loss(prediction_loss)
+    test_accuracy(accuracy_function(target_seq, orig_predictions))
+    print(f'Prediction Test: Loss {test_loss.result():.4f}, Accuracy {test_accuracy.result():.4f}')
+    print()
     '''for i in tf.range(max_seq_len):
       #output = tf.transpose(output_array.stack())
       predictions, _ = self.transformer([encoder_input, output_array], training=False)
