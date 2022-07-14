@@ -13,6 +13,7 @@ from scripts import predict_tool_usage
 from scripts import utils
 
 main_path = os.getcwd()
+index_start_token = 2
 
 
 class PrepareData:
@@ -62,8 +63,13 @@ class PrepareData:
         for word, _ in count:
             word = word.lstrip()
             word = word.rstrip()
-            dictionary[word] = len(dictionary) + 1
+            if len(dictionary) == 1:
+                dictionary[word] = len(dictionary) + 2
+            else:
+                dictionary[word] = len(dictionary) + 1
+        dictionary["start_token"] = index_start_token
         dictionary, reverse_dictionary = self.assemble_dictionary(dictionary, old_data_dictionary)
+        print(dictionary)
         return dictionary, reverse_dictionary
 
     def decompose_paths(self, paths, dictionary):
@@ -142,15 +148,18 @@ class PrepareData:
             start_pos = self.max_tool_sequence_len - len(positions)
             for id_pos, pos in enumerate(positions):
                 data_mat[train_counter][start_pos + id_pos] = int(pos)
+                data_mat[train_counter][id_pos] = int(pos)
             for label_item in train_label.split(","):
                 label_mat[train_counter][int(label_item)] = 1.0
             train_counter += 1
         return data_mat, label_mat
 
+
     def pad_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
         """
+        
         size_data = len(paths_dictionary)
         input_mat = np.zeros([size_data, self.max_tool_sequence_len])
         target_mat = np.zeros([size_data, self.max_tool_sequence_len])
@@ -158,12 +167,19 @@ class PrepareData:
         for input_seq, target_seq in list(paths_dictionary.items()):
             input_seq_tools = input_seq.split(",")
             target_seq_tools = target_seq.split(",")
-            start_pos = self.max_tool_sequence_len - len(input_seq_tools)
+            #start_pos = self.max_tool_sequence_len - len(input_seq_tools)
+            input_mat[train_counter][0] = index_start_token
+            target_mat[train_counter][0] = index_start_token
             for id_pos, pos in enumerate(input_seq_tools):
-                input_mat[train_counter][start_pos + id_pos] = int(pos)
+                #input_mat[train_counter][start_pos + id_pos] = int(pos)
+                input_mat[train_counter][id_pos + 1] = int(pos)
             for id_pos, pos in enumerate(target_seq_tools):
-                target_mat[train_counter][start_pos + id_pos + 1] = int(pos)
+                #target_mat[train_counter][start_pos + id_pos + 1] = int(pos)
+                target_mat[train_counter][id_pos + 1] = int(pos)
             train_counter += 1
+        #print(input_mat[0])
+        #print(target_mat[0])
+        #print("----------")
         return input_mat, target_mat
 
 
@@ -252,6 +268,7 @@ class PrepareData:
         """
         processed_data, raw_paths = self.process_workflow_paths(workflow_paths)
         dictionary, rev_dict = self.create_data_dictionary(processed_data, old_data_dictionary)
+   
         num_classes = len(dictionary)
 
         print("Raw paths: %d" % len(raw_paths))
@@ -287,7 +304,7 @@ class PrepareData:
         print()
         print(train_labels[0:5])
 
-        train_data = train_data[:10000]
+        train_data = train_data[:20000]
         train_labels = train_labels[:20000]
 
         test_data = test_data[:2000]

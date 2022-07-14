@@ -25,6 +25,7 @@ num_heads = 8
 dropout_rate = 0.1
 EPOCHS = 200
 max_seq_len = 25
+index_start_token = 2
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -377,7 +378,7 @@ def loss_function(real, pred, loss_object):
 
 
 def accuracy_function(real, pred):
-  accuracies = tf.equal(real, tf.argmax(pred, axis=2))
+  accuracies = tf.equal(real, tf.argmax(pred, axis=-1))
 
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   accuracies = tf.math.logical_and(mask, accuracies)
@@ -410,7 +411,6 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
     learning_rate = CustomSchedule(d_model)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
    
-
     transformer = Transformer(
         num_layers=num_layers,
         d_model=d_model,
@@ -436,6 +436,10 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
 
             tar_inp = tar[:, :-1]
             tar_real = tar[:, 1:]
+            print("inp:", inp[0])
+            print("Target: ", tar[0])
+            print("tar_inp: ", tar_inp[0])
+            print("tar_real: ", tar_real[0])
 
             te_tar_inp = te_tar[:, :-1]
             te_tar_real = te_tar[:, 1:]
@@ -443,9 +447,12 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             with tf.GradientTape() as tape:
                 predictions, _ = transformer([inp, tar_inp], training = True)
                 te_predictions, _ = transformer([te_inp, te_tar_inp], training = False)
+                pred_argmax = tf.argmax(te_predictions, axis=-1)
+                pred_seq = pred_argmax[0,:]
                 loss = loss_function(tar_real, predictions, loss_object)
                 te_loss = loss_function(te_tar_real, te_predictions, loss_object)
-
+            print("Pred seq: ", pred_seq)
+            print()
             gradients = tape.gradient(loss, transformer.trainable_variables)
             optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))
 
@@ -462,13 +469,14 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
             #print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
 
-            translator = Translator(transformer)
 
-            #test_input_seq = create_sample_test_data(f_dict)
-            #print(tf.constant(test_input_seq))
-            #translated_text, translated_tokens, attention_weights = translator(tf.constant(test_input_seq), f_dict, rev_dict)
-            #translator(te_inp, te_tar, f_dict, rev_dict)
-            translator(te_inp, te_tar, f_dict, rev_dict)
+            if batch % 50 == 0:
+                translator = Translator(transformer)
+                #test_input_seq = create_sample_test_data(f_dict)
+                #print(tf.constant(test_input_seq))
+                #translated_text, translated_tokens, attention_weights = translator(tf.constant(test_input_seq), f_dict, rev_dict)
+                #translator(te_inp, te_tar, f_dict, rev_dict)
+                translator(te_inp, te_tar, f_dict, rev_dict)
 
 
 class Translator(tf.Module):
@@ -481,6 +489,7 @@ class Translator(tf.Module):
     te_f_input = tf.constant(te_inp[0])
     te_f_input = tf.reshape(te_f_input, [1, max_seq_len])
     sentence = te_f_input
+    start_token = index_start_token
     #print(te_f_input)
     #print(sentence)
     assert isinstance(sentence, tf.Tensor)
@@ -510,7 +519,7 @@ class Translator(tf.Module):
     pred_val = predicted_id.numpy()[0][0]
     print(rev_dict[pred_val], pred_val)'''
 
-    print("true target seq: ", te_tar[0])
+    #print("true target seq: ", te_tar[0])
     print()
 
     # loop over target
@@ -522,7 +531,8 @@ class Translator(tf.Module):
         output_array = output_array.write(i, tf.constant(0, dtype=tf.int64))'''
     np_output_array = np.zeros((1, max_seq_len))
     #output_array = tf.reshape(output_array, [1, max_seq_len])
-    #print(output_array)
+    np_output_array[:, 0] = start_token
+    print(np_output_array)
     #print(n_target_items)
     print("Looping predictions ...")
     for i, index in enumerate(n_target_items):
@@ -531,13 +541,14 @@ class Translator(tf.Module):
         #output = tf.reshape(output, [1, max_seq_len])
         #print(output)
         orig_predictions, _ = self.transformer([encoder_input, output], training=False)
+        print("true target seq: ", te_tar[0])
         print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
         predictions = orig_predictions[:, -1:, :]
         predicted_id = tf.argmax(predictions, axis=-1)
-        print("Last predicted id:", predicted_id[0][0])
-        np_output_array[:, index] = predicted_id[0][0]
+        #print("Last predicted id:", predicted_id[0][0])
+        np_output_array[:, index+1] = predicted_id[0][0]
         print(np_output_array)
-        print()
+        print("----------")
 
     print("Overall loss and accuracy:")
     #target_seq = tf.reshape(te_tar[0], [1, max_seq_len])
