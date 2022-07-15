@@ -516,7 +516,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
 
             if batch % 50 == 0:
                 translator = Translator(transformer)
-                test_input_seq = create_sample_test_data(f_dict)
+                '''test_input_seq = create_sample_test_data(f_dict)
                 print(tf.constant(test_input_seq, dtype=tf.int64))
                 sample_output = np.zeros((1, max_seq_len - 1))
                 sample_output[:, 0] = index_start_token
@@ -524,10 +524,10 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
                 print(sample_output)
                 sample_predictions, _ = transformer([test_input_seq, sample_output], training = False)
                 top_5 = tf.math.top_k(sample_predictions, k=5)
-                print("Top k: ", sample_predictions.shape, top_5)
+                print("Top k: ", sample_predictions.shape, top_5)'''
                 #translated_text, translated_tokens, attention_weights = translator(tf.constant(test_input_seq), f_dict, rev_dict)
                 #translator(te_inp, te_tar, f_dict, rev_dict)
-                translator(te_inp, te_tar)
+                translator(te_inp, te_tar, f_dict, rev_dict)
 
 
 class Translator(tf.Module):
@@ -535,7 +535,7 @@ class Translator(tf.Module):
     #self.tokenizers = tokenizers
     self.transformer = transformer
 
-  def __call__(self, te_inp, te_tar):
+  def __call__(self, te_inp, te_tar, f_dict, r_dict):
     # input sentence is portuguese, hence adding the start and end token
     te_f_input = tf.constant(te_inp[0])
     te_f_input = tf.reshape(te_f_input, [1, max_seq_len])
@@ -604,6 +604,27 @@ class Translator(tf.Module):
         #print("np_output_array: ", np_output_array)
         print("----------")
 
+    # predict for bowtie2
+    print("Prediction for bowtie2...")
+    bowtie_output = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
+    bowtie_output = bowtie_output.write(0, [tf.constant(start_token, dtype=tf.int64)])
+    bowtie_o = tf.transpose(bowtie_output.stack())
+
+    tool_name = "bowtie2"
+    tool_id = f_dict[tool_name]
+    print(tool_name, tool_id)
+    bowtie_input = np.zeros([1, 25])
+    bowtie_input[:, 0] = index_start_token
+    bowtie_input[:, 1] = tool_id
+    bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
+    print(bowtie_input, bowtie_output, bowtie_o)
+    bowtie_pred, _ = self.transformer([bowtie_input, bowtie_o], training=False)
+    print(bowtie_pred.shape)
+    top_k = tf.math.top_k(bowtie_pred, k=10)
+    print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
+    print(np.all(top_k.indices.numpy(), axis=-1))
+    print("Predicted next tools for bowtie2: ", [r_dict[item] for item in top_k.indices.numpy()[0][0]])
+    print()
     '''print("Overall loss and accuracy:")
     prediction_loss = loss_function(te_tar_real, orig_predictions, loss_object)
     test_loss(prediction_loss)

@@ -298,6 +298,7 @@ class PrepareData:
 
         utils.write_file("data/rev_dict.txt", rev_dict)
         utils.write_file("data/f_dict.txt", dictionary)
+        utils.write_file("data/train_paths_dict.txt", train_paths_dict)
         utils.write_file("data/test_paths_dict.txt", test_paths_dict)
 
         print("Train data: %d" % len(train_paths_dict))
