@@ -35,6 +35,12 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
 
+train_step_signature = [
+    tf.TensorSpec(shape=(None, None), dtype=tf.int64),
+    tf.TensorSpec(shape=(None, None), dtype=tf.int64),
+]
+
+
 def get_angles(pos, i, d_model):
   angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(d_model))
   return pos * angle_rates
@@ -367,9 +373,18 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 
-def loss_function(real, pred, loss_object):
+def loss_function(real, pred, loss_object, training=False):
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   loss_ = loss_object(real, pred)
+
+  if training == False:
+      print("Loss function")
+      #print(real.shape, pred.shape, tf.argmax(pred, axis=-1).shape)
+      print("Real output: ", real)
+      print("Predicted output: ", tf.argmax(pred, axis=-1))
+      #print("Loss: ", tf.reduce_mean(loss_object(real, pred)))
+      print("Accuracy: ", accuracy_function(real, pred))
+      print("-----------")
 
   mask = tf.cast(mask, dtype=loss_.dtype)
   loss_ *= mask
@@ -392,25 +407,27 @@ def sample_true_x_y(batch_size, X_train, y_train):
     rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
-    unrolled_x = x_batch_train #utils.convert_to_array(x_batch_train)
-    unrolled_y = y_batch_train #utils.convert_to_array(y_batch_train)
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64) #utils.convert_to_array(x_batch_train)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64) #utils.convert_to_array(y_batch_train)
     return unrolled_x, unrolled_y
 
 
 def create_sample_test_data(f_dict):
-    tool_name = "bam_to_sam" #"Summary_Statistics1"
+    tool_name = "bowtie2" #"Summary_Statistics1"
     #seq2 = "bowtie2"
     input_mat = np.zeros([1, 25])
     tool_id = f_dict[tool_name]
     print(tool_name, tool_id)
-    input_mat[:, max_seq_len - 1:max_seq_len] = tool_id
+    input_mat[0, 0] = index_start_token
+    input_mat[0, 1] = tool_id
+    print(input_mat)
     return input_mat
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
     learning_rate = CustomSchedule(d_model)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-   
+
     transformer = Transformer(
         num_layers=num_layers,
         d_model=d_model,
@@ -421,6 +438,25 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         rate=dropout_rate)
 
     n_train_batches = int(inp_seqs.shape[0] / float(BATCH_SIZE))
+
+    @tf.function(input_signature=train_step_signature)
+    def train_step(inp, tar):
+      tar_inp = tar[:, :-1]
+      tar_real = tar[:, 1:]
+      #print("tar_inp: ", tar_inp[0])
+      #print("tar_real: ", tar_real[0])
+
+      with tf.GradientTape() as tape:
+        predictions, _ = transformer([inp, tar_inp],
+                                 training = True)
+        loss = loss_function(tar_real, predictions, loss_object, True)
+
+      gradients = tape.gradient(loss, transformer.trainable_variables)
+      optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))
+
+      train_loss(loss)
+      train_accuracy(accuracy_function(tar_real, predictions))
+      #return loss, predictions, tar_inp, tar_real
 
     for epoch in range(EPOCHS):
         start = time.time()
@@ -434,49 +470,64 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             inp, tar = sample_true_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
             te_inp, te_tar = sample_true_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
-            tar_inp = tar[:, :-1]
-            tar_real = tar[:, 1:]
-            print("inp:", inp[0])
-            print("Target: ", tar[0])
-            print("tar_inp: ", tar_inp[0])
-            print("tar_real: ", tar_real[0])
+            #tar_inp = tar[:, :-1]
+            #tar_real = tar[:, 1:]
 
             te_tar_inp = te_tar[:, :-1]
             te_tar_real = te_tar[:, 1:]
 
-            with tf.GradientTape() as tape:
+            train_step(inp, tar)
+
+            #print("inp:", inp[0])
+            #print("Target: ", tar[0])
+            
+
+            te_predictions, _ = transformer([te_inp, te_tar_inp], training = False)
+            pred_argmax = tf.argmax(te_predictions, axis=-1)
+            pred_seq = pred_argmax[0,:]
+            te_loss = loss_function(te_tar_real, te_predictions, loss_object)
+
+            '''with tf.GradientTape() as tape:
                 predictions, _ = transformer([inp, tar_inp], training = True)
                 te_predictions, _ = transformer([te_inp, te_tar_inp], training = False)
                 pred_argmax = tf.argmax(te_predictions, axis=-1)
                 pred_seq = pred_argmax[0,:]
-                loss = loss_function(tar_real, predictions, loss_object)
+                loss = loss_function(tar_real, predictions, loss_object, True)
                 te_loss = loss_function(te_tar_real, te_predictions, loss_object)
             print("Pred seq: ", pred_seq)
             print()
             gradients = tape.gradient(loss, transformer.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))
+            optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))'''
 
-            train_loss(loss)
+            #train_loss(loss)
             test_loss(te_loss)
-            train_accuracy(accuracy_function(tar_real, predictions))
+            #train_accuracy(accuracy_function(tar_real, predictions))
             test_accuracy(accuracy_function(te_tar_real, te_predictions))
-
-            #if batch % 50 == 0:
-            #print(f'Epoch {epoch + 1} Batch {batch} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
-
             print()
             print(f'Epoch {epoch + 1}, Batch {batch + 1}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
             print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
-            #print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
+            #if batch % 50 == 0:
+            #print(f'Epoch {epoch + 1} Batch {batch} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
+            #print()
+            #print(f'Epoch {epoch + 1}, Batch {batch + 1}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
+            #print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
+            #print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
 
             if batch % 50 == 0:
                 translator = Translator(transformer)
-                #test_input_seq = create_sample_test_data(f_dict)
-                #print(tf.constant(test_input_seq))
+                test_input_seq = create_sample_test_data(f_dict)
+                print(tf.constant(test_input_seq, dtype=tf.int64))
+                sample_output = np.zeros((1, max_seq_len - 1))
+                sample_output[:, 0] = index_start_token
+                sample_output = tf.convert_to_tensor(sample_output, dtype=tf.int64)
+                print(sample_output)
+                sample_predictions, _ = transformer([test_input_seq, sample_output], training = False)
+                top_5 = tf.math.top_k(sample_predictions, k=5)
+                print("Top k: ", sample_predictions.shape, top_5)
                 #translated_text, translated_tokens, attention_weights = translator(tf.constant(test_input_seq), f_dict, rev_dict)
                 #translator(te_inp, te_tar, f_dict, rev_dict)
-                translator(te_inp, te_tar, f_dict, rev_dict)
+                translator(te_inp, te_tar)
 
 
 class Translator(tf.Module):
@@ -484,7 +535,7 @@ class Translator(tf.Module):
     #self.tokenizers = tokenizers
     self.transformer = transformer
 
-  def __call__(self, te_inp, te_tar, f_dict, rev_dict):
+  def __call__(self, te_inp, te_tar):
     # input sentence is portuguese, hence adding the start and end token
     te_f_input = tf.constant(te_inp[0])
     te_f_input = tf.reshape(te_f_input, [1, max_seq_len])
@@ -529,35 +580,36 @@ class Translator(tf.Module):
     #output_array = output_array.write(0, 0)
     '''for i in range(max_seq_len):
         output_array = output_array.write(i, tf.constant(0, dtype=tf.int64))'''
-    np_output_array = np.zeros((1, max_seq_len))
+    np_output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True) #np.zeros((1, max_seq_len - 1))
+    np_output_array = np_output_array.write(0, [tf.constant(start_token, dtype=tf.int64)])
     #output_array = tf.reshape(output_array, [1, max_seq_len])
-    np_output_array[:, 0] = start_token
+    #np_output_array[:, 0] = start_token
     print(np_output_array)
+    te_tar_real = target_seq[1:]
+
     #print(n_target_items)
     print("Looping predictions ...")
     for i, index in enumerate(n_target_items):
         print(i, index)
-        output = tf.constant(np_output_array) #tf.transpose(output_array.stack())
-        #output = tf.reshape(output, [1, max_seq_len])
-        #print(output)
+        output = tf.transpose(np_output_array.stack())
+        #tf.constant(np_output_array, dtype=tf.int64) #tf.transpose(output_array.stack())
+        print("decoder input: ", output, encoder_input.shape, output.shape)
         orig_predictions, _ = self.transformer([encoder_input, output], training=False)
-        print("true target seq: ", te_tar[0])
+        print("true target seq real: ", te_tar_real)
         print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
         predictions = orig_predictions[:, -1:, :]
         predicted_id = tf.argmax(predictions, axis=-1)
-        #print("Last predicted id:", predicted_id[0][0])
-        np_output_array[:, index+1] = predicted_id[0][0]
-        print(np_output_array)
+        #np_output_array[:, index+1] = predicted_id[0][0]
+        np_output_array = np_output_array.write(i+1, predicted_id[0])
+        #print("np_output_array: ", np_output_array)
         print("----------")
 
-    print("Overall loss and accuracy:")
-    #target_seq = tf.reshape(te_tar[0], [1, max_seq_len])
-    #print(target_seq, orig_predictions)
-    prediction_loss = loss_function(target_seq, orig_predictions, loss_object)
+    '''print("Overall loss and accuracy:")
+    prediction_loss = loss_function(te_tar_real, orig_predictions, loss_object)
     test_loss(prediction_loss)
-    test_accuracy(accuracy_function(target_seq, orig_predictions))
+    test_accuracy(accuracy_function(te_tar_real, orig_predictions))
     print(f'Prediction Test: Loss {test_loss.result():.4f}, Accuracy {test_accuracy.result():.4f}')
-    print()
+    print()'''
     '''for i in tf.range(max_seq_len):
       #output = tf.transpose(output_array.stack())
       predictions, _ = self.transformer([encoder_input, output_array], training=False)

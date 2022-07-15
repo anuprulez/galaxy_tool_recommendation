@@ -13,6 +13,7 @@ from scripts import predict_tool_usage
 from scripts import utils
 
 main_path = os.getcwd()
+start_token_name = "start_token"
 index_start_token = 2
 
 
@@ -60,14 +61,15 @@ class PrepareData:
         """
         count = collections.Counter(words).most_common()
         dictionary = dict()
-        for word, _ in count:
+        for index, (word, _) in enumerate(count):
             word = word.lstrip()
             word = word.rstrip()
-            if len(dictionary) == 1:
+            if index == 1:
                 dictionary[word] = len(dictionary) + 2
+                dictionary[start_token_name] = index_start_token
             else:
                 dictionary[word] = len(dictionary) + 1
-        dictionary["start_token"] = index_start_token
+        #dictionary["start_token"] = index_start_token
         dictionary, reverse_dictionary = self.assemble_dictionary(dictionary, old_data_dictionary)
         print(dictionary)
         return dictionary, reverse_dictionary
@@ -76,13 +78,14 @@ class PrepareData:
         """
         Decompose the paths to variable length sub-paths keeping the first tool fixed
         """
+        max_len = 0
         sub_paths_pos = list()
-        #print(paths)
-        #print("----------------")
         for index, item in enumerate(paths):
             tools = item.split(",")
             len_tools = len(tools)
-            if len_tools <= self.max_tool_sequence_len:
+            if len_tools > max_len:
+                max_len = len_tools
+            if len_tools < self.max_tool_sequence_len:
                 #for window in range(1, len_tools):
                 #sequence = tools[0: window + 1]
                 sequence = tools[0: len_tools]
@@ -91,6 +94,7 @@ class PrepareData:
                     sub_paths_pos.append(",".join(tools_pos))
         #print(len(sub_paths_pos))
         sub_paths_pos = list(set(sub_paths_pos))
+        print("Max length of tools: ", max_len)
         #print(len(sub_paths_pos))
         return sub_paths_pos
 
@@ -155,31 +159,35 @@ class PrepareData:
         return data_mat, label_mat
 
 
-    def pad_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary):
+    def pad_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary, dictionary):
         """
         Add padding to the tools sequences and create multi-hot encoded labels
         """
-        
         size_data = len(paths_dictionary)
         input_mat = np.zeros([size_data, self.max_tool_sequence_len])
         target_mat = np.zeros([size_data, self.max_tool_sequence_len])
+        print(input_mat.shape)
+        print(target_mat.shape)
         train_counter = 0
         for input_seq, target_seq in list(paths_dictionary.items()):
             input_seq_tools = input_seq.split(",")
             target_seq_tools = target_seq.split(",")
+            input_seq_tools.insert(0, dictionary[start_token_name])
+            target_seq_tools.insert(0, dictionary[start_token_name])
             #start_pos = self.max_tool_sequence_len - len(input_seq_tools)
-            input_mat[train_counter][0] = index_start_token
-            target_mat[train_counter][0] = index_start_token
+            #input_mat[train_counter][0] = index_start_token
+            #target_mat[train_counter][0] = index_start_token
+            #print(input_seq_tools, target_seq_tools)
             for id_pos, pos in enumerate(input_seq_tools):
                 #input_mat[train_counter][start_pos + id_pos] = int(pos)
-                input_mat[train_counter][id_pos + 1] = int(pos)
+                input_mat[train_counter][id_pos] = int(pos)
             for id_pos, pos in enumerate(target_seq_tools):
                 #target_mat[train_counter][start_pos + id_pos + 1] = int(pos)
-                target_mat[train_counter][id_pos + 1] = int(pos)
+                target_mat[train_counter][id_pos] = int(pos)
+            #print(input_mat[train_counter])
+            #print(target_mat[train_counter])
+            #print()
             train_counter += 1
-        #print(input_mat[0])
-        #print(target_mat[0])
-        #print("----------")
         return input_mat, target_mat
 
 
@@ -297,8 +305,8 @@ class PrepareData:
 
         print("Padding train and test data...")
         # pad training and test data with leading zeros
-        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict)
-        train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict)
+        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
+        train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
 
         print(train_data[0:5])
         print()
