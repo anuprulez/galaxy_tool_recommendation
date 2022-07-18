@@ -33,7 +33,7 @@ dropout_rate = 0.1
 EPOCHS = 20
 max_seq_len = 25
 index_start_token = 2
-logging_step = 2
+logging_step = 1
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')

@@ -313,14 +313,14 @@ class PrepareData:
         print()
         print(train_labels[0:5])
 
-        train_size = 100000
-        test_size = 5000
+        #train_size = 100000
+        #test_size = 5000
 
-        train_data = train_data[:train_size]
-        train_labels = train_labels[:train_size]
+        #train_data = train_data[:train_size]
+        #train_labels = train_labels[:train_size]
 
-        test_data = test_data[:test_size]
-        test_labels = test_labels[:test_size]
+        #test_data = test_data[:test_size]
+        #test_labels = test_labels[:test_size]
 
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)

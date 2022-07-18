@@ -41,12 +41,16 @@ train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
 test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
-model_path = "log/saved_model/10/tf_model/"
+
+base_path = "log_18_07_22_0/"
+model_path = base_path + "saved_model/0/tf_model/"
+
+
 
 def predict_seq():
 
     # read test sequences
-    path_test_data = "log/saved_data/test.h5"
+    path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
     test_input = tf.convert_to_tensor(np.array(file_obj["input"]), dtype=tf.int64)
     test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
@@ -54,13 +58,36 @@ def predict_seq():
     print(test_input)
     print(test_target)
 
-    r_dict = utils.read_file("log/data/rev_dict.txt")
-    f_dict = utils.read_file("log/data/f_dict.txt")
+    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    f_dict = utils.read_file(base_path + "data/f_dict.txt")
     
     tf_loaded_model = tf.saved_model.load(model_path)
-    predictor = predict_sequences.PredictSequence(tf_loaded_model)
+    #predictor = predict_sequences.PredictSequence(tf_loaded_model)
 
-    predictor(test_input, test_target, f_dict, r_dict)
+    #predictor(test_input, test_target, f_dict, r_dict)
+
+    tool_name = "cutadapt"
+    print("Prediction for {}...".format(tool_name))
+    bowtie_output = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
+    bowtie_output = bowtie_output.write(0, [tf.constant(index_start_token, dtype=tf.int64)])
+    #bowtie_output = bowtie_output.write(1, [tf.constant(295, dtype=tf.int64)])
+    bowtie_o = tf.transpose(bowtie_output.stack())
+
+    tool_id = f_dict[tool_name]
+    print(tool_name, tool_id)
+    bowtie_input = np.zeros([1, 25])
+    bowtie_input[:, 0] = index_start_token
+    bowtie_input[:, 1] = tool_id
+    bowtie_input[:, 2] = 295
+    bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
+    print(bowtie_input, bowtie_output, bowtie_o)
+    bowtie_pred, _ = tf_loaded_model([bowtie_input, bowtie_o], training=False)
+    print(bowtie_pred.shape)
+    top_k = tf.math.top_k(bowtie_pred, k=10)
+    print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
+    print(np.all(top_k.indices.numpy(), axis=-1))
+    print("Predicted next tools for {}: {}".format(tool_name, [r_dict[str(item)] for item in top_k.indices.numpy()[0][0]]))
+    print()
 
 
 
