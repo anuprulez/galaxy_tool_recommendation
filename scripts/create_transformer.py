@@ -21,6 +21,7 @@ from onnx_tf.backend import prepare
 
 
 from scripts import utils
+import predict_sequences
 
 
 BATCH_SIZE = 64
@@ -32,6 +33,7 @@ dropout_rate = 0.1
 EPOCHS = 20
 max_seq_len = 25
 index_start_token = 2
+logging_step = 10
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -535,7 +537,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
                 #translator(te_inp, te_tar, f_dict, rev_dict)
                 #translator(te_inp, te_tar, f_dict, rev_dict)
 
-        if epoch % 1 == 0:
+        if epoch % logging_step == 0:
             print("Saving model at epoch {}".format(epoch))
             base_path = "saved_model/"
             tf_path = base_path + "{}/".format(epoch)
@@ -558,97 +560,6 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             #tf_loaded_model = prepare(loaded_model)
             #prediction = tf_loaded_model.run(item, training=False)
             print("Prediction using loaded model...")
-            translator = Translator(tf_loaded_model)
-            translator(te_inp, te_tar, f_dict, rev_dict)
-
-
-class Translator(tf.Module):
-  def __init__(self, transformer):
-    #self.tokenizers = tokenizers
-    self.transformer = transformer
-
-  def __call__(self, te_inp, te_tar, f_dict, r_dict):
-    # input sentence is portuguese, hence adding the start and end token
-    te_f_input = tf.constant(te_inp[0])
-    te_f_input = tf.reshape(te_f_input, [1, max_seq_len])
-    sentence = te_f_input
-    start_token = index_start_token
-    #print(te_f_input)
-    #print(sentence)
-    assert isinstance(sentence, tf.Tensor)
-    if len(sentence.shape) == 0:
-      sentence = sentence[tf.newaxis]
-
-    #sentence = self.tokenizers.pt.tokenize(sentence).to_tensor()
-    encoder_input = sentence
-    print("True input seq: ", encoder_input)
-    # As the output language is english, initialize the output with the
-    # english start token.
-    #start_end = self.tokenizers.en.tokenize([''])[0]
-    #start = start_end[0][tf.newaxis]
-    #end = start_end[1][tf.newaxis]
-
-    # `tf.TensorArray` is required here (instead of a python list) so that the
-    # dynamic-loop can be traced by `tf.function`.
-    #output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
-
-    print()
-
-    # loop over target
-    target_seq = te_tar[0]
-    n_target_items = np.where(target_seq > 0)[0]
-    #output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
-    #output_array = output_array.write(0, 0)
-    '''for i in range(max_seq_len):
-        output_array = output_array.write(i, tf.constant(0, dtype=tf.int64))'''
-    np_output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True) #np.zeros((1, max_seq_len - 1))
-    np_output_array = np_output_array.write(0, [tf.constant(start_token, dtype=tf.int64)])
-    #output_array = tf.reshape(output_array, [1, max_seq_len])
-    #np_output_array[:, 0] = start_token
-    print(np_output_array)
-    te_tar_real = target_seq[1:]
-
-    #print(n_target_items)
-    print("Looping predictions ...")
-    for i, index in enumerate(n_target_items):
-        print(i, index)
-        output = tf.transpose(np_output_array.stack())
-        #tf.constant(np_output_array, dtype=tf.int64) #tf.transpose(output_array.stack())
-        print("decoder input: ", output, encoder_input.shape, output.shape)
-        orig_predictions, _ = self.transformer([encoder_input, output], training=False)
-        #orig_predictions, _ = self.transformer.run([encoder_input, output], training=False)
-        print(orig_predictions, orig_predictions.shape)
-        print("true target seq real: ", te_tar_real)
-        print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
-        predictions = orig_predictions[:, -1:, :]
-        predicted_id = tf.argmax(predictions, axis=-1)
-        #np_output_array[:, index+1] = predicted_id[0][0]
-        np_output_array = np_output_array.write(i+1, predicted_id[0])
-        #print("np_output_array: ", np_output_array)
-        print("----------")
-
-    '''_, attention_weights = self.transformer([encoder_input, output[:,:-1]], training=False)
-    print("Attention weights")
-    print(attention_weights.shape)'''
-
-    # predict for tool
-    '''tool_name = "cutadapt"
-    print("Prediction for {}...".format(tool_name))
-    bowtie_output = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
-    bowtie_output = bowtie_output.write(0, [tf.constant(start_token, dtype=tf.int64)])
-    bowtie_o = tf.transpose(bowtie_output.stack())
-
-    tool_id = f_dict[tool_name]
-    print(tool_name, tool_id)
-    bowtie_input = np.zeros([1, 25])
-    bowtie_input[:, 0] = index_start_token
-    bowtie_input[:, 1] = tool_id
-    bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
-    print(bowtie_input, bowtie_output, bowtie_o)
-    bowtie_pred, _ = self.transformer([bowtie_input, bowtie_o], training=False)
-    print(bowtie_pred.shape)
-    top_k = tf.math.top_k(bowtie_pred, k=10)
-    print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
-    print(np.all(top_k.indices.numpy(), axis=-1))
-    print("Predicted next tools for {}: {}".format(tool_name, [r_dict[item] for item in top_k.indices.numpy()[0][0]]))
-    print()'''
+            predictor = predict_sequences.PredictSequence(tf_loaded_model)
+            #translator = Translator(tf_loaded_model)
+            predictor(te_inp, te_tar, f_dict, rev_dict)
