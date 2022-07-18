@@ -58,6 +58,10 @@ class HyperparameterOptimisation:
 
         best_model_params = None
         best_model = None
+
+        print("Saving input and target datasets as h5...")
+        utils.save_h5_data(train_data, train_labels, "saved_data/train.h5")
+        utils.save_h5_data(test_data, test_labels, "saved_data/test.h5")
         
         create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, forward_dictionary, reverse_dictionary)
             

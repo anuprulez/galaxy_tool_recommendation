@@ -29,6 +29,13 @@ def write_file(file_path, content):
         json_file.write(json.dumps(content))
 
 
+def save_h5_data(inp, tar, filename):
+    hf_file = h5py.File(filename, 'w')
+    hf_file.create_dataset("input", data=inp)
+    hf_file.create_dataset("target", data=tar)
+    hf_file.close()
+
+
 def save_processed_workflows(file_path, unique_paths):
     workflow_paths_unique = ""
     for path in unique_paths:
