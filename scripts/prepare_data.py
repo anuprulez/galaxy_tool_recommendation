@@ -254,7 +254,7 @@ class PrepareData:
                 freq_dict_names[reverse_dictionary[int(last_tool)]] = 0
             last_tool_freq[last_tool] += 1
             freq_dict_names[reverse_dictionary[int(last_tool)]] += 1
-        utils.write_file("data/freq_dict_names.txt", freq_dict_names)
+        utils.write_file("log/data/freq_dict_names.txt", freq_dict_names)
         return last_tool_freq
 
 
@@ -287,7 +287,7 @@ class PrepareData:
         random.shuffle(all_unique_paths)
 
         all_paths = ",".join(all_unique_paths)
-        utils.write_file("data/all_paths.txt", all_paths)
+        utils.write_file("log/data/all_paths.txt", all_paths)
 
         print("Creating dictionaries...")
         #multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, rev_dict, all_unique_paths, compatible_next_tools)
@@ -296,28 +296,31 @@ class PrepareData:
         print("Complete data: %d" % len(multilabels_paths))
         train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
 
-        utils.write_file("data/rev_dict.txt", rev_dict)
-        utils.write_file("data/f_dict.txt", dictionary)
-        utils.write_file("data/train_paths_dict.txt", train_paths_dict)
-        utils.write_file("data/test_paths_dict.txt", test_paths_dict)
+        utils.write_file("log/data/rev_dict.txt", rev_dict)
+        utils.write_file("log/data/f_dict.txt", dictionary)
+        utils.write_file("log/data/train_paths_dict.txt", train_paths_dict)
+        utils.write_file("log/data/test_paths_dict.txt", test_paths_dict)
 
         print("Train data: %d" % len(train_paths_dict))
         print("Test data: %d" % len(test_paths_dict))
 
         print("Padding train and test data...")
-        # pad training and test data with leading zeros
-        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
+        # pad training and test data with trailing zeros
         train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
+        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
 
         print(train_data[0:5])
         print()
         print(train_labels[0:5])
 
-        train_data = train_data[:20000]
-        train_labels = train_labels[:20000]
+        train_size = 100000
+        test_size = 5000
 
-        test_data = test_data[:2000]
-        test_labels = test_labels[:2000]
+        train_data = train_data[:train_size]
+        train_labels = train_labels[:train_size]
+
+        test_data = test_data[:test_size]
+        test_labels = test_labels[:test_size]
 
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)

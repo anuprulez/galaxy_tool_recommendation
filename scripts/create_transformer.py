@@ -33,7 +33,7 @@ dropout_rate = 0.1
 EPOCHS = 20
 max_seq_len = 25
 index_start_token = 2
-logging_step = 10
+logging_step = 2
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -512,8 +512,8 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             #train_accuracy(accuracy_function(tar_real, predictions))
             test_accuracy(accuracy_function(te_tar_real, te_predictions))
             print()
-            print(f'Epoch {epoch + 1}, Batch {batch + 1}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
-            print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
+            print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
+            print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
             #if batch % 50 == 0:
             #print(f'Epoch {epoch + 1} Batch {batch} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
@@ -538,8 +538,8 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
                 #translator(te_inp, te_tar, f_dict, rev_dict)
 
         if epoch % logging_step == 0:
-            print("Saving model at epoch {}".format(epoch))
-            base_path = "saved_model/"
+            print("Saving model at epoch {}/{}".format(epoch, EPOCHS))
+            base_path = "log/saved_model/"
             tf_path = base_path + "{}/".format(epoch)
             tf_model_save = base_path + "{}/tf_model/".format(epoch)
             onnx_model_save = base_path + "{}/onnx_model/".format(epoch)

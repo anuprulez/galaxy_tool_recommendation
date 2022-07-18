@@ -5,6 +5,7 @@ import os
 import time
 import numpy as np
 import subprocess
+import h5py
 
 import tensorflow as tf
 from tensorflow import keras
@@ -19,8 +20,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 import onnx
 from onnx_tf.backend import prepare
 
-
-from scripts import utils
+import utils
 
 
 BATCH_SIZE = 64
@@ -80,7 +80,7 @@ class PredictSequence(tf.Module):
         output = tf.transpose(np_output_array.stack())
         print("decoder input: ", output, encoder_input.shape, output.shape)
         orig_predictions, _ = self.trained_model([encoder_input, output], training=False)
-        print(orig_predictions, orig_predictions.shape)
+        #print(orig_predictions.shape)
         print("true target seq real: ", te_tar_real)
         print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
         predictions = orig_predictions[:, -1:, :]

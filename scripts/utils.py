@@ -141,7 +141,7 @@ def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_sa
             generator_batch_labels[i] = train_labels[random_tr_index]
         freq = verify_oversampling_freq(generator_batch_data, reverse_dictionary)
         l_tool_frequencies = collect_sampled_tool_freq(l_tool_frequencies, freq)
-        write_file("data/generated_tool_frequencies.txt", l_tool_frequencies)
+        write_file("log/data/generated_tool_frequencies.txt", l_tool_frequencies)
         yield generator_batch_data, generator_batch_labels
 
 
