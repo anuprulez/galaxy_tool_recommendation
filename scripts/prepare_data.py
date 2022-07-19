@@ -15,6 +15,7 @@ from scripts import utils
 main_path = os.getcwd()
 start_token_name = "start_token"
 index_start_token = 2
+from sklearn.model_selection import train_test_split
 
 
 class PrepareData:
@@ -74,6 +75,7 @@ class PrepareData:
         print(dictionary)
         return dictionary, reverse_dictionary
 
+
     def decompose_paths(self, paths, dictionary):
         """
         Decompose the paths to variable length sub-paths keeping the first tool fixed
@@ -131,11 +133,28 @@ class PrepareData:
 
     def prepare_input_target_paths(self, dictionary, reverse_dictionary, paths):
         input_target_paths = dict()
-        for item in paths:
+        d_size = 0
+        for i, item in enumerate(paths):
             input_tools = item.split(",")
-            target_tools = ",".join(input_tools[1:])
-            input_target_paths[item] = target_tools
-        return input_target_paths
+            #print(input_tools)
+            ctr = 0
+            for ctr in range(len(input_tools) - 1):
+                tool_seq = input_tools[0: ctr+2]
+                i_tools = ",".join(tool_seq[0:-1])
+                t_tools = tool_seq[-1]
+                if i_tools not in input_target_paths:
+                    input_target_paths[i_tools] = list()
+                if t_tools not in input_target_paths[i_tools]:
+                    input_target_paths[i_tools].append(t_tools)
+            #if i == 5:
+            #break
+            #target_tools = ",".join(input_tools[1:])
+            #input_target_paths[item] = target_tools
+        #print()
+        for item in input_target_paths:
+            d_size += len(input_target_paths[item])
+        print("Dataset size:", d_size)
+        return input_target_paths, d_size
 
 
     def pad_test_paths(self, paths_dictionary, num_classes):
@@ -191,6 +210,34 @@ class PrepareData:
         return input_mat, target_mat
 
 
+    def pad_paths_multi_target(self, multi_paths, d_size, standard_connections, rev_dict, dictionary):
+        input_mat = np.zeros([d_size, self.max_tool_sequence_len])
+        target_mat = np.zeros([d_size, self.max_tool_sequence_len])
+        #print(input_mat.shape)
+        #print(target_mat.shape)
+        train_counter = 0
+        for input_seq, target_seq_tools in list(multi_paths.items()):
+            #print(input_seq, target_seq_tools)
+            input_seq_tools = input_seq.split(",")
+            for k, t_seq in enumerate(target_seq_tools):
+                t_seq = [t_seq]
+                i_seq = input_seq_tools
+                i_seq.insert(0, dictionary[start_token_name])
+                t_seq.insert(0, dictionary[start_token_name])
+                #print(i_seq, t_seq)
+                for id_pos, pos in enumerate(i_seq):
+                    #print("input seq: ", train_counter, id_pos, pos)
+                    input_mat[train_counter][id_pos] = int(pos)
+                for id_pos, pos in enumerate(t_seq):
+                    #print("target seq: ", train_counter, id_pos, pos)
+                    target_mat[train_counter][id_pos] = int(pos)
+                #print("----------")
+                train_counter += 1
+        print("Final data size: ", input_mat.shape, target_mat.shape)
+        train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)
+        return train_data, train_labels, test_data, test_labels
+
+
     def split_test_train_data(self, multilabels_paths):
         """
         Split into test and train data randomly for each run
@@ -206,6 +253,7 @@ class PrepareData:
             else:
                 train_dict[path] = multilabels_paths[path]
         return train_dict, test_dict
+
 
     def get_predicted_usage(self, data_dictionary, predicted_usage):
         """
@@ -225,6 +273,7 @@ class PrepareData:
                 usage[v] = epsilon
                 continue
         return usage
+
 
     def assign_class_weights(self, n_classes, predicted_usage):
         """
@@ -291,23 +340,25 @@ class PrepareData:
 
         print("Creating dictionaries...")
         #multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, rev_dict, all_unique_paths, compatible_next_tools)
-        multilabels_paths = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
+        multilabels_paths, d_size = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
 
-        print("Complete data: %d" % len(multilabels_paths))
-        train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
+        print("Complete data: %d" % d_size)
+        #train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
 
         utils.write_file("log/data/rev_dict.txt", rev_dict)
         utils.write_file("log/data/f_dict.txt", dictionary)
-        utils.write_file("log/data/train_paths_dict.txt", train_paths_dict)
-        utils.write_file("log/data/test_paths_dict.txt", test_paths_dict)
+        utils.write_file("log/data/total_paths_dict.txt", multilabels_paths)
+        #utils.write_file("log/data/train_paths_dict.txt", train_paths_dict)
+        #utils.write_file("log/data/test_paths_dict.txt", test_paths_dict)
 
-        print("Train data: %d" % len(train_paths_dict))
-        print("Test data: %d" % len(test_paths_dict))
+        #print("Train data: %d" % len(train_paths_dict))
+        #print("Test data: %d" % len(test_paths_dict))
 
         print("Padding train and test data...")
         # pad training and test data with trailing zeros
-        train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
-        test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
+        train_data, train_labels, test_data, test_labels = self.pad_paths_multi_target(multilabels_paths, d_size, standard_connections, rev_dict, dictionary)
+        #train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
+        #test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
 
         print(train_data[0:5])
         print()

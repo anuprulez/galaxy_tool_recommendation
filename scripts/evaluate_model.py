@@ -42,7 +42,7 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
 
-base_path = "log_18_07_22_0/"
+base_path = "log_19_07_22_0/"
 model_path = base_path + "saved_model/0/tf_model/"
 
 
@@ -54,7 +54,7 @@ def predict_seq():
     file_obj = h5py.File(path_test_data, 'r')
     test_input = tf.convert_to_tensor(np.array(file_obj["input"]), dtype=tf.int64)
     test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
-    
+    print("Test data...")
     print(test_input)
     print(test_target)
 
@@ -78,7 +78,9 @@ def predict_seq():
     bowtie_input = np.zeros([1, 25])
     bowtie_input[:, 0] = index_start_token
     bowtie_input[:, 1] = tool_id
-    bowtie_input[:, 2] = 295
+    bowtie_input[:, 2] = 1939
+    #bowtie_input[:, 3] = 2141
+    #bowtie_input[:, 4] = 1569 
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
     print(bowtie_input, bowtie_output, bowtie_o)
     bowtie_pred, _ = tf_loaded_model([bowtie_input, bowtie_o], training=False)
