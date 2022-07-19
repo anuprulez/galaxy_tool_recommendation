@@ -213,16 +213,16 @@ class PrepareData:
     def pad_paths_multi_target(self, multi_paths, d_size, standard_connections, rev_dict, dictionary):
         input_mat = np.zeros([d_size, self.max_tool_sequence_len])
         target_mat = np.zeros([d_size, self.max_tool_sequence_len])
-        #print(input_mat.shape)
-        #print(target_mat.shape)
         train_counter = 0
         for input_seq, target_seq_tools in list(multi_paths.items()):
             #print(input_seq, target_seq_tools)
             input_seq_tools = input_seq.split(",")
+            #print(input_seq_tools, target_seq_tools)
             for k, t_seq in enumerate(target_seq_tools):
                 t_seq = [t_seq]
-                i_seq = input_seq_tools
+                i_seq = list()
                 i_seq.insert(0, dictionary[start_token_name])
+                i_seq[1:] = input_seq_tools
                 t_seq.insert(0, dictionary[start_token_name])
                 #print(i_seq, t_seq)
                 for id_pos, pos in enumerate(i_seq):
@@ -231,8 +231,11 @@ class PrepareData:
                 for id_pos, pos in enumerate(t_seq):
                     #print("target seq: ", train_counter, id_pos, pos)
                     target_mat[train_counter][id_pos] = int(pos)
-                #print("----------")
+                #print(input_mat[train_counter])
+                #print(target_mat[train_counter])
+                #print()
                 train_counter += 1
+            #print("---------------")
         print("Final data size: ", input_mat.shape, target_mat.shape)
         train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)
         return train_data, train_labels, test_data, test_labels
@@ -364,14 +367,14 @@ class PrepareData:
         print()
         print(train_labels[0:5])
 
-        #train_size = 100000
-        #test_size = 5000
+        train_size = 50000
+        test_size = 5000
 
-        #train_data = train_data[:train_size]
-        #train_labels = train_labels[:train_size]
+        train_data = train_data[:train_size]
+        train_labels = train_labels[:train_size]
 
-        #test_data = test_data[:test_size]
-        #test_labels = test_labels[:test_size]
+        test_data = test_data[:test_size]
+        test_labels = test_labels[:test_size]
 
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)
