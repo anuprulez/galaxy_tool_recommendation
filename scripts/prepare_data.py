@@ -139,21 +139,33 @@ class PrepareData:
             #print(input_tools)
             ctr = 0
             for ctr in range(len(input_tools) - 1):
-                tool_seq = input_tools[0: ctr+2]
+                # uncomment this for one token target idea
+                '''tool_seq = input_tools[0: ctr+2]
                 i_tools = ",".join(tool_seq[0:-1])
                 t_tools = tool_seq[-1]
                 if i_tools not in input_target_paths:
                     input_target_paths[i_tools] = list()
                 if t_tools not in input_target_paths[i_tools]:
+                    input_target_paths[i_tools].append(t_tools)'''
+                #tool_seq = input_tools[0: ctr+2]
+                i_tools = ",".join(input_tools[:ctr+1])
+                t_tools = ",".join(input_tools[ctr+1:])
+                #print(i_tools, "::", t_tools)
+                if i_tools not in input_target_paths:
+                    input_target_paths[i_tools] = list()
+                if t_tools not in input_target_paths[i_tools]:
                     input_target_paths[i_tools].append(t_tools)
-            #if i == 5:
-            #break
+            #print(input_target_paths)
+            #print()
+            '''if i == 5:
+                break'''
             #target_tools = ",".join(input_tools[1:])
             #input_target_paths[item] = target_tools
         #print()
         for item in input_target_paths:
             d_size += len(input_target_paths[item])
         print("Dataset size:", d_size)
+        #print(input_target_paths)
         return input_target_paths, d_size
 
 
@@ -212,14 +224,14 @@ class PrepareData:
 
     def pad_paths_multi_target(self, multi_paths, d_size, standard_connections, rev_dict, dictionary):
         input_mat = np.zeros([d_size, self.max_tool_sequence_len])
-        target_mat = np.zeros([d_size, self.max_tool_sequence_len])
+        target_mat = np.zeros([d_size, self.max_tool_sequence_len]) #np.zeros([d_size, 2]) #
         train_counter = 0
         for input_seq, target_seq_tools in list(multi_paths.items()):
             #print(input_seq, target_seq_tools)
             input_seq_tools = input_seq.split(",")
             #print(input_seq_tools, target_seq_tools)
             for k, t_seq in enumerate(target_seq_tools):
-                t_seq = [t_seq]
+                t_seq = t_seq.split(",")
                 i_seq = list()
                 i_seq.insert(0, dictionary[start_token_name])
                 i_seq[1:] = input_seq_tools
@@ -231,11 +243,11 @@ class PrepareData:
                 for id_pos, pos in enumerate(t_seq):
                     #print("target seq: ", train_counter, id_pos, pos)
                     target_mat[train_counter][id_pos] = int(pos)
-                #print(input_mat[train_counter])
-                #print(target_mat[train_counter])
-                #print()
                 train_counter += 1
             #print("---------------")
+        #print(input_mat)
+        #print()
+        #print(target_mat)
         print("Final data size: ", input_mat.shape, target_mat.shape)
         train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)
         return train_data, train_labels, test_data, test_labels
@@ -328,7 +340,7 @@ class PrepareData:
         """
         processed_data, raw_paths = self.process_workflow_paths(workflow_paths)
         dictionary, rev_dict = self.create_data_dictionary(processed_data, old_data_dictionary)
-   
+
         num_classes = len(dictionary)
 
         print("Raw paths: %d" % len(raw_paths))
@@ -370,11 +382,11 @@ class PrepareData:
         train_size = 50000
         test_size = 5000
 
-        train_data = train_data[:train_size]
-        train_labels = train_labels[:train_size]
+        #train_data = train_data[:train_size]
+        #train_labels = train_labels[:train_size]
 
-        test_data = test_data[:test_size]
-        test_labels = test_labels[:test_size]
+        #test_data = test_data[:test_size]
+        #test_labels = test_labels[:test_size]
 
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)

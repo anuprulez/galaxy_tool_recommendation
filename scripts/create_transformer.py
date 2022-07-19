@@ -3,6 +3,7 @@ Create transformers
 """
 import os
 import time
+import random
 import numpy as np
 import subprocess
 
@@ -24,7 +25,7 @@ from scripts import utils
 import predict_sequences
 
 
-BATCH_SIZE = 64
+BATCH_SIZE = 512
 num_layers = 4
 d_model = 128
 dff = 512
@@ -33,7 +34,7 @@ dropout_rate = 0.1
 EPOCHS = 20
 max_seq_len = 25
 index_start_token = 2
-logging_step = 1
+logging_step = 2
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -411,8 +412,32 @@ def accuracy_function(real, pred):
   return tf.reduce_sum(accuracies)/tf.reduce_sum(mask)
 
 
-def sample_true_x_y(batch_size, X_train, y_train):
-    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+def sample_true_x_y(batch_size, X_train, y_train, if_train=False):
+    # TODO: sample sequences with weights- equal sampling of most used and less used tool
+
+    #if if_train is True:
+    s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
+    s_y_train = [str(int(item)) for item in s_y_train]
+    u_labels = list(set(s_y_train))
+    random.shuffle(u_labels)
+    b_labels = u_labels[:batch_size]
+    #print(s_y_train)
+    #print()
+    #print(b_labels)
+    rand_batch_indices = list()
+    for idx, label in enumerate(b_labels):
+        label_index = s_y_train.index(label)
+        rand_batch_indices.append(label_index)
+    freq_dict = dict()
+    for item in b_labels:
+        if item not in freq_dict:
+            freq_dict[item] = 0
+        freq_dict[item] += 1
+    freq_dict = {k: v for k, v in sorted(freq_dict.items(), key=lambda item: item[1], reverse=True)}
+    print("Train: ", if_train, ", ", freq_dict)
+    print()
+    #else:
+    #    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64) #utils.convert_to_array(x_batch_train)
@@ -475,7 +500,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         test_accuracy.reset_states()
 
         for batch in range(n_train_batches):
-            inp, tar = sample_true_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
+            inp, tar = sample_true_x_y(BATCH_SIZE, inp_seqs, tar_seqs, True)
             te_inp, te_tar = sample_true_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
             #tar_inp = tar[:, :-1]
@@ -538,11 +563,11 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
                 #translator(te_inp, te_tar, f_dict, rev_dict)
 
         if epoch % logging_step == 0:
-            print("Saving model at epoch {}/{}".format(epoch, EPOCHS))
+            print("Saving model at epoch {}/{}".format(epoch+1, EPOCHS))
             base_path = "log/saved_model/"
-            tf_path = base_path + "{}/".format(epoch)
-            tf_model_save = base_path + "{}/tf_model/".format(epoch)
-            onnx_model_save = base_path + "{}/onnx_model/".format(epoch)
+            tf_path = base_path + "{}/".format(epoch+1)
+            tf_model_save = base_path + "{}/tf_model/".format(epoch+1)
+            onnx_model_save = base_path + "{}/onnx_model/".format(epoch+1)
             #onnx_path = base_path + "{}/".format(epoch)
             if not os.path.isdir(tf_path):
                 os.mkdir(tf_path)
