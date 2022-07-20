@@ -391,7 +391,7 @@ def loss_function(real, pred, loss_object, training=False):
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   loss_ = loss_object(real, pred)
 
-  if training == False:
+  if training is False:
       print("Loss function")
       #print(real.shape, pred.shape, tf.argmax(pred, axis=-1).shape)
       print("Real output: ", real)
@@ -472,38 +472,52 @@ def accuracy_function(real, pred):
   return masked_acc
 
 
-def sample_true_x_y(batch_size, X_train, y_train, if_train=False):
-    # TODO: sample sequences with weights- equal sampling of most used and less used tool
-
-    #if if_train is True:
-    s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
-    s_y_train = [str(int(item)) for item in s_y_train]
-    u_labels = list(set(s_y_train))
-    random.shuffle(u_labels)
-    b_labels = u_labels[:batch_size]
-    #print(s_y_train)
-    #print()
-    #print(b_labels)
-    rand_batch_indices = list()
-    for idx, label in enumerate(b_labels):
-        label_index = s_y_train.index(label)
-        rand_batch_indices.append(label_index)
-    '''freq_dict = dict()
-    for item in b_labels:
+def selected_batches(labels, if_train):
+    #b_labels = u_labels[:batch_size]
+    freq_dict = dict()
+    for item in labels:
         if item not in freq_dict:
             freq_dict[item] = 0
         freq_dict[item] += 1
     freq_dict = {k: v for k, v in sorted(freq_dict.items(), key=lambda item: item[1], reverse=True)}
     print("Train: ", if_train, ", ", freq_dict)
     print()
-    #else:
-    #    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)'''
-    #if if_train is False:
-    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+
+
+def sample_test_x_y(batch_size, X, y):
+    rand_batch_indices = np.random.randint(0, X.shape[0], batch_size)
+    x_batch_train = X[rand_batch_indices]
+    y_batch_train = y[rand_batch_indices]
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+    return unrolled_x, unrolled_y
+
+
+def sample_train_x_y(batch_size, X_train, y_train):
+    # TODO: sample sequences with weights- equal sampling of most used and less used tool
+    s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
+    s_y_train = [str(int(item)) for item in s_y_train]
+
+    #imbal_labels = s_y_train[:batch_size]
+    #print("imbalanced batches...")
+    #selected_batches(imbal_labels, if_train)
+
+    u_labels = list(set(s_y_train))
+    random.shuffle(u_labels)
+    b_labels = u_labels[:batch_size]
+
+    #print("balanced batches...")
+    #selected_batches(b_labels, if_train)
+
+    rand_batch_indices = list()
+    for idx, label in enumerate(b_labels):
+        label_index = s_y_train.index(label)
+        rand_batch_indices.append(label_index)
+    
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
-    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64) #utils.convert_to_array(x_batch_train)
-    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64) #utils.convert_to_array(y_batch_train)
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
 
 
@@ -520,7 +534,7 @@ def create_sample_test_data(f_dict):
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
-    learning_rate =  CustomSchedule(d_model, 100)
+    learning_rate = CustomSchedule(d_model, 100)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
     transformer = Transformer(
@@ -538,8 +552,6 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
     def train_step(inp, tar):
       tar_inp = tar[:, :-1]
       tar_real = tar[:, 1:]
-      #print("tar_inp: ", tar_inp[0])
-      #print("tar_real: ", tar_real[0])
 
       with tf.GradientTape() as tape:
         predictions, _ = transformer([inp, tar_inp],
@@ -551,7 +563,6 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
 
       train_loss(loss)
       train_accuracy(accuracy_function(tar_real, predictions))
-      #return loss, predictions, tar_inp, tar_real
 
     for epoch in range(EPOCHS):
         start = time.time()
@@ -562,67 +573,25 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         test_accuracy.reset_states()
 
         for batch in range(n_train_batches):
-            inp, tar = sample_true_x_y(BATCH_SIZE, inp_seqs, tar_seqs, True)
-            te_inp, te_tar = sample_true_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
-
-            #tar_inp = tar[:, :-1]
-            #tar_real = tar[:, 1:]
-
-            te_tar_inp = te_tar[:, :-1]
-            te_tar_real = te_tar[:, 1:]
+           
+            inp, tar = sample_test_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs) 
+            #sample_train_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
 
             train_step(inp, tar)
 
-            #print("inp:", inp[0])
-            #print("Target: ", tar[0])
-            
-
-            te_predictions, _ = transformer([te_inp, te_tar_inp], training = False)
-            pred_argmax = tf.argmax(te_predictions, axis=-1)
-            pred_seq = pred_argmax[0,:]
-            te_loss = loss_function(te_tar_real, te_predictions, loss_object)
-
-            '''with tf.GradientTape() as tape:
-                predictions, _ = transformer([inp, tar_inp], training = True)
-                te_predictions, _ = transformer([te_inp, te_tar_inp], training = False)
-                pred_argmax = tf.argmax(te_predictions, axis=-1)
-                pred_seq = pred_argmax[0,:]
-                loss = loss_function(tar_real, predictions, loss_object, True)
-                te_loss = loss_function(te_tar_real, te_predictions, loss_object)
-            print("Pred seq: ", pred_seq)
-            print()
-            gradients = tape.gradient(loss, transformer.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))'''
-
-            #train_loss(loss)
+            te_inp, te_tar = sample_train_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
+            #sample_test_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
+            te_tar_inp = te_tar[:, :-1]
+            te_tar_real = te_tar[:, 1:]
+            te_predictions, _ = transformer([te_inp, te_tar_inp], training=False)
+            te_loss = loss_function(te_tar_real, te_predictions, loss_object, False)
             test_loss(te_loss)
-            #train_accuracy(accuracy_function(tar_real, predictions))
             test_accuracy(accuracy_function(te_tar_real, te_predictions))
+            
             print()
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
-            #if batch % 50 == 0:
-            #print(f'Epoch {epoch + 1} Batch {batch} Loss {train_loss.result():.4f} Accuracy {train_accuracy.result():.4f}')
 
-            #print()
-            #print(f'Epoch {epoch + 1}, Batch {batch + 1}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
-            #print(f'Epoch {epoch + 1}, Batch {batch + 1}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
-            #print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
-
-            '''if batch % 50 == 0:
-                translator = Translator(transformer)
-                test_input_seq = create_sample_test_data(f_dict)
-                print(tf.constant(test_input_seq, dtype=tf.int64))
-                sample_output = np.zeros((1, max_seq_len - 1))
-                sample_output[:, 0] = index_start_token
-                sample_output = tf.convert_to_tensor(sample_output, dtype=tf.int64)
-                print(sample_output)
-                sample_predictions, _ = transformer([test_input_seq, sample_output], training = False)
-                top_5 = tf.math.top_k(sample_predictions, k=5)
-                print("Top k: ", sample_predictions.shape, top_5)'''
-                #translated_text, translated_tokens, attention_weights = translator(tf.constant(test_input_seq), f_dict, rev_dict)
-                #translator(te_inp, te_tar, f_dict, rev_dict)
-                #translator(te_inp, te_tar, f_dict, rev_dict)
 
         if epoch % logging_step == 0 and epoch > 0:
             print("Saving model at epoch {}/{}".format(epoch+1, EPOCHS))

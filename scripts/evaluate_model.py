@@ -91,7 +91,7 @@ def predict_seq():
     print(np.all(top_k.indices.numpy(), axis=-1))
     print("Predicted next tools for {}: {}".format(tool_name, [r_dict[str(item)] for item in top_k.indices.numpy()[0][0]]))
     print()
-
+    print("Generating predictions...")
     generated_attention(tf_loaded_model, f_dict, r_dict)
 
 
@@ -103,9 +103,9 @@ def generated_attention(trained_model, f_dict, r_dict):
     n_target_items = 10
     n_input = np.zeros([1, 25])
     n_input[:, 0] = index_start_token
-    n_input[:, 1] = f_dict["cutadapt"]
-    #n_input[:, 2] = f_dict["rna_star"]
-    #n_input[:, 3] = f_dict["featurecounts"]
+    n_input[:, 1] = f_dict["bwa_mem"]
+    n_input[:, 2] = f_dict["hicexplorer_hicbuildmatrix"]
+    n_input[:, 3] = f_dict["hicexplorer_hicfindtads"]
     #n_input[:, 4] = f_dict["deseq2"]
     #n_input[:, 5] = f_dict["Add_a_column1"]
     #n_input[:, 6] = f_dict["table_compute"]
