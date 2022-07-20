@@ -7,6 +7,8 @@ import random
 import numpy as np
 import subprocess
 
+import keras
+from keras import backend
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
@@ -25,19 +27,22 @@ from scripts import utils
 import predict_sequences
 
 
-BATCH_SIZE = 512
-num_layers = 4
-d_model = 128
-dff = 512
-num_heads = 8
+BATCH_SIZE = 128
+num_layers = 1 #6
+d_model = 128 #512
+dff = 512 #2048
+num_heads = 2 #8
 dropout_rate = 0.1
-EPOCHS = 20
+
+EPOCHS = 500
 max_seq_len = 25
 index_start_token = 2
-logging_step = 2
+logging_step = 50
+n_topk = 2
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+topk_sce = tf.keras.metrics.SparseTopKCategoricalAccuracy()
 train_loss = tf.keras.metrics.Mean(name='train_loss')
 train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
 test_loss = tf.keras.metrics.Mean(name='test_loss')
@@ -401,15 +406,70 @@ def loss_function(real, pred, loss_object, training=False):
   return tf.reduce_sum(loss_)/tf.reduce_sum(mask)
 
 
+def sparse_top_k_categorical_acc(y_true, y_pred, k=5):
+  """Creates float Tensor, 1.0 for label-TopK_prediction match, 0.0 for mismatch.
+  Args:
+    y_true: tensor of true targets.
+    y_pred: tensor of predicted targets.
+    k: (Optional) Number of top elements to look at for computing accuracy.
+      Defaults to 5.
+  Returns:
+    Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
+  """
+  reshape_matches = False
+  y_true = tf.convert_to_tensor(y_true)
+  y_pred = tf.convert_to_tensor(y_pred)
+  y_true_rank = y_true.shape.ndims
+  y_pred_rank = y_pred.shape.ndims
+  y_true_org_shape = tf.shape(y_true)
+
+  # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
+  if (y_true_rank is not None) and (y_pred_rank is not None):
+    if y_pred_rank > 2:
+      y_pred = tf.reshape(y_pred, [-1, y_pred.shape[-1]])
+    if y_true_rank > 1:
+      reshape_matches = True
+      y_true = tf.reshape(y_true, [-1])
+
+  matches = tf.cast(
+      tf.math.in_top_k(
+          predictions=y_pred, targets=tf.cast(y_true, 'int32'), k=k),
+      dtype=backend.floatx())
+
+  # returned matches is expected to have same shape as y_true input
+  if reshape_matches:
+    return tf.reshape(matches, shape=y_true_org_shape)
+
+  return matches
+
+
 def accuracy_function(real, pred):
-  accuracies = tf.equal(real, tf.argmax(pred, axis=-1))
-
+  topk_pred = tf.math.top_k(pred, k=5, sorted=True)
   mask = tf.math.logical_not(tf.math.equal(real, 0))
-  accuracies = tf.math.logical_and(mask, accuracies)
-
-  accuracies = tf.cast(accuracies, dtype=tf.float32)
-  mask = tf.cast(mask, dtype=tf.float32)
-  return tf.reduce_sum(accuracies)/tf.reduce_sum(mask)
+  masked_acc = 0
+  try:
+      print("In accuracy function ...")
+      print("True First row: ", real[0])
+      #print()
+      print("Predicted topk: ", topk_pred.indices[0, 0])
+      #topk_acc = topk_sce(real, pred) #tf.math.in_top_k(real, pred, 5, name=None)
+      topk_matches = sparse_top_k_categorical_acc(real, pred, n_topk)
+      topk_matches = tf.math.logical_not(tf.math.equal(topk_matches, 0))
+      #print("Topk matches: ", topk_matches)
+      topk_matches = tf.math.logical_and(mask, topk_matches)
+      topk_matches = tf.cast(topk_matches, dtype=tf.float32)
+      masked_acc = tf.reduce_sum(topk_matches)/tf.reduce_sum(tf.cast(mask, dtype=tf.float32))
+      print("Topk masked batch accuracy: ", masked_acc)
+      print("---------")
+  except Exception as e:
+      print(e)
+      pass
+  #accuracies = tf.equal(real, tf.argmax(pred, axis=-1))
+  #accuracies = tf.math.logical_and(mask, accuracies)
+  #accuracies = tf.cast(accuracies, dtype=tf.float32)
+  #mask = tf.cast(mask, dtype=tf.float32)
+  #return tf.reduce_sum(accuracies)/tf.reduce_sum(mask)
+  return masked_acc
 
 
 def sample_true_x_y(batch_size, X_train, y_train, if_train=False):
@@ -428,7 +488,7 @@ def sample_true_x_y(batch_size, X_train, y_train, if_train=False):
     for idx, label in enumerate(b_labels):
         label_index = s_y_train.index(label)
         rand_batch_indices.append(label_index)
-    freq_dict = dict()
+    '''freq_dict = dict()
     for item in b_labels:
         if item not in freq_dict:
             freq_dict[item] = 0
@@ -437,7 +497,9 @@ def sample_true_x_y(batch_size, X_train, y_train, if_train=False):
     print("Train: ", if_train, ", ", freq_dict)
     print()
     #else:
-    #    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    #    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)'''
+    #if if_train is False:
+    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64) #utils.convert_to_array(x_batch_train)
@@ -458,7 +520,7 @@ def create_sample_test_data(f_dict):
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
-    learning_rate = CustomSchedule(d_model)
+    learning_rate =  CustomSchedule(d_model, 100)
     optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
     transformer = Transformer(
@@ -562,7 +624,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
                 #translator(te_inp, te_tar, f_dict, rev_dict)
                 #translator(te_inp, te_tar, f_dict, rev_dict)
 
-        if epoch % logging_step == 0:
+        if epoch % logging_step == 0 and epoch > 0:
             print("Saving model at epoch {}/{}".format(epoch+1, EPOCHS))
             base_path = "log/saved_model/"
             tf_path = base_path + "{}/".format(epoch+1)

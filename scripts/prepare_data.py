@@ -346,6 +346,8 @@ class PrepareData:
         print("Raw paths: %d" % len(raw_paths))
         random.shuffle(raw_paths)
 
+        #raw_paths = raw_paths[:100000]
+
         print("Decomposing paths...")
         all_unique_paths = self.decompose_paths(raw_paths, dictionary)
         random.shuffle(all_unique_paths)

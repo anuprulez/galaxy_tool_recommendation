@@ -72,7 +72,6 @@ def predict_seq():
     bowtie_output = bowtie_output.write(0, [tf.constant(index_start_token, dtype=tf.int64)])
     #bowtie_output = bowtie_output.write(1, [tf.constant(295, dtype=tf.int64)])
     bowtie_o = tf.transpose(bowtie_output.stack())
-
     tool_id = f_dict[tool_name]
     print(tool_name, tool_id)
     bowtie_input = np.zeros([1, 25])

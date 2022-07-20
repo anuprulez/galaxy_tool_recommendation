@@ -70,30 +70,32 @@ class PredictSequence(tf.Module):
     n_target_items = np.where(target_seq > 0)[0]
     np_output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
     np_output_array = np_output_array.write(0, [tf.constant(start_token, dtype=tf.int64)])
-    print(np_output_array)
+    #print(np_output_array)
     te_tar_real = target_seq[1:]
 
     #print(n_target_items)
     print("Looping predictions ...")
+    print("true target seq real: ", te_tar_real)
     for i, index in enumerate(n_target_items):
-        print(i, index)
+        #print(i, index)
         output = tf.transpose(np_output_array.stack())
-        print("decoder input: ", output, encoder_input.shape, output.shape)
+        #print("decoder input: ", output, encoder_input.shape, output.shape)
         orig_predictions, _ = self.trained_model([encoder_input, output], training=False)
         #print(orig_predictions.shape)
-        print("true target seq real: ", te_tar_real)
-        print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
+        #print("true target seq real: ", te_tar_real)
+        #print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
         predictions = orig_predictions[:, -1:, :]
         predicted_id = tf.argmax(predictions, axis=-1)
         np_output_array = np_output_array.write(i+1, predicted_id[0])
-        print("----------")
-
+        #print("----------")
+    print(np_output_array)
+    print("----------")
     '''_, attention_weights = self.trained_model([encoder_input, output[:,:-1]], training=False)
     print("Attention weights")
     print(attention_weights.shape)'''
 
     # predict for tool
-    '''tool_name = "cutadapt"
+    tool_name = "trim_galore"
     print("Prediction for {}...".format(tool_name))
     bowtie_output = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
     bowtie_output = bowtie_output.write(0, [tf.constant(start_token, dtype=tf.int64)])
@@ -104,6 +106,7 @@ class PredictSequence(tf.Module):
     bowtie_input = np.zeros([1, 25])
     bowtie_input[:, 0] = index_start_token
     bowtie_input[:, 1] = tool_id
+    bowtie_input[:, 2] = f_dict["bowtie2"]
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
     print(bowtie_input, bowtie_output, bowtie_o)
     bowtie_pred, _ = self.trained_model([bowtie_input, bowtie_o], training=False)
@@ -112,4 +115,4 @@ class PredictSequence(tf.Module):
     print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
     print(np.all(top_k.indices.numpy(), axis=-1))
     print("Predicted next tools for {}: {}".format(tool_name, [r_dict[item] for item in top_k.indices.numpy()[0][0]]))
-    print()'''
+    print()
