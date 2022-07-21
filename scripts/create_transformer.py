@@ -28,17 +28,17 @@ import predict_sequences
 
 
 BATCH_SIZE = 128
-num_layers = 1 #6
-d_model = 128 #512
-dff = 512 #2048
-num_heads = 2 #8
-dropout_rate = 0.1
+num_layers = 2
+d_model = 64
+dff = 256 #2048
+num_heads = 4
+dropout_rate = 0.5
 
 EPOCHS = 500
 max_seq_len = 25
 index_start_token = 2
-logging_step = 50
-n_topk = 2
+logging_step = 5
+n_topk = 5
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -391,14 +391,14 @@ def loss_function(real, pred, loss_object, training=False):
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   loss_ = loss_object(real, pred)
 
-  if training is False:
-      print("Loss function")
+  #if training is False:
+      #print("Loss function")
       #print(real.shape, pred.shape, tf.argmax(pred, axis=-1).shape)
-      print("Real output: ", real)
-      print("Predicted output: ", tf.argmax(pred, axis=-1))
+      #print("Real output: ", real)
+      #print("Predicted output: ", tf.argmax(pred, axis=-1))
       #print("Loss: ", tf.reduce_mean(loss_object(real, pred)))
-      print("Accuracy: ", accuracy_function(real, pred))
-      print("-----------")
+      #print("Accuracy: ", accuracy_function(real, pred))
+      #print("-----------")
 
   mask = tf.cast(mask, dtype=loss_.dtype)
   loss_ *= mask
@@ -448,18 +448,18 @@ def accuracy_function(real, pred):
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   masked_acc = 0
   try:
-      print("In accuracy function ...")
-      print("True First row: ", real[0])
+      #print("In accuracy function ...")
+      #print("True First row: ", real[0])
       #print()
-      print("Predicted topk: ", topk_pred.indices[0, 0])
+      #print("Predicted topk: ", topk_pred.indices[0, 0])
       #topk_acc = topk_sce(real, pred) #tf.math.in_top_k(real, pred, 5, name=None)
       topk_matches = sparse_top_k_categorical_acc(real, pred, n_topk)
       topk_matches = tf.math.logical_not(tf.math.equal(topk_matches, 0))
       #print("Topk matches: ", topk_matches)
       topk_matches = tf.math.logical_and(mask, topk_matches)
       topk_matches = tf.cast(topk_matches, dtype=tf.float32)
-      masked_acc = tf.reduce_sum(topk_matches)/tf.reduce_sum(tf.cast(mask, dtype=tf.float32))
-      print("Topk masked batch accuracy: ", masked_acc)
+      topk_masked_acc = tf.reduce_sum(topk_matches)/tf.reduce_sum(tf.cast(mask, dtype=tf.float32))
+      #print("Topk masked batch accuracy: ", topk_masked_acc)
       print("---------")
   except Exception as e:
       print(e)
@@ -469,7 +469,7 @@ def accuracy_function(real, pred):
   #accuracies = tf.cast(accuracies, dtype=tf.float32)
   #mask = tf.cast(mask, dtype=tf.float32)
   #return tf.reduce_sum(accuracies)/tf.reduce_sum(mask)
-  return masked_acc
+  return topk_masked_acc
 
 
 def selected_batches(labels, if_train):
@@ -494,7 +494,6 @@ def sample_test_x_y(batch_size, X, y):
 
 
 def sample_train_x_y(batch_size, X_train, y_train):
-    # TODO: sample sequences with weights- equal sampling of most used and less used tool
     s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
     s_y_train = [str(int(item)) for item in s_y_train]
 
@@ -534,8 +533,9 @@ def create_sample_test_data(f_dict):
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
-    learning_rate = CustomSchedule(d_model, 100)
-    optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+    learning_rate =  1e-3 #CustomSchedule(d_model, 100)
+    #optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+    optimizer = tf.keras.optimizers.Adam()
 
     transformer = Transformer(
         num_layers=num_layers,
@@ -554,8 +554,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
       tar_real = tar[:, 1:]
 
       with tf.GradientTape() as tape:
-        predictions, _ = transformer([inp, tar_inp],
-                                 training = True)
+        predictions, _ = transformer([inp, tar_inp], training = True)
         loss = loss_function(tar_real, predictions, loss_object, True)
 
       gradients = tape.gradient(loss, transformer.trainable_variables)
@@ -573,16 +572,19 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         test_accuracy.reset_states()
 
         for batch in range(n_train_batches):
-           
-            inp, tar = sample_test_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs) 
-            #sample_train_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
+            print("Train:", inp_seqs.shape, tar_seqs.shape)
+            print("Test:", te_input_seqs.shape, te_tar_seqs.shape)
+
+            # train on randomly selected samples
+            inp, tar = sample_train_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
 
             train_step(inp, tar)
+            # test on weighted samples
+            te_inp, te_tar = sample_test_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
-            te_inp, te_tar = sample_train_x_y(BATCH_SIZE, inp_seqs, tar_seqs)
-            #sample_test_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
             te_tar_inp = te_tar[:, :-1]
             te_tar_real = te_tar[:, 1:]
+
             te_predictions, _ = transformer([te_inp, te_tar_inp], training=False)
             te_loss = loss_function(te_tar_real, te_predictions, loss_object, False)
             test_loss(te_loss)
@@ -593,7 +595,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
 
 
-        if epoch % logging_step == 0 and epoch > 0:
+        if (epoch + 1) % logging_step == 0:
             print("Saving model at epoch {}/{}".format(epoch+1, EPOCHS))
             base_path = "log/saved_model/"
             tf_path = base_path + "{}/".format(epoch+1)

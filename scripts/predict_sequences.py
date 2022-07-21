@@ -50,7 +50,7 @@ class PredictSequence(tf.Module):
 
   def __call__(self, te_inp, te_tar, f_dict, r_dict):
     # input sentence is portuguese, hence adding the start and end token
-    te_f_input = tf.constant(te_inp[0])
+    '''te_f_input = tf.constant(te_inp[0])
     te_f_input = tf.reshape(te_f_input, [1, max_seq_len])
     sentence = te_f_input
     start_token = index_start_token
@@ -89,24 +89,21 @@ class PredictSequence(tf.Module):
         np_output_array = np_output_array.write(i+1, predicted_id[0])
         #print("----------")
     print(np_output_array)
-    print("----------")
-    '''_, attention_weights = self.trained_model([encoder_input, output[:,:-1]], training=False)
-    print("Attention weights")
-    print(attention_weights.shape)'''
+    print("----------")'''
 
     # predict for tool
-    tool_name = "trim_galore"
-    print("Prediction for {}...".format(tool_name))
+    #tool_name = "trim_galore"
+    #print("Prediction for {}...".format(tool_name))
     bowtie_output = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
-    bowtie_output = bowtie_output.write(0, [tf.constant(start_token, dtype=tf.int64)])
+    bowtie_output = bowtie_output.write(0, [tf.constant(index_start_token, dtype=tf.int64)])
     bowtie_o = tf.transpose(bowtie_output.stack())
 
-    tool_id = f_dict[tool_name]
-    print(tool_name, tool_id)
+    #tool_id = f_dict[tool_name]
+    #print(tool_name, tool_id)
     bowtie_input = np.zeros([1, 25])
     bowtie_input[:, 0] = index_start_token
-    bowtie_input[:, 1] = tool_id
-    bowtie_input[:, 2] = f_dict["bowtie2"]
+    bowtie_input[:, 1] = f_dict["hicexplorer_hicfindtads"] #rsem_calculate_expression #ctb_compound_convert
+    #bowtie_input[:, 2] = f_dict["bowtie2"]
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
     print(bowtie_input, bowtie_output, bowtie_o)
     bowtie_pred, _ = self.trained_model([bowtie_input, bowtie_o], training=False)
@@ -114,5 +111,5 @@ class PredictSequence(tf.Module):
     top_k = tf.math.top_k(bowtie_pred, k=10)
     print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
     print(np.all(top_k.indices.numpy(), axis=-1))
-    print("Predicted next tools for {}: {}".format(tool_name, [r_dict[item] for item in top_k.indices.numpy()[0][0]]))
+    print("Predicted tools: {}".format([r_dict[item] for item in top_k.indices.numpy()[0][0]]))
     print()

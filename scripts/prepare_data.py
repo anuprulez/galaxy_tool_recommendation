@@ -346,7 +346,7 @@ class PrepareData:
         print("Raw paths: %d" % len(raw_paths))
         random.shuffle(raw_paths)
 
-        #raw_paths = raw_paths[:100000]
+        raw_paths = raw_paths[:100000]
 
         print("Decomposing paths...")
         all_unique_paths = self.decompose_paths(raw_paths, dictionary)
@@ -381,8 +381,8 @@ class PrepareData:
         print()
         print(train_labels[0:5])
 
-        train_size = 50000
-        test_size = 5000
+        train_size = 100000
+        test_size = 100000
 
         #train_data = train_data[:train_size]
         #train_labels = train_labels[:train_size]

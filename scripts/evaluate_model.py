@@ -103,9 +103,9 @@ def generated_attention(trained_model, f_dict, r_dict):
     n_target_items = 10
     n_input = np.zeros([1, 25])
     n_input[:, 0] = index_start_token
-    n_input[:, 1] = f_dict["bwa_mem"]
-    n_input[:, 2] = f_dict["hicexplorer_hicbuildmatrix"]
-    n_input[:, 3] = f_dict["hicexplorer_hicfindtads"]
+    n_input[:, 1] = f_dict["hicexplorer_hicfindtads"]
+    #n_input[:, 2] = f_dict["hicexplorer_hicbuildmatrix"]
+    #n_input[:, 3] = f_dict["hicexplorer_hicfindtads"]
     #n_input[:, 4] = f_dict["deseq2"]
     #n_input[:, 5] = f_dict["Add_a_column1"]
     #n_input[:, 6] = f_dict["table_compute"]
