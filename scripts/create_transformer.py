@@ -6,6 +6,7 @@ import time
 import random
 import numpy as np
 import subprocess
+import sys
 
 import keras
 from keras import backend
@@ -45,7 +46,7 @@ n_topk = 5
 
 '''
 
-BATCH_SIZE = 1024
+BATCH_SIZE = 128
 num_layers = 4
 d_model = 128
 dff = 512 #256 #2048
@@ -57,8 +58,8 @@ max_seq_len = 25
 index_start_token = 2
 logging_step = 1
 n_topk = 5
-n_test_batches = 100
-test_logging = 100
+n_test_batches = 10
+test_logging = 10
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -517,67 +518,31 @@ def preprocess_sampling_datasets(y_train):
     all_train_labels_seqs = list()
     all_train_labels = list()
     for label in y_train:
-        #print(label)
         tpos = np.where(label > 0)[0]
         tseq_str = ",".join([str(int(item)) for item in label[1:tpos[-1] + 1]])
         tseq = [int(item) for item in label[1:tpos[-1] + 1]]
-        #print(tseq)
         all_train_labels.extend(tseq)
         all_train_labels_seqs.append(tseq_str)
-        #print("---")
-    #print(all_train_labels, len(all_train_labels))
     u_labels = list(set(all_train_labels))
     return u_labels, all_train_labels_seqs
 
 
 def sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_train):
-    #s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
-    #s_y_train = [str(int(item)) for item in s_y_train]
-    '''all_train_labels_seqs = list()
-    all_train_labels = list()
-    for label in y_train:
-        #print(label)
-        tpos = np.where(label > 0)[0]
-        tseq_str = ",".join([str(int(item)) for item in label[1:tpos[-1] + 1]])
-        tseq = [int(item) for item in label[1:tpos[-1] + 1]]
-        #print(tseq)
-        all_train_labels.extend(tseq)
-        all_train_labels_seqs.append(tseq_str)
-        #print("---")
-    #print(all_train_labels, len(all_train_labels))
-    u_labels = list(set(all_train_labels))'''
-    #print(u_labels, len(u_labels))
-    #imbal_labels = s_y_train[:batch_size]
-    #print("imbalanced batches...")
-    #selected_batches(imbal_labels, if_train)
-
-    #u_labels = list(set(s_y_train))
     random.shuffle(u_labels)
     b_labels = u_labels[:batch_size]
-    #print(b_labels)
-
-    #print("balanced batches...")
-    #selected_batches(b_labels)
-
     rand_batch_indices = list()
-    
-    for bal_label in b_labels:
-        for index, label in enumerate(y_train):
-            seqs = all_train_labels_seqs[index]
-            if str(bal_label) in seqs.split(","):
-                #print(bal_label, seqs, index)
-                #print("---")
-                rand_batch_indices.append(index)
-                break 
-
-    #print("balanced batches...")
-    #selected_batches(b_labels, if_train)
-
-    '''rand_batch_indices = list()
-    for idx, label in enumerate(b_labels):
-        label_index = s_y_train.index(label)
-        rand_batch_indices.append(label_index)'''
-    
+    for index, seqs in enumerate(all_train_labels_seqs):
+        s_split = seqs.split(",")
+        s_split = [int(item) for item in s_split]
+        intersection = list(set(s_split).intersection(set(b_labels)))
+        re_index = [index] * len(intersection)
+        b_labels = [e for e in b_labels if e not in intersection]
+        if len(re_index) > 0:
+            rand_batch_indices.extend(re_index)
+        if len(rand_batch_indices) >= batch_size:
+            break
+    rand_batch_indices = rand_batch_indices[:batch_size]
+    random.shuffle(rand_batch_indices)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
@@ -616,8 +581,6 @@ def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input
 
         eval_loss.append(test_loss.result())
         eval_acc.append(test_accuracy.result())
-        
-    #print("Test: epoch {}/{}, batch {}/{}: Test Loss {}, Test Accuracy {}".format(e_num+1, n_epochs, b_num+1, n_train_batches, np.mean(eval_loss), np.mean(eval_acc)))
     print(f"Test: epoch {e_num+1}/{n_epochs}, batch {b_num+1}/{n_train_batches}: Test Loss {np.mean(eval_loss):.4f}, Test Accuracy {np.mean(eval_acc):.4f}")
 
 
@@ -652,6 +615,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
       train_loss(loss)
       train_accuracy(accuracy_function(tar_real, predictions))
 
+    print("Creating datasets for balanced sampling...")  
     tr_ulabels, tr_all_labels_seq = preprocess_sampling_datasets(tar_seqs)
     te_ulabels, te_all_labels_seq = preprocess_sampling_datasets(te_tar_seqs)
 
@@ -664,26 +628,15 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         test_accuracy.reset_states()
 
         for batch in range(n_train_batches):
-            print("Train:", inp_seqs.shape, tar_seqs.shape)
-            
+            print("Train data size:", inp_seqs.shape, tar_seqs.shape)
             # train on randomly selected samples
+            #print("Sample train seqs...")
             inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
-
+            #print("train...")
             train_step(inp, tar)
-            # test on weighted samples
-            '''te_inp, te_tar = sample_train_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
-            te_tar_inp = te_tar[:, :-1]
-            te_tar_real = te_tar[:, 1:]
-
-            te_predictions, _ = transformer([te_inp, te_tar_inp], training=False)
-            te_loss = loss_function(te_tar_real, te_predictions, loss_object, False)
-            test_loss(te_loss)
-            test_accuracy(accuracy_function(te_tar_real, te_predictions))'''
-            
-            #print()
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
-            #print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Test Loss {test_loss.result():.4f}, Test Accuracy {test_accuracy.result():.4f}')
+
             if (batch + 1) % test_logging == 0:
                 print("Evaluating on test data...")
                 validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, te_ulabels, te_all_labels_seq, transformer)
@@ -711,7 +664,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             #loaded_model = onnx.load(onnx_model_save + "model.onnx")
             #tf_loaded_model = prepare(loaded_model)
             #prediction = tf_loaded_model.run(item, training=False)
-            print("Prediction using loaded model...")
-            predictor = predict_sequences.PredictSequence(tf_loaded_model)
+            #print("Prediction using loaded model...")
+            #predictor = predict_sequences.PredictSequence(tf_loaded_model)
             #translator = Translator(tf_loaded_model)
-            predictor(f_dict, rev_dict)
+            #predictor(f_dict, rev_dict)
