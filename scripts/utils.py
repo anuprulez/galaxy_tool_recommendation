@@ -122,6 +122,23 @@ def collect_sampled_tool_freq(collected_dict, c_freq):
     return collected_dict
 
 
+def save_data_as_dict(f_dict, r_dict, inp, tar, save_path):
+    inp_tar = dict()
+    for index, (i, t) in enumerate(zip(inp, tar)):
+        i_pos = np.where(i > 0)[0]
+        i_seq = ",".join([str(int(item)) for item in i[1:i_pos[-1] + 1]])
+        t_pos = np.where(t > 0)[0]
+        t_seq = ",".join([str(int(item)) for item in t[1:t_pos[-1] + 1]])
+        if i_seq not in inp_tar:
+            inp_tar[i_seq] = list()
+        inp_tar[i_seq].append(t_seq)
+    size = 0
+    for item in inp_tar:
+        size += len(inp_tar[item])
+    print("Size saved file: ", size)
+    write_file(save_path, inp_tar)
+    
+
 def read_train_test(datapath):
     file_obj = h5py.File(datapath, 'r')
     data_input = np.array(file_obj["input"])

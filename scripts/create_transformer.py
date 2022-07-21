@@ -37,8 +37,8 @@ dropout_rate = 0.5
 EPOCHS = 500
 max_seq_len = 25
 index_start_token = 2
-logging_step = 5
-n_topk = 5
+logging_step = 10
+n_topk = 1
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -460,7 +460,7 @@ def accuracy_function(real, pred):
       topk_matches = tf.cast(topk_matches, dtype=tf.float32)
       topk_masked_acc = tf.reduce_sum(topk_matches)/tf.reduce_sum(tf.cast(mask, dtype=tf.float32))
       #print("Topk masked batch accuracy: ", topk_masked_acc)
-      print("---------")
+      #print("---------")
   except Exception as e:
       print(e)
       pass
@@ -472,7 +472,7 @@ def accuracy_function(real, pred):
   return topk_masked_acc
 
 
-def selected_batches(labels, if_train):
+def selected_batches(labels):
     #b_labels = u_labels[:batch_size]
     freq_dict = dict()
     for item in labels:
@@ -480,7 +480,7 @@ def selected_batches(labels, if_train):
             freq_dict[item] = 0
         freq_dict[item] += 1
     freq_dict = {k: v for k, v in sorted(freq_dict.items(), key=lambda item: item[1], reverse=True)}
-    print("Train: ", if_train, ", ", freq_dict)
+    print(freq_dict)
     print()
 
 
@@ -494,24 +494,52 @@ def sample_test_x_y(batch_size, X, y):
 
 
 def sample_train_x_y(batch_size, X_train, y_train):
-    s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
-    s_y_train = [str(int(item)) for item in s_y_train]
-
+    #s_y_train = y_train[:, 1:2].reshape(X_train.shape[0],)
+    #s_y_train = [str(int(item)) for item in s_y_train]
+    all_train_labels_seqs = list()
+    all_train_labels = list()
+    for label in y_train:
+        #print(label)
+        tpos = np.where(label > 0)[0]
+        tseq_str = ",".join([str(int(item)) for item in label[1:tpos[-1] + 1]])
+        tseq = [int(item) for item in label[1:tpos[-1] + 1]]
+        #print(tseq)
+        all_train_labels.extend(tseq)
+        all_train_labels_seqs.append(tseq_str)
+        #print("---")
+    #print(all_train_labels, len(all_train_labels))
+    u_labels = list(set(all_train_labels))
+    #print(u_labels, len(u_labels))
     #imbal_labels = s_y_train[:batch_size]
     #print("imbalanced batches...")
     #selected_batches(imbal_labels, if_train)
 
-    u_labels = list(set(s_y_train))
+    #u_labels = list(set(s_y_train))
     random.shuffle(u_labels)
     b_labels = u_labels[:batch_size]
+    #print(b_labels)
+
+    #print("balanced batches...")
+    #selected_batches(b_labels)
+
+    rand_batch_indices = list()
+    
+    for bal_label in b_labels:
+        for index, label in enumerate(y_train):
+            seqs = all_train_labels_seqs[index]
+            if str(bal_label) in seqs.split(","):
+                #print(bal_label, seqs, index)
+                #print("---")
+                rand_batch_indices.append(index)
+                break 
 
     #print("balanced batches...")
     #selected_batches(b_labels, if_train)
 
-    rand_batch_indices = list()
+    '''rand_batch_indices = list()
     for idx, label in enumerate(b_labels):
         label_index = s_y_train.index(label)
-        rand_batch_indices.append(label_index)
+        rand_batch_indices.append(label_index)'''
     
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
@@ -533,7 +561,7 @@ def create_sample_test_data(f_dict):
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
-    learning_rate =  CustomSchedule(d_model, 100)
+    learning_rate = CustomSchedule(d_model, 100)
     #optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
     optimizer = tf.keras.optimizers.Adam()
 
@@ -580,7 +608,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
 
             train_step(inp, tar)
             # test on weighted samples
-            te_inp, te_tar = sample_test_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
+            te_inp, te_tar = sample_train_x_y(BATCH_SIZE, te_input_seqs, te_tar_seqs)
 
             te_tar_inp = te_tar[:, :-1]
             te_tar_real = te_tar[:, 1:]

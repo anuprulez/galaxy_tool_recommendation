@@ -102,7 +102,7 @@ class PredictSequence(tf.Module):
     #print(tool_name, tool_id)
     bowtie_input = np.zeros([1, 25])
     bowtie_input[:, 0] = index_start_token
-    bowtie_input[:, 1] = f_dict["hicexplorer_hicfindtads"] #rsem_calculate_expression #ctb_compound_convert
+    bowtie_input[:, 1] = f_dict["ctb_compound_convert"] #rsem_calculate_expression #ctb_compound_convert
     #bowtie_input[:, 2] = f_dict["bowtie2"]
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
     print(bowtie_input, bowtie_output, bowtie_o)

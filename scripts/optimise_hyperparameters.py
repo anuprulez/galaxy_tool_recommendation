@@ -62,6 +62,9 @@ class HyperparameterOptimisation:
         print("Saving input and target datasets as h5...")
         utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")
         utils.save_h5_data(test_data, test_labels, "log/saved_data/test.h5")
+
+        utils.save_data_as_dict(forward_dictionary, reverse_dictionary, train_data, train_labels, "log/data/train_dict.txt")
+        utils.save_data_as_dict(forward_dictionary, reverse_dictionary, test_data, test_labels, "log/data/test_dict.txt")
         
         create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, forward_dictionary, reverse_dictionary)
             
