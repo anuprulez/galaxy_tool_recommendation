@@ -28,7 +28,7 @@ class PredictTool:
     def __init__(self, num_cpus):
         """ Init method. """
 
-    def find_train_best_network(self, network_config, forward_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs):
+    '''def find_train_best_network(self, network_config, forward_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs):
         #class_weights, usage_pred, standard_connections, tool_freq, tool_tr_samples
         """
         Define recurrent neural network and train sequential data
@@ -75,7 +75,7 @@ class PredictTool:
         train_performance["train_loss"] = np.array(trained_model.history["loss"])
         train_performance["model"] = best_model
         train_performance["best_parameters"] = best_params
-        return train_performance
+        return train_performance'''
 
 
 class PredictCallback(callbacks.Callback):
@@ -212,12 +212,12 @@ if __name__ == "__main__":
         train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
     # find the best model and start training
-    predict_tool = PredictTool(num_cpus)
+    '''predict_tool = PredictTool(num_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
     #results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples) 
     results_weighted = predict_tool.find_train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs)
-    '''print()
+    print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])
     print()
