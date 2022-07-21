@@ -384,6 +384,13 @@ class PrepareData:
         train_size = 100000
         test_size = 100000
 
+        print("Saving input and target datasets as h5...")
+        utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")
+        utils.save_h5_data(test_data, test_labels, "log/saved_data/test.h5")
+
+        utils.save_data_as_dict(dictionary, rev_dict, train_data, train_labels, "log/data/train_dict.txt")
+        utils.save_data_as_dict(dictionary, rev_dict, test_data, test_labels, "log/data/test_dict.txt")
+
         #train_data = train_data[:train_size]
         #train_labels = train_labels[:train_size]
 
