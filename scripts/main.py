@@ -133,6 +133,7 @@ if __name__ == "__main__":
     arg_parser.add_argument("-sd", "--spatial_dropout", required=True, help="1d dropout used for embedding layer")
     arg_parser.add_argument("-rd", "--recurrent_dropout", required=True, help="dropout for the recurrent layers")
     arg_parser.add_argument("-lr", "--learning_rate", required=True, help="learning rate")
+    arg_parser.add_argument("-ud", "--use_data", required=True, help="Use preprocessed data")
     arg_parser.add_argument("-cpus", "--num_cpus", required=True, help="number of cpus for parallelism")
 
     # get argument values
@@ -153,6 +154,7 @@ if __name__ == "__main__":
     spatial_dropout = args["spatial_dropout"]
     recurrent_dropout = args["recurrent_dropout"]
     learning_rate = args["learning_rate"]
+    use_data = args["use_data"]
     num_cpus = int(args["num_cpus"])
 
     config = {
@@ -171,27 +173,40 @@ if __name__ == "__main__":
         'learning_rate': learning_rate
     }
 
-    # Extract and process workflows
-    connections = extract_workflow_connections.ExtractWorkflowConnections()
-    workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
+    if use_data == "true":
+        print("Loading preprocessed datasets...")
+        base_path = "log/"
+        train_data, train_labels = utils.read_train_test(base_path + "saved_data/train.h5")
+        test_data, test_labels = utils.read_train_test(base_path + "saved_data/test.h5")
+        reverse_dictionary = utils.read_file(base_path + "data/rev_dict.txt")
+        data_dictionary = utils.read_file(base_path + "data/f_dict.txt")
+        print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
+        print(len(reverse_dictionary), len(data_dictionary))
+    else:
+        print("Preprocessing workflows...")
+        # Extract and process workflows
+        connections = extract_workflow_connections.ExtractWorkflowConnections()
+        workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
 
-    # Process the paths from workflows
-    print("Dividing data...")
-    data = prepare_data.PrepareData(maximum_path_length, test_share)
-    #train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, train_tool_freq, tool_tr_samples = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
-    train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+        # Process the paths from workflows
+        print("Dividing data...")
+        data = prepare_data.PrepareData(maximum_path_length, test_share)
+        #train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, train_tool_freq, tool_tr_samples =    data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+        train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+
     # find the best model and start training
     predict_tool = PredictTool(num_cpus)
     # start training with weighted classes
     print("Training with weighted classes and samples ...")
     #results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples) 
     results_weighted = predict_tool.find_train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs)
-    print()
+    '''print()
     print("Best parameters \n")
     print(results_weighted["best_parameters"])
     print()
     utils.write_file("data/train_last_tools.txt", train_tool_freq)
-    utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections)
+    utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections)'''
+
     end_time = time.time()
     print()
     print("Program finished in %s seconds" % str(end_time - start_time))

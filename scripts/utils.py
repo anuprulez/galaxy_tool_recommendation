@@ -122,6 +122,13 @@ def collect_sampled_tool_freq(collected_dict, c_freq):
     return collected_dict
 
 
+def read_train_test(datapath):
+    file_obj = h5py.File(datapath, 'r')
+    data_input = np.array(file_obj["input"])
+    data_target = np.array(file_obj["target"])
+    return data_input, data_target
+
+
 def balanced_sample_generator(train_data, train_labels, batch_size, l_tool_tr_samples, reverse_dictionary):
     l_tool_frequencies = dict()
     while True:
