@@ -54,12 +54,12 @@ dropout_rate = 0.5
 
 max_seq_len = 25
 index_start_token = 2
-n_topk = 1
+n_topk = 3
 
-train_logging_step = 10
-test_logging = 10
+train_logging_step = 5
+test_logging = 3
 
-n_train_batches = 100
+n_train_batches = 10
 n_test_batches = 1
 
 
@@ -496,7 +496,6 @@ def accuracy_function(real, pred):
 
 
 def selected_batches(labels):
-    #b_labels = u_labels[:batch_size]
     freq_dict = dict()
     for item in labels:
         if item not in freq_dict:
@@ -529,9 +528,9 @@ def preprocess_sampling_datasets(y_train):
     return u_labels, all_train_labels_seqs
 
 
-def sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_train):
+def sample_train_x_y(u_labels, all_train_labels_seqs, X_train, y_train):
     random.shuffle(u_labels)
-    b_labels = u_labels[:batch_size]
+    b_labels = u_labels[:BATCH_SIZE]
     rand_batch_indices = list()
     for index, seqs in enumerate(all_train_labels_seqs):
         s_split = seqs.split(",")
@@ -541,9 +540,9 @@ def sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_tra
         b_labels = [e for e in b_labels if e not in intersection]
         if len(re_index) > 0:
             rand_batch_indices.extend(re_index)
-        if len(rand_batch_indices) >= batch_size:
+        if len(rand_batch_indices) >= BATCH_SIZE:
             break
-    rand_batch_indices = rand_batch_indices[:batch_size]
+    rand_batch_indices = rand_batch_indices[:BATCH_SIZE]
     random.shuffle(rand_batch_indices)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
@@ -552,31 +551,28 @@ def sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_tra
     return unrolled_x, unrolled_y
 
 
-def sample_train_x_y_first_pos(batch_size, X_train, y_train, f_dict, rev_dict):
-    rand_batch_indices = list()
+def get_u_labels(y_train):
     s_y_train = y_train[:, 1:2]
     s_y_train = list(s_y_train.reshape(len(s_y_train), ))
     s_y_train = [str(int(item)) for item in s_y_train]
-
     u_labels = list(set(s_y_train))
     random.shuffle(u_labels)
-    b_u_labels = u_labels[:batch_size]
+    return u_labels
+
+
+def sample_train_x_y_first_pos(u_labels, X_train, y_train, f_dict, rev_dict):
+    rand_batch_indices = list()
+    b_u_labels = u_labels[:BATCH_SIZE]
     sel_tools = list()
     for index, tar in enumerate(y_train):
         label_val = str(int(tar[1:2]))
         if label_val in b_u_labels:
             sel_tools.append(label_val)
-            #print("Selected row: ", index, label_val, rev_dict[str(label_val)])
-            #print([float(item) for item in X_train[index]], [float(item) for item in y_train[index]])
-            #print()
             rand_batch_indices.append(index)
-            #print(len(b_u_labels))
             b_u_labels = [e for e in b_u_labels if e not in [label_val]]
-            #print(len(b_u_labels))
-        if len(rand_batch_indices) == batch_size:
+        if len(rand_batch_indices) == BATCH_SIZE:
             break
-    #selected_batches(sel_tools)
-    #print("==================================================================")
+    print(selected_batches(sel_tools))
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
@@ -584,13 +580,13 @@ def sample_train_x_y_first_pos(batch_size, X_train, y_train, f_dict, rev_dict):
     return unrolled_x, unrolled_y
 
 
-def validate_model(b_num, n_train_batches, batch_size, te_input_seqs, te_tar_seqs, trained_model, f_dict, rev_dict):
+def validate_model(b_num, te_input_seqs, te_tar_seqs, te_u_labels, trained_model, f_dict, rev_dict):
     eval_loss = list()
     eval_acc = list()
     print("Test size:", te_input_seqs.shape, te_tar_seqs.shape)
     for i in range(n_test_batches):
-        #te_inp, te_tar = sample_train_x_y(batch_size, te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
-        te_inp, te_tar = sample_train_x_y_first_pos(batch_size, te_input_seqs, te_tar_seqs, f_dict, rev_dict)
+        #te_inp, te_tar = sample_train_x_y(te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
+        te_inp, te_tar = sample_train_x_y_first_pos(te_u_labels, te_input_seqs, te_tar_seqs, f_dict, rev_dict)
 
         te_tar_inp = te_tar[:, :-1]
         te_tar_real = te_tar[:, 1:]
@@ -647,11 +643,15 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
     train_accuracy.reset_states()
     test_loss.reset_states()
     test_accuracy.reset_states()
+    tr_u_labels = get_u_labels(tar_seqs)
+    te_u_labels = get_u_labels(te_tar_seqs)
+    print("Unique first labels, tr, te: ", len(tr_u_labels), len(te_u_labels))
+
     for batch in range(n_train_batches):
         print("Train data size:", inp_seqs.shape, tar_seqs.shape)
         # train on randomly selected samples
-        #inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
-        inp, tar = sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs, f_dict, rev_dict)
+        #inp, tar = sample_train_x_y(tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
+        inp, tar = sample_train_x_y_first_pos(tr_u_labels, inp_seqs, tar_seqs, f_dict, rev_dict)
         train_step(inp, tar)
         epo_tr_batch_loss.append(train_loss.result().numpy())
         epo_tr_batch_acc.append(train_accuracy.result().numpy())
@@ -659,13 +659,11 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         if (batch + 1) % test_logging == 0:
             print("-----")
             print("Evaluating on test data...")
-            te_loss, te_acc = validate_model(batch, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, transformer, f_dict, rev_dict)
+            te_loss, te_acc = validate_model(batch, te_input_seqs, te_tar_seqs, te_u_labels, transformer, f_dict, rev_dict)
             epo_te_batch_loss.append(te_loss)
             epo_te_batch_acc.append(te_acc)
             print("-----")
-
         if (batch + 1) % train_logging_step == 0:
-            
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
             base_path = "log/saved_model/"
             tf_path = base_path + "{}/".format(batch+1)

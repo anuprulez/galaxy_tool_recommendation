@@ -44,8 +44,8 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
 
-base_path = "log_22_07_22_0/"
-model_path = base_path + "saved_model/3/tf_model/"
+base_path = "log_22_07_22_1/"
+model_path = base_path + "saved_model/1/tf_model/"
 
 
 def plot_loss_acc(loss, acc, t_value):
