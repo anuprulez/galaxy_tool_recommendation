@@ -198,7 +198,7 @@ if __name__ == "__main__":
             if len(l_tools) == use_tools:
                 break
 
-        train_size = 500000
+        train_size = 100000
         test_size = 100000
 
         print("Extracting train data...")
@@ -218,16 +218,16 @@ if __name__ == "__main__":
         print("Extracting test data...")
         test_indices = list()
         for i, (te_inp, te_tar) in enumerate(zip(test_data, test_labels)):
-            te_i_pos = [str(int(item)) for item in tr_inp[np.where(te_inp > 0)[0]][1:]]
-            te_t_pos = [str(int(item)) for item in tr_tar[np.where(te_tar > 0)[0]][1:]]
+            te_i_pos = [str(int(item)) for item in te_inp[np.where(te_inp > 0)[0]][1:]]
+            te_t_pos = [str(int(item)) for item in te_tar[np.where(te_tar > 0)[0]][1:]]
+
             te_i_intersect = list(set(te_i_pos).intersection(set(l_tools)))
             te_t_intersect = list(set(te_t_pos).intersection(set(l_tools)))
+
             if len(te_i_intersect) == len(te_i_pos) and len(te_t_intersect) == len(te_t_pos):
                 test_indices.append(i)
                 if len(test_indices) == test_size:
                     break
-
-        #sys.exit()
 
         train_data = train_data[train_indices]
         train_labels = train_labels[train_indices]
@@ -247,21 +247,10 @@ if __name__ == "__main__":
         # Process the paths from workflows
         print("Dividing data...")
         data = prepare_data.PrepareData(maximum_path_length, test_share)
-        #train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary, class_weights, usage_pred, train_tool_freq, tool_tr_samples =    data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
         train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
-    # find the best model and start training
-    '''predict_tool = PredictTool(num_cpus)
-    # start training with weighted classes
-    print("Training with weighted classes and samples ...")
-    #results_weighted = predict_tool.find_train_best_network(config, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs, class_weights, usage_pred, standard_connections, train_tool_freq, tool_tr_samples) 
-    results_weighted = predict_tool.find_train_best_network(config, data_dictionary, reverse_dictionary, train_data, train_labels, test_data, test_labels, n_epochs)
-    print()
-    print("Best parameters \n")
-    print(results_weighted["best_parameters"])
-    print()
-    utils.write_file("data/train_last_tools.txt", train_tool_freq)
-    utils.save_model(results_weighted, data_dictionary, compatible_next_tools, trained_model_path, class_weights, standard_connections)'''
+    print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
+    create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
 
     end_time = time.time()
     print()

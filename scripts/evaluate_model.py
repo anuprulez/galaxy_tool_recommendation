@@ -43,8 +43,8 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
 
-base_path = "log_20_07_22_0/"
-model_path = base_path + "saved_model/11/tf_model/"
+base_path = "log/"
+model_path = base_path + "saved_model/3/tf_model/"
 
 
 def predict_seq():
@@ -78,8 +78,8 @@ def predict_seq():
     bowtie_input[:, 0] = index_start_token
     bowtie_input[:, 1] = tool_id
     bowtie_input[:, 2] = f_dict["rna_star"]
-    bowtie_input[:, 3] = f_dict["featurecounts"]
-    bowtie_input[:, 4] = f_dict["deseq2"]
+    #bowtie_input[:, 3] = f_dict["featurecounts"]
+    #bowtie_input[:, 4] = f_dict["deseq2"]
     #bowtie_input[:, 3] = 2141
     #bowtie_input[:, 4] = 1569 
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
@@ -91,8 +91,8 @@ def predict_seq():
     print(np.all(top_k.indices.numpy(), axis=-1))
     print("Predicted next tools for {}: {}".format(tool_name, [r_dict[str(item)] for item in top_k.indices.numpy()[0][0]]))
     print()
-    print("Generating predictions...")
-    generated_attention(tf_loaded_model, f_dict, r_dict)
+    #print("Generating predictions...")
+    #generated_attention(tf_loaded_model, f_dict, r_dict)
 
 
 def generated_attention(trained_model, f_dict, r_dict):

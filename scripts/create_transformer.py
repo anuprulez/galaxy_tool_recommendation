@@ -57,7 +57,7 @@ EPOCHS = 5
 max_seq_len = 25
 index_start_token = 2
 logging_step = 1
-n_topk = 5
+n_topk = 1
 n_test_batches = 1
 test_logging = 1
 
@@ -550,6 +550,28 @@ def sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_tra
     return unrolled_x, unrolled_y
 
 
+def sample_train_x_y_first_pos(batch_size, X_train, y_train):
+    rand_batch_indices = list()
+    s_y_train = y_train[:, 1:2]
+    s_y_train = list(s_y_train.reshape(len(s_y_train), ))
+    s_y_train = [str(int(item)) for item in s_y_train]
+
+    u_labels = list(set(s_y_train))
+    random.shuffle(u_labels)
+    b_u_labels = u_labels[:batch_size]
+    for index, tar in enumerate(y_train):
+        label_val = str(int(tar[1:2]))
+        if label_val in b_u_labels:
+            rand_batch_indices.append(index)
+        if len(rand_batch_indices) == batch_size:
+            break
+    x_batch_train = X_train[rand_batch_indices]
+    y_batch_train = y_train[rand_batch_indices]
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+    return unrolled_x, unrolled_y
+
+
 def create_sample_test_data(f_dict):
     tool_name = "bowtie2" #"Summary_Statistics1"
     #seq2 = "bowtie2"
@@ -562,12 +584,13 @@ def create_sample_test_data(f_dict):
     return input_mat
 
 
-def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input_seqs, te_tar_seqs, te_ulabels, te_all_labels_seq, trained_model):
+def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input_seqs, te_tar_seqs, trained_model):
     eval_loss = list()
     eval_acc = list()
     print("Test size:", te_input_seqs.shape, te_tar_seqs.shape)
     for i in range(n_test_batches):
-        te_inp, te_tar = sample_train_x_y(batch_size, te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
+        #te_inp, te_tar = sample_train_x_y(batch_size, te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
+        te_inp, te_tar = sample_train_x_y_first_pos(batch_size, te_input_seqs, te_tar_seqs)
 
         te_tar_inp = te_tar[:, :-1]
         te_tar_real = te_tar[:, 1:]
@@ -613,9 +636,13 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
       train_loss(loss)
       train_accuracy(accuracy_function(tar_real, predictions))
 
-    print("Creating datasets for balanced sampling...")  
-    tr_ulabels, tr_all_labels_seq = preprocess_sampling_datasets(tar_seqs)
-    te_ulabels, te_all_labels_seq = preprocess_sampling_datasets(te_tar_seqs)
+    print("Creating datasets for balanced sampling...")
+    
+    #tr_ulabels, tr_all_labels_seq = preprocess_sampling_datasets(tar_seqs)
+
+    #sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs)
+
+    #te_ulabels, te_all_labels_seq = preprocess_sampling_datasets(te_tar_seqs)
 
     for epoch in range(EPOCHS):
         start = time.time()
@@ -628,14 +655,16 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         for batch in range(n_train_batches):
             print("Train data size:", inp_seqs.shape, tar_seqs.shape)
             # train on randomly selected samples
-            inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
+            #inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
+            inp, tar = sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs)
             train_step(inp, tar)
 
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
 
             if (batch + 1) % test_logging == 0:
                 print("Evaluating on test data...")
-                validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, te_ulabels, te_all_labels_seq, transformer)
+                #validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, te_ulabels, te_all_labels_seq, transformer)
+                validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, transformer)
                 print("-----")
 
         if (epoch + 1) % logging_step == 0:
