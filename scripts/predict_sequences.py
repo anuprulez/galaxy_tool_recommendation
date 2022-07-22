@@ -97,11 +97,9 @@ class PredictSequence(tf.Module):
     bowtie_output = bowtie_output.write(0, [tf.constant(index_start_token, dtype=tf.int64)])
     bowtie_o = tf.transpose(bowtie_output.stack())
 
-    #tool_id = f_dict[tool_name]
-    #print(tool_name, tool_id)
     bowtie_input = np.zeros([1, 25])
     bowtie_input[:, 0] = index_start_token
-    bowtie_input[:, 1] = f_dict["bowtie2"] #rsem_calculate_expression #ctb_compound_convert
+    bowtie_input[:, 1] = f_dict["ctb_compound_convert"] #rsem_calculate_expression #ctb_compound_convert
     #bowtie_input[:, 2] = f_dict["bowtie2"]
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
     print(bowtie_input, bowtie_output, bowtie_o)
@@ -110,5 +108,5 @@ class PredictSequence(tf.Module):
     top_k = tf.math.top_k(bowtie_pred, k=10)
     print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
     print(np.all(top_k.indices.numpy(), axis=-1))
-    print("Predicted tools: {}".format([r_dict[item] for item in top_k.indices.numpy()[0][0]]))
+    print("Predicted tools: {}".format([r_dict[str(item)] for item in top_k.indices.numpy()[0][0]]))
     print()

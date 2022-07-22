@@ -37,7 +37,6 @@ dff = 256 #2048
 num_heads = 4
 dropout_rate = 0.5
 
-EPOCHS = 500
 max_seq_len = 25
 index_start_token = 2
 logging_step = 5
@@ -49,17 +48,20 @@ n_topk = 5
 BATCH_SIZE = 128
 num_layers = 4
 d_model = 64
-dff = 256 #256 #2048
+dff = 256
 num_heads = 4
-dropout_rate = 0.1
+dropout_rate = 0.5
 
-EPOCHS = 2
 max_seq_len = 25
 index_start_token = 2
-logging_step = 1
-n_topk = 3
+n_topk = 1
+
+train_logging_step = 10
+test_logging = 10
+
+n_train_batches = 100
 n_test_batches = 1
-test_logging = 1
+
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -550,7 +552,7 @@ def sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_tra
     return unrolled_x, unrolled_y
 
 
-def sample_train_x_y_first_pos(batch_size, X_train, y_train):
+def sample_train_x_y_first_pos(batch_size, X_train, y_train, f_dict, rev_dict):
     rand_batch_indices = list()
     s_y_train = y_train[:, 1:2]
     s_y_train = list(s_y_train.reshape(len(s_y_train), ))
@@ -559,12 +561,22 @@ def sample_train_x_y_first_pos(batch_size, X_train, y_train):
     u_labels = list(set(s_y_train))
     random.shuffle(u_labels)
     b_u_labels = u_labels[:batch_size]
+    sel_tools = list()
     for index, tar in enumerate(y_train):
         label_val = str(int(tar[1:2]))
         if label_val in b_u_labels:
+            sel_tools.append(label_val)
+            #print("Selected row: ", index, label_val, rev_dict[str(label_val)])
+            #print([float(item) for item in X_train[index]], [float(item) for item in y_train[index]])
+            #print()
             rand_batch_indices.append(index)
+            #print(len(b_u_labels))
+            b_u_labels = [e for e in b_u_labels if e not in [label_val]]
+            #print(len(b_u_labels))
         if len(rand_batch_indices) == batch_size:
             break
+    #selected_batches(sel_tools)
+    #print("==================================================================")
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
@@ -572,25 +584,13 @@ def sample_train_x_y_first_pos(batch_size, X_train, y_train):
     return unrolled_x, unrolled_y
 
 
-def create_sample_test_data(f_dict):
-    tool_name = "bowtie2" #"Summary_Statistics1"
-    #seq2 = "bowtie2"
-    input_mat = np.zeros([1, 25])
-    tool_id = f_dict[tool_name]
-    print(tool_name, tool_id)
-    input_mat[0, 0] = index_start_token
-    input_mat[0, 1] = tool_id
-    print(input_mat)
-    return input_mat
-
-
-def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input_seqs, te_tar_seqs, trained_model):
+def validate_model(b_num, n_train_batches, batch_size, te_input_seqs, te_tar_seqs, trained_model, f_dict, rev_dict):
     eval_loss = list()
     eval_acc = list()
     print("Test size:", te_input_seqs.shape, te_tar_seqs.shape)
     for i in range(n_test_batches):
         #te_inp, te_tar = sample_train_x_y(batch_size, te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
-        te_inp, te_tar = sample_train_x_y_first_pos(batch_size, te_input_seqs, te_tar_seqs)
+        te_inp, te_tar = sample_train_x_y_first_pos(batch_size, te_input_seqs, te_tar_seqs, f_dict, rev_dict)
 
         te_tar_inp = te_tar[:, :-1]
         te_tar_real = te_tar[:, 1:]
@@ -602,7 +602,7 @@ def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input
 
         eval_loss.append(test_loss.result())
         eval_acc.append(test_accuracy.result())
-    print(f"Test: epoch {e_num+1}/{n_epochs}, batch {b_num+1}/{n_train_batches}: Test Loss {np.mean(eval_loss):.4f}, Test Accuracy {np.mean(eval_acc):.4f}")
+    print(f"Test: Batch {b_num+1}/{n_train_batches}: Test Loss {np.mean(eval_loss):.4f}, Test Accuracy {np.mean(eval_acc):.4f}")
     return np.mean(eval_loss), np.mean(eval_acc)
 
 
@@ -620,8 +620,6 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         target_vocab_size=len(rev_dict) + 1,
         rate=dropout_rate)
 
-    n_train_batches = int(inp_seqs.shape[0] / float(BATCH_SIZE))
-
     @tf.function(input_signature=train_step_signature)
     def train_step(inp, tar):
       tar_inp = tar[:, :-1]
@@ -637,16 +635,65 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
       train_loss(loss)
       train_accuracy(accuracy_function(tar_real, predictions))
 
-    print("Creating datasets for balanced sampling...")
+    #print("Creating datasets for balanced sampling...")
     #tr_ulabels, tr_all_labels_seq = preprocess_sampling_datasets(tar_seqs)
-    #sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs)
     #te_ulabels, te_all_labels_seq = preprocess_sampling_datasets(te_tar_seqs)
+
     epo_tr_batch_loss = list()
     epo_tr_batch_acc = list()
     epo_te_batch_loss = list()
     epo_te_batch_acc = list()
+    train_loss.reset_states()
+    train_accuracy.reset_states()
+    test_loss.reset_states()
+    test_accuracy.reset_states()
+    for batch in range(n_train_batches):
+        print("Train data size:", inp_seqs.shape, tar_seqs.shape)
+        # train on randomly selected samples
+        #inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
+        inp, tar = sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs, f_dict, rev_dict)
+        train_step(inp, tar)
+        epo_tr_batch_loss.append(train_loss.result().numpy())
+        epo_tr_batch_acc.append(train_accuracy.result().numpy())
+        print(f'Train: batch {batch+1}/{n_train_batches}: train loss {train_loss.result():.4f}, train accuracy {train_accuracy.result():.4f}')
+        if (batch + 1) % test_logging == 0:
+            print("-----")
+            print("Evaluating on test data...")
+            te_loss, te_acc = validate_model(batch, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, transformer, f_dict, rev_dict)
+            epo_te_batch_loss.append(te_loss)
+            epo_te_batch_acc.append(te_acc)
+            print("-----")
+
+        if (batch + 1) % train_logging_step == 0:
+            
+            print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
+            base_path = "log/saved_model/"
+            tf_path = base_path + "{}/".format(batch+1)
+            tf_model_save = base_path + "{}/tf_model/".format(batch+1)
+            if not os.path.isdir(tf_path):
+                os.mkdir(tf_path)
+            tf.saved_model.save(transformer, tf_model_save)
+            #tf_loaded_model = tf.saved_model.load(tf_model_save)
+            #predictor = predict_sequences.PredictSequence(transformer)
+            #predictor(f_dict, rev_dict)
+
+    utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
+    utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
+    utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
+    utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))
+
+#python_shell_script = "python -m tf2onnx.convert --saved-model " + tf_model_save + " --output " + onnx_model_save + "model.onnx" + " --opset 15 "
+#print(python_shell_script)
+# convert tf/keras model to ONNX and save it to output file
+#subprocess.run(python_shell_script, shell=True, check=True)
+
+#print("Loading ONNX model...")
+#loaded_model = onnx.load(onnx_model_save + "model.onnx")
+#tf_loaded_model = prepare(loaded_model)
+#prediction = tf_loaded_model.run(item, training=False)
+#print("Prediction using loaded model...")
+'''
     for epoch in range(EPOCHS):
-        start = time.time()
         train_loss.reset_states()
         train_accuracy.reset_states()
         test_loss.reset_states()
@@ -680,20 +727,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
                 #os.mkdir(onnx_model_save)
             tf.saved_model.save(transformer, tf_model_save)
             tf_loaded_model = tf.saved_model.load(tf_model_save)
-            #python_shell_script = "python -m tf2onnx.convert --saved-model " + tf_model_save + " --output " + onnx_model_save + "model.onnx" + " --opset 15 "
-            #print(python_shell_script)
-            # convert tf/keras model to ONNX and save it to output file
-            #subprocess.run(python_shell_script, shell=True, check=True)
-
-            #print("Loading ONNX model...")
-            #loaded_model = onnx.load(onnx_model_save + "model.onnx")
-            #tf_loaded_model = prepare(loaded_model)
-            #prediction = tf_loaded_model.run(item, training=False)
-            #print("Prediction using loaded model...")
-            #predictor = predict_sequences.PredictSequence(tf_loaded_model)
-            #translator = Translator(tf_loaded_model)
-            #predictor(f_dict, rev_dict)
-    utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
-    utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
-    utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
-    utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))
+            
+            predictor = predict_sequences.PredictSequence(transformer)
+            predictor(f_dict, rev_dict)
+'''

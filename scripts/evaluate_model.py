@@ -44,7 +44,7 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
 
 
-base_path = "log/"
+base_path = "log_22_07_22_0/"
 model_path = base_path + "saved_model/3/tf_model/"
 
 
@@ -72,8 +72,7 @@ def plot_loss_acc(loss, acc, t_value):
     plt.show()
 
 
-def predict_seq():
-
+def visualize_loss_acc():
     epo_tr_batch_loss = utils.read_file("log/data/epo_tr_batch_loss.txt").split(",")
     epo_tr_batch_loss = [np.round(float(item), 4) for item in epo_tr_batch_loss]
 
@@ -89,7 +88,11 @@ def predict_seq():
     plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
     plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "test")
 
-    sys.exit()
+
+def predict_seq():
+
+
+    #sys.exit()
     # read test sequences
     '''path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
@@ -107,22 +110,21 @@ def predict_seq():
 
     #predictor(test_input, test_target, f_dict, r_dict)
 
-    tool_name = "cutadapt"
-    print("Prediction for {}...".format(tool_name))
+    #tool_name = "cutadapt"
+    #print("Prediction for {}...".format(tool_name))
     bowtie_output = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
     bowtie_output = bowtie_output.write(0, [tf.constant(index_start_token, dtype=tf.int64)])
     #bowtie_output = bowtie_output.write(1, [tf.constant(295, dtype=tf.int64)])
     bowtie_o = tf.transpose(bowtie_output.stack())
-    tool_id = f_dict[tool_name]
+    #tool_id = f_dict[tool_name]
     #print(tool_name, tool_id)
+    tool_list = ["ctb_filter"]
     bowtie_input = np.zeros([1, 25])
     bowtie_input[:, 0] = index_start_token
-    bowtie_input[:, 1] = tool_id
-    bowtie_input[:, 2] = f_dict["rna_star"]
+    bowtie_input[:, 1] = f_dict[tool_list[0]]
+    #bowtie_input[:, 2] = f_dict[tool_list[1]]
     #bowtie_input[:, 3] = f_dict["featurecounts"]
     #bowtie_input[:, 4] = f_dict["deseq2"]
-    #bowtie_input[:, 3] = 2141
-    #bowtie_input[:, 4] = 1569 
     bowtie_input = tf.constant(bowtie_input, dtype=tf.int64)
     print(bowtie_input, bowtie_output, bowtie_o)
     bowtie_pred, _ = tf_loaded_model([bowtie_input, bowtie_o], training=False)
@@ -130,7 +132,7 @@ def predict_seq():
     top_k = tf.math.top_k(bowtie_pred, k=10)
     print("Top k: ", bowtie_pred.shape, top_k, top_k.indices)
     print(np.all(top_k.indices.numpy(), axis=-1))
-    print("Predicted next tools for {}: {}".format(tool_name, [r_dict[str(item)] for item in top_k.indices.numpy()[0][0]]))
+    print("Predicted tools for {}: {}".format( ",".join(tool_list), [r_dict[str(item)] for item in top_k.indices.numpy()[0][0]]))
     print()
     #print("Generating predictions...")
     #generated_attention(tf_loaded_model, f_dict, r_dict)
@@ -141,10 +143,10 @@ def generated_attention(trained_model, f_dict, r_dict):
     np_output_array = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
     np_output_array = np_output_array.write(0, [tf.constant(index_start_token, dtype=tf.int64)])
 
-    n_target_items = 10
+    n_target_items = 5
     n_input = np.zeros([1, 25])
     n_input[:, 0] = index_start_token
-    n_input[:, 1] = f_dict["hicexplorer_hicfindtads"]
+    n_input[:, 1] = f_dict["hicexplorer_hicadjustmatrix"]
     #n_input[:, 2] = f_dict["hicexplorer_hicbuildmatrix"]
     #n_input[:, 3] = f_dict["hicexplorer_hicfindtads"]
     #n_input[:, 4] = f_dict["deseq2"]
@@ -166,14 +168,13 @@ def generated_attention(trained_model, f_dict, r_dict):
         np_output_array = np_output_array.write(i+1, predicted_id[0])
     print(output, np_output_array.stack(), output.numpy())
     print("----------")
-
-    #final_output = tf.transpose(output_array.stack())
+    last_decoder_layer = "decoder_layer4_block2"
     _, attention_weights = trained_model([n_input, output[:,:-1]], training=False)
-    #pred_attention = attention_weights["decoder_layer6_block2"]
+    pred_attention = attention_weights[last_decoder_layer]
 
-    print(attention_weights['decoder_layer6_block2'].shape)
+    print(attention_weights[last_decoder_layer].shape)
     head = 0
-    attention_heads = tf.squeeze(attention_weights['decoder_layer6_block2'], 0)
+    attention_heads = tf.squeeze(attention_weights[last_decoder_layer], 0)
     pred_attention = attention_heads[head]
     print(pred_attention)
 
@@ -211,3 +212,4 @@ def plot_attention_head(in_tokens, out_tokens, attention):
 
 if __name__ == "__main__":
     predict_seq()
+    #visualize_loss_acc()

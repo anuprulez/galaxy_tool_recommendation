@@ -113,6 +113,7 @@ class PredictCallback(callbacks.Callback):
             print("Epoch %d number of test samples with lowest tool ids: %s" % (epoch + 1, low_num))
 
 
+
 if __name__ == "__main__":
     start_time = time.time()
 
@@ -188,53 +189,6 @@ if __name__ == "__main__":
         #utils.save_data_as_dict(data_dictionary, reverse_dictionary, train_data, train_labels, "log/data/train_dict.txt")
         #utils.save_data_as_dict(data_dictionary, reverse_dictionary, test_data, test_labels, "log/data/test_dict.txt")
 
-        use_tools = len(reverse_dictionary)
-        l_tools = list()
-        rev_keys = list(reverse_dictionary.keys())
-        #print(rev_keys)
-        random.shuffle(rev_keys)
-        for key in rev_keys:
-            l_tools.append(str(key))
-            if len(l_tools) == use_tools:
-                break
-
-        train_size = 1000
-        test_size = 1000
-
-        print("Extracting train data...")
-        train_indices = list()
-        for i, (tr_inp, tr_tar) in enumerate(zip(train_data, train_labels)):
-            i_pos = [str(int(item)) for item in tr_inp[np.where(tr_inp > 0)[0]][1:]]
-            t_pos = [str(int(item)) for item in tr_tar[np.where(tr_tar > 0)[0]][1:]]
-
-            i_intersect = list(set(i_pos).intersection(set(l_tools)))
-            t_intersect = list(set(t_pos).intersection(set(l_tools)))
-            
-            if len(i_intersect) == len(i_pos) and len(t_intersect) == len(t_pos):
-                train_indices.append(i)
-                if len(train_indices) == train_size:
-                    break
-
-        print("Extracting test data...")
-        test_indices = list()
-        for i, (te_inp, te_tar) in enumerate(zip(test_data, test_labels)):
-            te_i_pos = [str(int(item)) for item in te_inp[np.where(te_inp > 0)[0]][1:]]
-            te_t_pos = [str(int(item)) for item in te_tar[np.where(te_tar > 0)[0]][1:]]
-
-            te_i_intersect = list(set(te_i_pos).intersection(set(l_tools)))
-            te_t_intersect = list(set(te_t_pos).intersection(set(l_tools)))
-
-            if len(te_i_intersect) == len(te_i_pos) and len(te_t_intersect) == len(te_t_pos):
-                test_indices.append(i)
-                if len(test_indices) == test_size:
-                    break
-
-        train_data = train_data[train_indices]
-        train_labels = train_labels[train_indices]
-
-        test_data = test_data[test_indices]
-        test_labels = test_labels[test_indices]
-
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
 
@@ -249,8 +203,8 @@ if __name__ == "__main__":
         data = prepare_data.PrepareData(maximum_path_length, test_share)
         train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
-    print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-    create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
+        print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
+        create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
 
     end_time = time.time()
     print()
