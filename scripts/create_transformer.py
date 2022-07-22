@@ -48,18 +48,18 @@ n_topk = 5
 
 BATCH_SIZE = 128
 num_layers = 4
-d_model = 128
-dff = 512 #256 #2048
+d_model = 64
+dff = 256 #256 #2048
 num_heads = 4
 dropout_rate = 0.5
 
-EPOCHS = 10
+EPOCHS = 5
 max_seq_len = 25
 index_start_token = 2
 logging_step = 1
 n_topk = 5
-n_test_batches = 10
-test_logging = 10
+n_test_batches = 1
+test_logging = 1
 
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -567,9 +567,7 @@ def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input
     eval_acc = list()
     print("Test size:", te_input_seqs.shape, te_tar_seqs.shape)
     for i in range(n_test_batches):
-        #te_inp, te_tar = sample_test_x_y(batch_size, te_input_seqs, te_tar_seqs)
         te_inp, te_tar = sample_train_x_y(batch_size, te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
-        #sample_train_x_y(batch_size, u_labels, all_train_labels_seqs, X_train, y_train):
 
         te_tar_inp = te_tar[:, :-1]
         te_tar_real = te_tar[:, 1:]
@@ -630,9 +628,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         for batch in range(n_train_batches):
             print("Train data size:", inp_seqs.shape, tar_seqs.shape)
             # train on randomly selected samples
-            #print("Sample train seqs...")
             inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
-            #print("train...")
             train_step(inp, tar)
 
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
