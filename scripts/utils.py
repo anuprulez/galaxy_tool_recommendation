@@ -4,6 +4,7 @@ import json
 import h5py
 import random
 from numpy.random import choice
+import matplotlib.pyplot as plt
 
 import tensorflow as tf
 #from tensorflow.compat.v2 import backend as K

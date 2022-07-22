@@ -51,13 +51,13 @@ num_layers = 4
 d_model = 64
 dff = 256 #256 #2048
 num_heads = 4
-dropout_rate = 0.5
+dropout_rate = 0.1
 
-EPOCHS = 5
+EPOCHS = 2
 max_seq_len = 25
 index_start_token = 2
 logging_step = 1
-n_topk = 1
+n_topk = 3
 n_test_batches = 1
 test_logging = 1
 
@@ -603,6 +603,7 @@ def validate_model(e_num, b_num, n_epochs, n_train_batches, batch_size, te_input
         eval_loss.append(test_loss.result())
         eval_acc.append(test_accuracy.result())
     print(f"Test: epoch {e_num+1}/{n_epochs}, batch {b_num+1}/{n_train_batches}: Test Loss {np.mean(eval_loss):.4f}, Test Accuracy {np.mean(eval_acc):.4f}")
+    return np.mean(eval_loss), np.mean(eval_acc)
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict):
@@ -637,36 +638,35 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
       train_accuracy(accuracy_function(tar_real, predictions))
 
     print("Creating datasets for balanced sampling...")
-    
     #tr_ulabels, tr_all_labels_seq = preprocess_sampling_datasets(tar_seqs)
-
     #sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs)
-
     #te_ulabels, te_all_labels_seq = preprocess_sampling_datasets(te_tar_seqs)
-
+    epo_tr_batch_loss = list()
+    epo_tr_batch_acc = list()
+    epo_te_batch_loss = list()
+    epo_te_batch_acc = list()
     for epoch in range(EPOCHS):
         start = time.time()
-
         train_loss.reset_states()
         train_accuracy.reset_states()
         test_loss.reset_states()
         test_accuracy.reset_states()
-
         for batch in range(n_train_batches):
             print("Train data size:", inp_seqs.shape, tar_seqs.shape)
             # train on randomly selected samples
             #inp, tar = sample_train_x_y(BATCH_SIZE, tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
             inp, tar = sample_train_x_y_first_pos(BATCH_SIZE, inp_seqs, tar_seqs)
             train_step(inp, tar)
-
+            epo_tr_batch_loss.append(train_loss.result().numpy())
+            epo_tr_batch_acc.append(train_accuracy.result().numpy())
             print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch+1}/{n_train_batches}: Train Loss {train_loss.result():.4f}, Train Accuracy {train_accuracy.result():.4f}')
-
             if (batch + 1) % test_logging == 0:
                 print("Evaluating on test data...")
                 #validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, te_ulabels, te_all_labels_seq, transformer)
-                validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, transformer)
+                te_loss, te_acc = validate_model(epoch, batch, EPOCHS, n_train_batches, BATCH_SIZE, te_input_seqs, te_tar_seqs, transformer)
+                epo_te_batch_loss.append(te_loss)
+                epo_te_batch_acc.append(te_acc)
                 print("-----")
-
         if (epoch + 1) % logging_step == 0:
             print("Saving model at epoch {}/{}".format(epoch+1, EPOCHS))
             base_path = "log/saved_model/"
@@ -693,3 +693,7 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             #predictor = predict_sequences.PredictSequence(tf_loaded_model)
             #translator = Translator(tf_loaded_model)
             #predictor(f_dict, rev_dict)
+    utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
+    utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
+    utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
+    utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))

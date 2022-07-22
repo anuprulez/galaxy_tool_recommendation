@@ -7,6 +7,7 @@ import numpy as np
 import subprocess
 import h5py
 import matplotlib.pyplot as plt
+import sys
 
 import tensorflow as tf
 from tensorflow import keras
@@ -47,8 +48,48 @@ base_path = "log/"
 model_path = base_path + "saved_model/3/tf_model/"
 
 
+def plot_loss_acc(loss, acc, t_value):
+    # plot training loss
+    x_val = np.arange(len(loss))
+    #x_val = np.arange(n_epo)
+    plt.plot(x_val, loss)
+    plt.ylabel("Loss".format(t_value))
+    plt.xlabel("Training steps")
+    plt.grid(True)
+    plt.title("{} vs loss".format(t_value))
+    plt.savefig("log/data/{}_loss.pdf".format(t_value), dpi=200)
+    plt.show()
+
+    # plot driver gene precision vs epochs
+    x_val_acc = np.arange(len(acc))
+    #x_val = np.arange(n_epo)
+    plt.plot(x_val_acc, acc)
+    plt.ylabel("Accuracy".format(t_value))
+    plt.xlabel("Training steps")
+    plt.grid(True)
+    plt.title("{} steps vs accuracy".format(t_value))
+    plt.savefig("log/data/{}_acc.pdf".format(t_value), dpi=200)
+    plt.show()
+
+
 def predict_seq():
 
+    epo_tr_batch_loss = utils.read_file("log/data/epo_tr_batch_loss.txt").split(",")
+    epo_tr_batch_loss = [np.round(float(item), 4) for item in epo_tr_batch_loss]
+
+    epo_tr_batch_acc = utils.read_file("log/data/epo_tr_batch_acc.txt").split(",")
+    epo_tr_batch_acc = [np.round(float(item), 4) for item in epo_tr_batch_acc]
+
+    epo_te_batch_loss = utils.read_file("log/data/epo_te_batch_loss.txt").split(",")
+    epo_te_batch_loss = [np.round(float(item), 4) for item in epo_te_batch_loss]
+
+    epo_te_batch_acc = utils.read_file("log/data/epo_te_batch_acc.txt").split(",")
+    epo_te_batch_acc = [np.round(float(item), 4) for item in epo_te_batch_acc]
+
+    plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
+    plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "test")
+
+    sys.exit()
     # read test sequences
     '''path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')

@@ -198,8 +198,8 @@ if __name__ == "__main__":
             if len(l_tools) == use_tools:
                 break
 
-        train_size = 100000
-        test_size = 100000
+        train_size = 1000
+        test_size = 1000
 
         print("Extracting train data...")
         train_indices = list()
