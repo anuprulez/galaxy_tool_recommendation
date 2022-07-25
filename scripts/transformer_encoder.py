@@ -60,12 +60,11 @@ class TransformerBlock(Layer):
         return self.layernorm2(out1 + ffn_output), attention_scores
 
 
-
 class TokenAndPositionEmbedding(Layer):
     def __init__(self, maxlen, vocab_size, embed_dim):
         super(TokenAndPositionEmbedding, self).__init__()
         self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim)
+        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
 
     def call(self, x):
         maxlen = tf.shape(x)[-1]
@@ -106,10 +105,6 @@ def sample_test_x_y(X, y):
     return unrolled_x, unrolled_y
 
 
-def loss_func(true, predicted):
-    return tf.reduce_mean(bce(true, predicted))
-
-
 def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     last_tools = list(ulabels_tr_dict.keys())[:batch_size]
     rand_batch_indices = list()
@@ -126,7 +121,8 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
 
 
 def compute_loss(y_true, y_pred):
-    #tr_loss = tf.reduce_mean(binary_ce(y_train, prediction))
+    #loss = tf.reduce_mean(categorical_ce(y_true, y_pred))
+    #loss = tf.reduce_mean(binary_ce(y_true, y_pred))
     loss = tf.reduce_mean(tf.keras.losses.binary_focal_crossentropy(y_true, y_pred, gamma=2))
     return loss
 
@@ -141,8 +137,12 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
         label_pos = np.where(y_train_batch[idx] > 0)[0]
         topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
-        label_pos_tools = [r_dict[str(item)] for item in label_pos]
-        pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
+        try:
+            label_pos_tools = [r_dict[str(item)] for item in label_pos]
+            pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
+        except:
+            label_pos_tools = [r_dict[item] for item in label_pos]
+            pred_label_pos_tools = [r_dict[item] for item in topk_pred]
         intersection = list(set(label_pos_tools).intersection(set(pred_label_pos_tools)))
         pred_precision = len(intersection) / len(pred_label_pos_tools)
         te_pre_precision.append(pred_precision)
