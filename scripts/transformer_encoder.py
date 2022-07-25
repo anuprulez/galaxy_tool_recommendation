@@ -22,9 +22,9 @@ d_dim = 64
 dropout = 0.2
 n_train_batches = 1000000
 batch_size = 32
-test_logging_step = 500
+test_logging_step = 100
 train_logging_step = 2000
-n_test_seqs = 5
+n_test_seqs = 20
 learning_rate = 1e-2
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -58,7 +58,7 @@ class TransformerBlock(Layer):
 class TokenAndPositionEmbedding(Layer):
     def __init__(self, maxlen, vocab_size, embed_dim):
         super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim)
+        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
         self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim)
 
     def call(self, x):
@@ -71,12 +71,16 @@ class TokenAndPositionEmbedding(Layer):
 
 def get_u_labels(y_train):
     last_tools = list()
+    ulabels_dict = dict()
     for item in range(y_train.shape[0]):
         arr_seq = y_train[item]
         #print(arr_seq)
         label_pos = np.where(arr_seq > 0)[0]
         #print(label_pos, arr_seq)
         last_tool = str(int(arr_seq[label_pos[-1]]))
+        if last_tool not in ulabels_dict:
+            ulabels_dict[last_tool] = list()
+        ulabels_dict[last_tool].append(item)
         seq = ",".join([str(int(a)) for a in arr_seq[0:label_pos[-1] + 1]])
         #print(seq, last_tool)
         last_tools.append(last_tool)
@@ -84,7 +88,7 @@ def get_u_labels(y_train):
     u_labels = list(set(last_tools))
     #print(len(last_tools), len(u_labels))
     random.shuffle(u_labels)
-    return u_labels
+    return u_labels, ulabels_dict
 
 
 def sample_test_x_y(X, y):
@@ -100,11 +104,18 @@ def loss_func(true, predicted):
     return tf.reduce_mean(bce(true, predicted))
 
 
-def sample_balanced(x_seqs, y_labels, ulabels):
-    bat_ulabels = ulabels[:batch_size]
+def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
+    last_tools = list(ulabels_tr_dict.keys())[:batch_size]
+    #bat_ulabels = ulabels[:batch_size]
     rand_batch_indices = list()
     #print(bat_ulabels)
-    for item in range(x_seqs.shape[0]):
+
+    for l_tool in last_tools:
+        seq_indices = ulabels_tr_dict[l_tool]
+        random.shuffle(seq_indices)
+        rand_batch_indices.append(seq_indices[0])
+
+    '''for item in range(x_seqs.shape[0]):
         arr_seq = x_seqs[item]
         label_pos = np.where(arr_seq > 0)[0]
         last_tool = str(int(arr_seq[label_pos[-1]]))
@@ -115,20 +126,21 @@ def sample_balanced(x_seqs, y_labels, ulabels):
             #print(bat_ulabels, len(bat_ulabels))
             #print()
         if len(rand_batch_indices) == batch_size:
-            break
+            break'''
     x_batch_train = x_seqs[rand_batch_indices]
     y_batch_train = y_labels[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
-        
 
-def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
+
+def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
-    te_x_batch, y_train_batch = sample_balanced(te_x, te_y, u_te_labels)
+    te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
     test_acc = bca(y_train_batch, te_pred_batch)
     test_err = bce(y_train_batch, te_pred_batch)
+    te_pre_precision = list()
     for idx in range(te_pred_batch.shape[0]):
         #print(te_x_batch[idx])
         label_pos = np.where(y_train_batch[idx] > 0)[0]
@@ -137,12 +149,16 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
         #print(label_pos, topk_pred)
         label_pos_tools = [r_dict[str(item)] for item in label_pos]
         pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
+        intersection = list(set(label_pos_tools).intersection(set(pred_label_pos_tools)))
+        pred_precision = len(intersection) / len(pred_label_pos_tools)
+        te_pre_precision.append(pred_precision)
         print("True labels: {}".format(label_pos_tools))
         print("Predicted labels: {}".format(pred_label_pos_tools))
         print()
         if idx == n_test_seqs - 1:
             break
     print("Test error: {}, test accuracy: {}".format(test_err.numpy(), test_acc.numpy()))
+    print("Test prediction precision: {}".format(np.mean(te_pre_precision)))
     print("Test finished")
     return test_err.numpy(), test_acc.numpy()
 
@@ -161,12 +177,14 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     x = Dropout(dropout)(x)
     x = Dense(d_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
-    outputs = Dense(vocab_size, activation="softmax")(x)
+    outputs = Dense(vocab_size, activation="sigmoid")(x)
 
     model = Model(inputs=inputs, outputs=[outputs, weights])
-    u_train_labels = get_u_labels(train_data)
-    u_te_labels = get_u_labels(test_data)
-    x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
+    u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
+    u_te_labels, ulabels_te_dict  = get_u_labels(test_data)
+
+    #x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
+
     epo_tr_batch_loss = list()
     epo_tr_batch_acc = list()
     epo_te_batch_loss = list()
@@ -174,7 +192,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
 
     for batch in range(n_train_batches):
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
-        x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
+        x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
         #sys.exit()
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
@@ -189,7 +207,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         print("Step {}/{}, training loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            te_loss, te_acc = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_labels)
+            te_loss, te_acc = validate_model(test_data, test_labels, model, f_dict, r_dict, ulabels_te_dict)
             epo_te_batch_loss.append(te_loss)
             epo_te_batch_acc.append(te_acc)
         print()
