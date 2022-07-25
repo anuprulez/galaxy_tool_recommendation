@@ -147,7 +147,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
         pred_precision = len(intersection) / len(pred_label_pos_tools)
         te_pre_precision.append(pred_precision)
         print("True labels: {}".format(label_pos_tools))
-        print("Predicted labels: {}, Precision: {}".format(pred_label_pos_tools), pred_precision)
+        print("Predicted labels: {}, Precision: {}".format(pred_label_pos_tools, pred_precision))
         print()
         if idx == n_test_seqs - 1:
             break
