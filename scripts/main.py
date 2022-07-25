@@ -184,14 +184,14 @@ if __name__ == "__main__":
         test_data, test_labels = utils.read_train_test(base_path + "saved_data/test.h5")
         reverse_dictionary = utils.read_file(base_path + "data/rev_dict.txt")
         data_dictionary = utils.read_file(base_path + "data/f_dict.txt")
-        print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
+        print("True size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         print(len(reverse_dictionary), len(data_dictionary))
 
         #utils.save_data_as_dict(data_dictionary, reverse_dictionary, train_data, train_labels, "log/data/train_dict.txt")
         #utils.save_data_as_dict(data_dictionary, reverse_dictionary, test_data, test_labels, "log/data/test_dict.txt")
 
-        train_size = 500000
-        test_size = 100000
+        train_size = 100000
+        test_size = 20000
 
         train_data = train_data[:train_size]
         train_labels = train_labels[:train_size]
@@ -199,8 +199,8 @@ if __name__ == "__main__":
         test_data = test_data[:test_size]
         test_labels = test_labels[:test_size]
 
-        print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
+        print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
 
     else:
         print("Preprocessing workflows...")

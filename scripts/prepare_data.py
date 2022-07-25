@@ -418,8 +418,8 @@ class PrepareData:
         print()
         print(train_labels[0:5])
 
-        train_size = 100000
-        test_size = 100000
+        train_size = 1000
+        test_size = 1000
 
         print("Saving input and target datasets as h5...")
         utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")

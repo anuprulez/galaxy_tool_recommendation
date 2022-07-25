@@ -13,17 +13,19 @@ from tensorflow.keras.datasets import imdb
 from tensorflow.keras.models import Sequential, Model
 
 
-embed_dim = 32  # Embedding size for each token
-num_heads = 2  # Number of attention heads
-ff_dim = 32  # Hidden layer size in feed forward network inside transformer
+embed_dim = 128 # Embedding size for each token
+num_heads = 4 # Number of attention heads
+ff_dim = 64 # Hidden layer size in feed forward network inside transformer
 d_dim = 64
-dropout = 0.1
-n_train_batches = 100
-batch_size = 64
-test_logging_step = 2
+dropout = 0.2
+n_train_batches = 10000
+batch_size = 32
+test_logging_step = 50
+train_logging_step = 200
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+bca = tf.keras.metrics.CategoricalAccuracy()
 
 
 class TransformerBlock(Layer):
@@ -63,6 +65,24 @@ class TokenAndPositionEmbedding(Layer):
         return x + positions
 
 
+def get_u_labels(y_train):
+    last_tools = list()
+    for item in range(y_train.shape[0]):
+        arr_seq = y_train[item]
+        #print(arr_seq)
+        label_pos = np.where(arr_seq > 0)[0]
+        #print(label_pos, arr_seq)
+        last_tool = str(int(arr_seq[label_pos[-1]]))
+        seq = ",".join([str(int(a)) for a in arr_seq[0:label_pos[-1] + 1]])
+        #print(seq, last_tool)
+        last_tools.append(last_tool)
+        #print()
+    u_labels = list(set(last_tools))
+    #print(len(last_tools), len(u_labels))
+    random.shuffle(u_labels)
+    return u_labels
+
+
 def sample_test_x_y(X, y):
     rand_batch_indices = np.random.randint(0, X.shape[0], batch_size)
     x_batch_train = X[rand_batch_indices]
@@ -71,20 +91,47 @@ def sample_test_x_y(X, y):
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
 
+
 def loss_func(true, predicted):
     return tf.reduce_mean(bce(true, predicted))
 
 
-def validate_model(te_x, te_y, model, f_dict, r_dict):
-    te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
+def sample_balanced(x_seqs, y_labels, ulabels):
+    bat_ulabels = ulabels[:batch_size]
+    rand_batch_indices = list()
+    #print(bat_ulabels)
+    for item in range(x_seqs.shape[0]):
+        arr_seq = x_seqs[item]
+        label_pos = np.where(arr_seq > 0)[0]
+        last_tool = str(int(arr_seq[label_pos[-1]]))
+        if last_tool in bat_ulabels:
+            #print(arr_seq, last_tool)
+            rand_batch_indices.append(item)
+            bat_ulabels = [e for e in bat_ulabels if e not in [last_tool]]
+            #print(bat_ulabels, len(bat_ulabels))
+            #print()
+        if len(rand_batch_indices) == batch_size:
+            break
+    x_batch_train = x_seqs[rand_batch_indices]
+    y_batch_train = y_labels[rand_batch_indices]
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+    return unrolled_x, unrolled_y
+        
+
+def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
+    #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
+    te_x_batch, y_train_batch = sample_balanced(te_x, te_y, u_te_labels)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
     for idx in range(te_pred_batch.shape[0]):
+        #input_pos = np.where(te_x_batch[idx] > 0)[0]
+        print(te_x_batch[idx])
         label_pos = np.where(y_train_batch[idx] > 0)[0]
         topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
         print(label_pos, topk_pred)
-        label_pos_tools = [r_dict[item] for item in label_pos]
-        pred_label_pos_tools = [r_dict[item] for item in topk_pred]
+        label_pos_tools = [r_dict[str(item)] for item in label_pos]
+        pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
         print(label_pos_tools, pred_label_pos_tools)
         print()
         break
@@ -107,19 +154,32 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     outputs = Dense(vocab_size, activation="softmax")(x)
 
     model = Model(inputs=inputs, outputs=[outputs, weights])
-
+    u_train_labels = get_u_labels(train_data)
+    u_te_labels = get_u_labels(test_data)
+    x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
+    #sys.exit()
     for batch in range(n_train_batches):
-        x_train, y_train = sample_test_x_y(train_data, train_labels)
+        #x_train, y_train = sample_test_x_y(train_data, train_labels)
+        x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
+        #sys.exit()
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
-            print(x_train.shape, prediction.shape, att_weights.shape)
             pred_loss = bce(y_train, prediction)
-            print(pred_loss)
-        print()
+            tr_acc = bca(y_train, prediction)
+        #print()
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(pred_loss, trainable_vars)
         enc_optimizer.apply_gradients(zip(model_gradients, trainable_vars))
-        print("{} Training loss: {}".format(batch+1, pred_loss))
-        if batch+1 % test_logging_step:
+        print("Step {}, training loss: {}, training accuracy: {}".format(batch+1, pred_loss.numpy(), tr_acc.numpy()))
+        if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            validate_model(test_data, test_labels, model, f_dict, r_dict)
+            validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_labels)
+        print()
+        if (batch+1) % train_logging_step == 0:
+            print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
+            base_path = "log/saved_model/"
+            tf_path = base_path + "{}/".format(batch+1)
+            tf_model_save = base_path + "{}/tf_model/".format(batch+1)
+            if not os.path.isdir(tf_path):
+                os.mkdir(tf_path)
+            tf.saved_model.save(model, tf_model_save)
