@@ -42,8 +42,30 @@ index_start_token = 2
 logging_step = 5
 n_topk = 5
 
+=======
+
+BATCH_SIZE = 128
+num_layers = 4
+d_model = 64
+dff = 256
+num_heads = 4
+dropout_rate = 0.1
+
+max_seq_len = 25
+index_start_token = 2
+n_topk = 1
+
+train_logging_step = 5000
+test_logging = 100
+
+n_train_batches = 50000
+n_test_batches = 10
+
+
 
 '''
+
+# TODO: Try out only encoder and sequence classification: https://arxiv.org/pdf/2104.05448.pdf
 
 BATCH_SIZE = 128
 num_layers = 4
@@ -54,12 +76,12 @@ dropout_rate = 0.5
 
 max_seq_len = 25
 index_start_token = 2
-n_topk = 3
+n_topk = 1
 
-train_logging_step = 5
-test_logging = 3
+train_logging_step = 1000
+test_logging = 10
 
-n_train_batches = 10
+n_train_batches = 100000
 n_test_batches = 1
 
 
@@ -506,8 +528,8 @@ def selected_batches(labels):
     print()
 
 
-def sample_test_x_y(batch_size, X, y):
-    rand_batch_indices = np.random.randint(0, X.shape[0], batch_size)
+def sample_test_x_y(X, y):
+    rand_batch_indices = np.random.randint(0, X.shape[0], BATCH_SIZE)
     x_batch_train = X[rand_batch_indices]
     y_batch_train = y[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
@@ -572,7 +594,6 @@ def sample_train_x_y_first_pos(u_labels, X_train, y_train, f_dict, rev_dict):
             b_u_labels = [e for e in b_u_labels if e not in [label_val]]
         if len(rand_batch_indices) == BATCH_SIZE:
             break
-    print(selected_batches(sel_tools))
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
@@ -586,7 +607,8 @@ def validate_model(b_num, te_input_seqs, te_tar_seqs, te_u_labels, trained_model
     print("Test size:", te_input_seqs.shape, te_tar_seqs.shape)
     for i in range(n_test_batches):
         #te_inp, te_tar = sample_train_x_y(te_ulabels, te_all_labels_seq, te_input_seqs, te_tar_seqs)
-        te_inp, te_tar = sample_train_x_y_first_pos(te_u_labels, te_input_seqs, te_tar_seqs, f_dict, rev_dict)
+        #te_inp, te_tar = sample_train_x_y_first_pos(te_u_labels, te_input_seqs, te_tar_seqs, f_dict, rev_dict)
+        te_inp, te_tar = sample_test_x_y(te_input_seqs, te_tar_seqs)
 
         te_tar_inp = te_tar[:, :-1]
         te_tar_real = te_tar[:, 1:]
@@ -651,7 +673,8 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
         print("Train data size:", inp_seqs.shape, tar_seqs.shape)
         # train on randomly selected samples
         #inp, tar = sample_train_x_y(tr_ulabels, tr_all_labels_seq, inp_seqs, tar_seqs)
-        inp, tar = sample_train_x_y_first_pos(tr_u_labels, inp_seqs, tar_seqs, f_dict, rev_dict)
+        #inp, tar = sample_train_x_y_first_pos(tr_u_labels, inp_seqs, tar_seqs, f_dict, rev_dict)
+        inp, tar = sample_test_x_y(inp_seqs, tar_seqs)
         train_step(inp, tar)
         epo_tr_batch_loss.append(train_loss.result().numpy())
         epo_tr_batch_acc.append(train_accuracy.result().numpy())
@@ -664,16 +687,16 @@ def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, r
             epo_te_batch_acc.append(te_acc)
             print("-----")
         if (batch + 1) % train_logging_step == 0:
-            print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
+            '''print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
             base_path = "log/saved_model/"
             tf_path = base_path + "{}/".format(batch+1)
             tf_model_save = base_path + "{}/tf_model/".format(batch+1)
             if not os.path.isdir(tf_path):
                 os.mkdir(tf_path)
             tf.saved_model.save(transformer, tf_model_save)
-            #tf_loaded_model = tf.saved_model.load(tf_model_save)
-            #predictor = predict_sequences.PredictSequence(transformer)
-            #predictor(f_dict, rev_dict)
+            tf_loaded_model = tf.saved_model.load(tf_model_save)'''
+            predictor = predict_sequences.PredictSequence(transformer)
+            predictor(f_dict, rev_dict)
 
     utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
     utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))

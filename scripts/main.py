@@ -21,7 +21,8 @@ from scripts import extract_workflow_connections
 from scripts import prepare_data
 from scripts import optimise_hyperparameters
 from scripts import utils
-import create_transformer
+#import create_transformer
+import transformer_encoder
 
 
 class PredictTool:
@@ -189,6 +190,15 @@ if __name__ == "__main__":
         #utils.save_data_as_dict(data_dictionary, reverse_dictionary, train_data, train_labels, "log/data/train_dict.txt")
         #utils.save_data_as_dict(data_dictionary, reverse_dictionary, test_data, test_labels, "log/data/test_dict.txt")
 
+        train_size = 500000
+        test_size = 100000
+
+        train_data = train_data[:train_size]
+        train_labels = train_labels[:train_size]
+
+        test_data = test_data[:test_size]
+        test_labels = test_labels[:test_size]
+
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
 
@@ -204,7 +214,8 @@ if __name__ == "__main__":
         train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
+        print("Train transformer...")
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
 
     end_time = time.time()
     print()
