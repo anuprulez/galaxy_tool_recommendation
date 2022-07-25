@@ -22,6 +22,7 @@ n_train_batches = 10000
 batch_size = 32
 test_logging_step = 50
 train_logging_step = 200
+learning_rate = 1e-2
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
@@ -124,7 +125,6 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
     te_x_batch, y_train_batch = sample_balanced(te_x, te_y, u_te_labels)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
     for idx in range(te_pred_batch.shape[0]):
-        #input_pos = np.where(te_x_batch[idx] > 0)[0]
         print(te_x_batch[idx])
         label_pos = np.where(y_train_batch[idx] > 0)[0]
         topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
@@ -134,13 +134,13 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
         pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
         print(label_pos_tools, pred_label_pos_tools)
         print()
-        break
+    print("Test finished")
 
 def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict):
 
     vocab_size = len(f_dict) + 1
     maxlen = train_data.shape[1]
-    enc_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     inputs = Input(shape=(maxlen,))
     embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
@@ -170,7 +170,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(pred_loss, trainable_vars)
         enc_optimizer.apply_gradients(zip(model_gradients, trainable_vars))
-        print("Step {}, training loss: {}, training accuracy: {}".format(batch+1, pred_loss.numpy(), tr_acc.numpy()))
+        print("Step {}/{}, training loss: {}, training accuracy: {}".format(batch+1, n_train_batches, pred_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
             validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_labels)
