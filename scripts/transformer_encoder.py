@@ -12,17 +12,19 @@ from tensorflow.keras.layers import Embedding, Input, GlobalAveragePooling1D, De
 from tensorflow.keras.datasets import imdb
 from tensorflow.keras.models import Sequential, Model
 
+import utils
+
 
 embed_dim = 128 # Embedding size for each token
 num_heads = 4 # Number of attention heads
 ff_dim = 64 # Hidden layer size in feed forward network inside transformer
 d_dim = 64
 dropout = 0.2
-n_train_batches = 10000
+n_train_batches = 1000000
 batch_size = 32
-test_logging_step = 50
-train_logging_step = 200
-n_test_seqs = 10
+test_logging_step = 500
+train_logging_step = 2000
+n_test_seqs = 5
 learning_rate = 1e-2
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -125,19 +127,24 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
     #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
     te_x_batch, y_train_batch = sample_balanced(te_x, te_y, u_te_labels)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
+    test_acc = bca(y_train_batch, te_pred_batch)
+    test_err = bce(y_train_batch, te_pred_batch)
     for idx in range(te_pred_batch.shape[0]):
-        print(te_x_batch[idx])
+        #print(te_x_batch[idx])
         label_pos = np.where(y_train_batch[idx] > 0)[0]
         topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
-        print(label_pos, topk_pred)
+        #print(label_pos, topk_pred)
         label_pos_tools = [r_dict[str(item)] for item in label_pos]
         pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
-        print(label_pos_tools, pred_label_pos_tools)
+        print("True labels: {}".format(label_pos_tools))
+        print("Predicted labels: {}".format(pred_label_pos_tools))
         print()
         if idx == n_test_seqs - 1:
             break
+    print("Test error: {}, test accuracy: {}".format(test_err.numpy(), test_acc.numpy()))
     print("Test finished")
+    return test_err.numpy(), test_acc.numpy()
 
 def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict):
 
@@ -160,23 +167,31 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     u_train_labels = get_u_labels(train_data)
     u_te_labels = get_u_labels(test_data)
     x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
-    #sys.exit()
+    epo_tr_batch_loss = list()
+    epo_tr_batch_acc = list()
+    epo_te_batch_loss = list()
+    epo_te_batch_acc = list()
+
     for batch in range(n_train_batches):
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
         #sys.exit()
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
-            pred_loss = bce(y_train, prediction)
+            tr_loss = bce(y_train, prediction)
             tr_acc = bca(y_train, prediction)
         #print()
         trainable_vars = model.trainable_variables
-        model_gradients = model_tape.gradient(pred_loss, trainable_vars)
+        model_gradients = model_tape.gradient(tr_loss, trainable_vars)
         enc_optimizer.apply_gradients(zip(model_gradients, trainable_vars))
-        print("Step {}/{}, training loss: {}, training accuracy: {}".format(batch+1, n_train_batches, pred_loss.numpy(), tr_acc.numpy()))
+        epo_tr_batch_loss.append(tr_loss.numpy())
+        epo_tr_batch_acc.append(tr_acc.numpy())
+        print("Step {}/{}, training loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_labels)
+            te_loss, te_acc = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_labels)
+            epo_te_batch_loss.append(te_loss)
+            epo_te_batch_acc.append(te_acc)
         print()
         if (batch+1) % train_logging_step == 0:
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
@@ -186,3 +201,8 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
             if not os.path.isdir(tf_path):
                 os.mkdir(tf_path)
             tf.saved_model.save(model, tf_model_save)
+
+    utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
+    utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
+    utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
+    utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))
