@@ -22,6 +22,7 @@ n_train_batches = 10000
 batch_size = 32
 test_logging_step = 50
 train_logging_step = 200
+n_test_seqs = 10
 learning_rate = 1e-2
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -134,6 +135,8 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, u_te_labels):
         pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
         print(label_pos_tools, pred_label_pos_tools)
         print()
+        if idx == n_test_seqs - 1:
+            break
     print("Test finished")
 
 def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict):
