@@ -7,6 +7,7 @@ import sys
 
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras import backend as K
 from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Dropout, Layer
 from tensorflow.keras.layers import Embedding, Input, GlobalAveragePooling1D, Dense
 from tensorflow.keras.datasets import imdb
@@ -27,13 +28,13 @@ train_logging_step = 2000
 n_test_seqs = batch_size
 learning_rate = 1e-2
 
-cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+#cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction=tf.keras.losses.Reduction.NONE, axis=0)
 binary_acc = tf.keras.metrics.BinaryAccuracy()
 
 
-categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=False)
+#categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=False)
 categorical_acc = tf.keras.metrics.CategoricalAccuracy()
 
 
@@ -106,7 +107,9 @@ def sample_test_x_y(X, y):
 
 
 def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
-    last_tools = list(ulabels_tr_dict.keys())[:batch_size]
+    batch_tools = list(ulabels_tr_dict.keys())
+    random.shuffle(batch_tools)
+    last_tools = batch_tools[:batch_size]
     rand_batch_indices = list()
     for l_tool in last_tools:
         seq_indices = ulabels_tr_dict[l_tool]
@@ -119,16 +122,30 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
 
+'''
+def weighted_loss(class_weights):
+    """
+    Create a weighted loss function. Penalise the misclassification
+    of classes more with the higher usage
+    """
+    weight_values = list(class_weights.values())
+    weight_values.extend(weight_values)
+    def weighted_binary_crossentropy(y_true, y_pred):
+        # add another dimension to compute dot product
+        expanded_weights = K.expand_dims(weight_values, axis=-1)
+        return K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights)
+    return weighted_binary_crossentropy
+'''
 
-def compute_loss(y_true, y_pred):
-    #loss = tf.reduce_mean(categorical_ce(y_true, y_pred))
-    #loss = tf.reduce_mean(binary_ce(y_true, y_pred))
-    loss = tf.reduce_mean(tf.keras.losses.binary_focal_crossentropy(y_true, y_pred, gamma=2))
-    return loss
+
+def compute_loss(y_true, y_pred, class_weights):
+    loss = binary_ce(y_true, y_pred)
+    return tf.tensordot(loss, class_weights, axes=1)
+
 
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
-    #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
-    te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
+    te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
+    #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
     test_acc = tf.reduce_mean(categorical_acc(y_train_batch, te_pred_batch))
     test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
@@ -138,11 +155,11 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
         topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
         try:
-            label_pos_tools = [r_dict[str(item)] for item in label_pos]
-            pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred]
+            label_pos_tools = [r_dict[str(item)] for item in label_pos if item not in [0, "0"]]
+            pred_label_pos_tools = [r_dict[str(item)] for item in topk_pred if item not in [0, "0"]]
         except:
-            label_pos_tools = [r_dict[item] for item in label_pos]
-            pred_label_pos_tools = [r_dict[item] for item in topk_pred]
+            label_pos_tools = [r_dict[item] for item in label_pos if item not in [0, "0"]]
+            pred_label_pos_tools = [r_dict[item] for item in topk_pred if item not in [0, "0"]]
         intersection = list(set(label_pos_tools).intersection(set(pred_label_pos_tools)))
         pred_precision = len(intersection) / len(pred_label_pos_tools)
         te_pre_precision.append(pred_precision)
@@ -157,7 +174,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     return test_err.numpy(), test_acc.numpy()
 
 
-def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict):
+def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts):
 
     vocab_size = len(f_dict) + 1
     maxlen = train_data.shape[1]
@@ -184,14 +201,16 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     epo_tr_batch_acc = list()
     epo_te_batch_loss = list()
     epo_te_batch_acc = list()
+    c_weights = tf.convert_to_tensor(list(c_wts.values()), dtype=tf.float32)
 
     for batch in range(n_train_batches):
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
+        #utils.verify_oversampling_freq(x_train, r_dict)
         #sys.exit()
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
-            tr_loss = compute_loss(y_train, prediction)
+            tr_loss = compute_loss(y_train, prediction, c_weights)
             tr_acc = tf.reduce_mean(categorical_acc(y_train, prediction))
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(tr_loss, trainable_vars)

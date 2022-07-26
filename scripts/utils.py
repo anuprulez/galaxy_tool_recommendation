@@ -104,13 +104,16 @@ def verify_oversampling_freq(oversampled_tr_data, rev_dict):
     freq_dict = dict()
     freq_dict_names = dict()
     for tr_data in oversampled_tr_data:
-        last_tool_id = str(int(tr_data[-1]))
+        t_pos = np.where(tr_data > 0)[0]
+        last_tool_id = str(int(tr_data[t_pos[-1]])) #str(int(tr_data[-1]))
+        #print(tr_data, last_tool_id)
         if last_tool_id not in freq_dict:
             freq_dict[last_tool_id] = 0
             freq_dict_names[rev_dict[int(last_tool_id)]] = 0
         freq_dict[last_tool_id] += 1
         freq_dict_names[rev_dict[int(last_tool_id)]] += 1
     s_freq = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
+    #print(s_freq)
     return s_freq
 
 

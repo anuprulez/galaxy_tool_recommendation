@@ -182,8 +182,9 @@ if __name__ == "__main__":
         base_path = "log/"
         train_data, train_labels = utils.read_train_test(base_path + "saved_data/train.h5")
         test_data, test_labels = utils.read_train_test(base_path + "saved_data/test.h5")
-        reverse_dictionary = utils.read_file(base_path + "data/rev_dict.txt")
-        data_dictionary = utils.read_file(base_path + "data/f_dict.txt")
+        r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+        f_dict = utils.read_file(base_path + "data/f_dict.txt")
+        c_wts = utils.read_train_test(base_path + "data/class_weights.txt")
         print("True size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         print(len(reverse_dictionary), len(data_dictionary))
 
@@ -200,7 +201,7 @@ if __name__ == "__main__":
         test_labels = test_labels[:test_size]
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
     else:
         print("Preprocessing workflows...")
@@ -211,11 +212,11 @@ if __name__ == "__main__":
         # Process the paths from workflows
         print("Dividing data...")
         data = prepare_data.PrepareData(maximum_path_length, test_share)
-        train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+        train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         print("Train transformer...")
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, data_dictionary, reverse_dictionary)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
     end_time = time.time()
     print()
