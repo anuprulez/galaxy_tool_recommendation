@@ -136,9 +136,13 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     test_acc = tf.reduce_mean(categorical_acc(y_train_batch, te_pred_batch))
     test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
     te_pre_precision = list()
+    n_topk = 5
     for idx in range(te_pred_batch.shape[0]):
         label_pos = np.where(y_train_batch[idx] > 0)[0]
-        topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
+        if len(label_pos) < 5:
+            topk_pred = tf.math.top_k(te_pred_batch[idx], k=n_topk, sorted=True)
+        else:
+            topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
         try:
             label_pos_tools = [r_dict[str(item)] for item in label_pos if item not in [0, "0"]]

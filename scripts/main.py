@@ -186,10 +186,7 @@ if __name__ == "__main__":
         f_dict = utils.read_file(base_path + "data/f_dict.txt")
         c_wts = utils.read_file(base_path + "data/class_weights.txt")
         print("True size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        print(len(reverse_dictionary), len(data_dictionary))
-
-        #utils.save_data_as_dict(data_dictionary, reverse_dictionary, train_data, train_labels, "log/data/train_dict.txt")
-        #utils.save_data_as_dict(data_dictionary, reverse_dictionary, test_data, test_labels, "log/data/test_dict.txt")
+        print(len(r_dict), len(f_dict))
 
         train_size = 100000
         test_size = 20000
