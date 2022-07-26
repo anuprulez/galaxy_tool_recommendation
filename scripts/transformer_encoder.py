@@ -122,30 +122,16 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
 
-'''
-def weighted_loss(class_weights):
-    """
-    Create a weighted loss function. Penalise the misclassification
-    of classes more with the higher usage
-    """
-    weight_values = list(class_weights.values())
-    weight_values.extend(weight_values)
-    def weighted_binary_crossentropy(y_true, y_pred):
-        # add another dimension to compute dot product
-        expanded_weights = K.expand_dims(weight_values, axis=-1)
-        return K.dot(K.binary_crossentropy(y_true, y_pred), expanded_weights)
-    return weighted_binary_crossentropy
-'''
-
 
 def compute_loss(y_true, y_pred, class_weights):
     loss = binary_ce(y_true, y_pred)
-    return tf.tensordot(loss, class_weights, axes=1)
+    #return tf.tensordot(loss, class_weights, axes=1)
+    return tf.reduce_mean(loss)
 
 
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
-    te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
-    #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
+    #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
+    te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
     test_acc = tf.reduce_mean(categorical_acc(y_train_batch, te_pred_batch))
     test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))

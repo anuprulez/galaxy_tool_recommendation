@@ -184,7 +184,7 @@ if __name__ == "__main__":
         test_data, test_labels = utils.read_train_test(base_path + "saved_data/test.h5")
         r_dict = utils.read_file(base_path + "data/rev_dict.txt")
         f_dict = utils.read_file(base_path + "data/f_dict.txt")
-        c_wts = utils.read_train_test(base_path + "data/class_weights.txt")
+        c_wts = utils.read_file(base_path + "data/class_weights.txt")
         print("True size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         print(len(reverse_dictionary), len(data_dictionary))
 
@@ -215,6 +215,7 @@ if __name__ == "__main__":
         train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
+        sys.exit()
         print("Train transformer...")
         transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
