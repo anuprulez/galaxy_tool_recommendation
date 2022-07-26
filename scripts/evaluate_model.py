@@ -26,7 +26,7 @@ import predict_sequences
 import utils
 
 
-BATCH_SIZE = 64
+'''BATCH_SIZE = 64
 num_layers = 4
 d_model = 128
 dff = 512
@@ -34,18 +34,33 @@ num_heads = 8
 dropout_rate = 0.1
 EPOCHS = 20
 max_seq_len = 25
-index_start_token = 2
+index_start_token = 2'''
 
+embed_dim = 128 # Embedding size for each token
+num_heads = 8 # Number of attention heads
+ff_dim = 128 # Hidden layer size in feed forward network inside transformer
+d_dim = 128
+dropout = 0.1
+n_train_batches = 1000000
+batch_size = 32
+test_logging_step = 100
+train_logging_step = 2000
+n_test_seqs = batch_size
+learning_rate = 1e-2
 
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+fig_size = (12, 12)
+font = {'family': 'serif', 'size': 12}
+plt.rc('font', **font)
+
+'''loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 train_loss = tf.keras.metrics.Mean(name='train_loss')
 train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
 test_loss = tf.keras.metrics.Mean(name='test_loss')
-test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')
+test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log_22_07_22_1/"
-model_path = base_path + "saved_model/1/tf_model/"
+base_path = "log_26_07_22_0/"
+model_path = base_path + "saved_model/50000/tf_model/"
 
 
 def plot_loss_acc(loss, acc, t_value):
@@ -90,18 +105,100 @@ def visualize_loss_acc():
 
 
 def predict_seq():
+    n_topk = 5
+    path_test_data = base_path + "saved_data/test.h5"
+    file_obj = h5py.File(path_test_data, 'r')
+    
+    #test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
+    test_input = np.array(file_obj["input"])
+    test_target = np.array(file_obj["target"])
+    print(test_input.shape, test_target.shape)
+    
+    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    f_dict = utils.read_file(base_path + "data/f_dict.txt")
+    
+    tf_loaded_model = tf.saved_model.load(model_path)
+
+    n_test = test_input.shape[0]
+    precision = list()
+    for i in range(n_test):
+        rand_index = np.random.randint(0, n_test - 1)
+        t_ip = test_input[rand_index]
+        #t_ip = np.zeros((25))
+        #t_ip[0] = 422
+        #t_ip[1] = 637
+        #print(t_ip)
+        t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
+        prediction, att_weights = tf_loaded_model([t_ip], training=False)
+        #print(prediction.shape)
+        top_k = tf.math.top_k(prediction, k=n_topk)
+        #print("Top k: ", prediction.shape, top_k, top_k.indices)
+        #print(np.all(top_k.indices.numpy(), axis=-1))
+        t_ip = t_ip.numpy()
+
+        label_pos = np.where(t_ip > 0)[0]
+        target_pos = np.where(test_target[rand_index] > 0)[0]
+        #print(t_ip, t_ip[label_pos])
+        #print(label_pos, arr_seq)
+        i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]])
+        t_names = ",".join([r_dict[str(int(item))] for item in target_pos])
+
+        
+        #print(i_names, top_k.indices.numpy()[0])
+        
+        true_tools = [r_dict[str(int(item))] for item in target_pos]
+        pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]]
+        intersection = list(set(true_tools).intersection(set(pred_tools)))
+        pred_precision = float(len(intersection)) / len(true_tools)
+        precision.append(pred_precision)
+        print("Tool sequence: {}".format([r_dict[str(item)] for item in t_ip[label_pos]]))
+        print("True tools: {}".format(true_tools))
+        print("Predicted top {} tools: {}".format(n_topk, pred_tools))
+        print("Precision: {}".format(pred_precision))
+        print("=========================")
+        #generated_attention(att_weights, i_names, f_dict, r_dict)
+        if i == 10000:
+            break
+    print("Precision@{}: {}".format(n_topk, np.mean(precision)))
+
+def generated_attention(attention_weights, i_names, f_dict, r_dict):
+
+    #print(attention_weights.shape)
+    attention_heads = tf.squeeze(attention_weights, 0)
+    i_names = i_names.split(",")
+    in_tokens = i_names
+    out_tokens = i_names
+    fig = plt.figure(figsize=(16, 8))
+
+    for h, head in enumerate(attention_heads):
+      ax = fig.add_subplot(2, 4, h+1)
+      plot_attention_head(in_tokens, out_tokens, head)
+      ax.set_xlabel(f'Head {h+1}')
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_attention_head(in_tokens, out_tokens, attention):
+  # The plot is of the attention when a token was generated.
+  # The model didn't generate `<START>` in the output. Skip it.
+  #translated_tokens = translated_tokens[1:]
+
+  ax = plt.gca()
+  ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
+
+  '''ax.set_xticks(range(len(in_tokens)))
+  ax.set_yticks(range(len(out_tokens)))
+
+  ax.set_xticklabels(in_tokens, rotation=90)
+  ax.set_yticklabels(out_tokens)'''
+
+
+'''
+def predict_seq():
 
 
     #sys.exit()
     # read test sequences
-    '''path_test_data = base_path + "saved_data/test.h5"
-    file_obj = h5py.File(path_test_data, 'r')
-    test_input = tf.convert_to_tensor(np.array(file_obj["input"]), dtype=tf.int64)
-    test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
-    print("Test data...")
-    print(test_input)
-    print(test_target)'''
-
     r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
     
@@ -209,6 +306,7 @@ def plot_attention_head(in_tokens, out_tokens, attention):
 
   plt.show()
 
+'''
 
 if __name__ == "__main__":
     predict_seq()

@@ -24,9 +24,15 @@ dropout = 0.1
 n_train_batches = 1000000
 batch_size = 32
 test_logging_step = 100
-train_logging_step = 2000
+train_logging_step = 500
 n_test_seqs = batch_size
 learning_rate = 1e-2
+
+# Readings
+# https://keras.io/examples/nlp/text_classification_with_transformer/
+# https://hannibunny.github.io/mlbook/transformer/attention.html
+
+
 
 #cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
@@ -151,7 +157,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
             label_pos_tools = [r_dict[item] for item in label_pos if item not in [0, "0"]]
             pred_label_pos_tools = [r_dict[item] for item in topk_pred if item not in [0, "0"]]
         intersection = list(set(label_pos_tools).intersection(set(pred_label_pos_tools)))
-        pred_precision = len(intersection) / len(pred_label_pos_tools)
+        pred_precision = len(intersection) / len(label_pos_tools)
         te_pre_precision.append(pred_precision)
         print("True labels: {}".format(label_pos_tools))
         print("Predicted labels: {}, Precision: {}".format(pred_label_pos_tools, pred_precision))
