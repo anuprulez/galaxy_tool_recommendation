@@ -16,17 +16,17 @@ from tensorflow.keras.models import Sequential, Model
 import utils
 
 
-embed_dim = 128 # Embedding size for each token
+embed_dim = 64 # Embedding size for each token d_model
 num_heads = 8 # Number of attention heads
-ff_dim = 128 # Hidden layer size in feed forward network inside transformer
-d_dim = 128
-dropout = 0.1
+ff_dim = 256 # Hidden layer size in feed forward network inside transformer # dff
+d_dim = 64
+dropout = 0.2
 n_train_batches = 1000000
 batch_size = 32
 test_logging_step = 100
-train_logging_step = 500
+train_logging_step = 1000
 n_test_seqs = batch_size
-learning_rate = 1e-2
+learning_rate = 1e-1
 
 # Readings
 # https://keras.io/examples/nlp/text_classification_with_transformer/
@@ -39,10 +39,12 @@ learning_rate = 1e-2
 #cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
 binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction=tf.keras.losses.Reduction.NONE, axis=0)
-binary_acc = tf.keras.metrics.BinaryAccuracy()
+#binary_acc = tf.keras.metrics.BinaryAccuracy()
 
+#cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True) #reduction=tf.keras.losses.Reduction.NONE, axis=0
 
-#categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=False)
+categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
+
 categorical_acc = tf.keras.metrics.CategoricalAccuracy()
 
 
@@ -81,6 +83,22 @@ class TokenAndPositionEmbedding(Layer):
         positions = self.pos_emb(positions)
         x = self.token_emb(x)
         return x + positions
+
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+  def __init__(self, d_model, warmup_steps=4000):
+    super(CustomSchedule, self).__init__()
+
+    self.d_model = d_model
+    self.d_model = tf.cast(self.d_model, tf.float32)
+
+    self.warmup_steps = warmup_steps
+
+  def __call__(self, step):
+    arg1 = tf.math.rsqrt(step)
+    arg2 = step * (self.warmup_steps ** -1.5)
+
+    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 
 def get_u_labels(y_train):
@@ -163,22 +181,22 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
     x_batch_train = x_seqs[rand_batch_indices]
     y_batch_train = y_labels[rand_batch_indices]
 
-    '''lst, lst_dict = get_u_tr_labels(y_batch_train)
-    print(lst)
-    print()
-    print(lst_dict)
-    print(len(lst), len(lst_dict))'''
-    #sys.exit()
-
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
 
 
-def compute_loss(y_true, y_pred, class_weights):
+def compute_loss(y_true, y_pred, class_weights=None):
     loss = binary_ce(y_true, y_pred)
+    #loss = cce(y_true, y_pred)
+    categorical_loss = categorical_ce(y_true, y_pred)
     #return tf.tensordot(loss, class_weights, axes=1)
-    return tf.reduce_mean(loss)
+    
+    return tf.reduce_mean(loss), categorical_loss 
+
+
+def compute_acc(y_true, y_pred):
+    return categorical_acc(y_true, y_pred)
 
 
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
@@ -186,8 +204,10 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     te_x_batch, y_train_batch = sample_balanced_tr_y(te_x, te_y, ulabels_te_dict)
     te_pred_batch, att_weights = model([te_x_batch], training=False)
-    test_acc = tf.reduce_mean(categorical_acc(y_train_batch, te_pred_batch))
-    test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
+    test_acc = tf.reduce_mean(compute_acc(y_train_batch, te_pred_batch))
+    #test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
+    #test_categorical_loss = categorical_ce(y_train_batch, te_pred_batch)
+    test_err, test_categorical_loss = compute_loss(y_train_batch, te_pred_batch)
     te_pre_precision = list()
     n_topk = 5
     for idx in range(te_pred_batch.shape[0]):
@@ -213,17 +233,19 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
         print()
         if idx == n_test_seqs - 1:
             break
-    print("Test error: {}, test accuracy: {}".format(test_err.numpy(), test_acc.numpy()))
+    print("Test binary error: {}, test categorical loss: {}, test categorical accuracy: {}".format(test_err.numpy(), test_categorical_loss.numpy(), test_acc.numpy()))
     print("Test prediction precision: {}".format(np.mean(te_pre_precision)))
     print("Test finished")
-    return test_err.numpy(), test_acc.numpy()
+    return test_err.numpy(), test_acc.numpy(), test_categorical_loss.numpy()
 
 
 def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts):
 
     vocab_size = len(f_dict) + 1
     maxlen = train_data.shape[1]
-    enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    #learning_rate = CustomSchedule(ff_dim, 2000)
+    #enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    enc_optimizer = tf.keras.optimizers.RMSprop() #learning_rate=learning_rate
 
     inputs = Input(shape=(maxlen,))
     embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
@@ -234,7 +256,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     x = Dropout(dropout)(x)
     x = Dense(d_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
-    outputs = Dense(vocab_size, activation="sigmoid")(x)
+    outputs = Dense(vocab_size, activation="softmax")(x)
 
     model = Model(inputs=inputs, outputs=[outputs, weights])
     #u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
@@ -249,8 +271,11 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
 
     epo_tr_batch_loss = list()
     epo_tr_batch_acc = list()
+    epo_tr_batch_categorical_loss = list()
     epo_te_batch_loss = list()
     epo_te_batch_acc = list()
+    epo_te_batch_categorical_loss = list()
+    
     c_weights = tf.convert_to_tensor(list(c_wts.values()), dtype=tf.float32)
 
     for batch in range(n_train_batches):
@@ -261,19 +286,21 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         #sys.exit()
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
-            tr_loss = compute_loss(y_train, prediction, c_weights)
-            tr_acc = tf.reduce_mean(categorical_acc(y_train, prediction))
+            tr_loss, tr_cat_loss = compute_loss(y_train, prediction, c_weights)
+            tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(tr_loss, trainable_vars)
         enc_optimizer.apply_gradients(zip(model_gradients, trainable_vars))
         epo_tr_batch_loss.append(tr_loss.numpy())
         epo_tr_batch_acc.append(tr_acc.numpy())
-        print("Step {}/{}, training loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_acc.numpy()))
+        epo_tr_batch_categorical_loss.append(tr_cat_loss.numpy())
+        print("Step {}/{}, training binary loss: {}, categorical_loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_cat_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            te_loss, te_acc = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict)
+            te_loss, te_acc, test_cat_loss = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict)
             epo_te_batch_loss.append(te_loss)
             epo_te_batch_acc.append(te_acc)
+            epo_te_batch_categorical_loss.append(test_cat_loss)
         print()
         if (batch+1) % train_logging_step == 0:
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
@@ -288,3 +315,5 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
     utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
     utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))
+    utils.write_file("log/data/epo_tr_batch_categorical_loss.txt", ",".join([str(item) for item in epo_tr_batch_categorical_loss]))
+    utils.write_file("log/data/epo_te_batch_categorical_loss.txt", ",".join([str(item) for item in epo_te_batch_categorical_loss]))
