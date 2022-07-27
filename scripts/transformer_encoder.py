@@ -18,15 +18,15 @@ import utils
 
 embed_dim = 64 # Embedding size for each token d_model
 num_heads = 8 # Number of attention heads
-ff_dim = 256 # Hidden layer size in feed forward network inside transformer # dff
-d_dim = 64
-dropout = 0.2
+ff_dim = 64 # Hidden layer size in feed forward network inside transformer # dff
+d_dim = 512
+dropout = 0.1
 n_train_batches = 1000000
 batch_size = 32
 test_logging_step = 100
-train_logging_step = 1000
+train_logging_step = 500
 n_test_seqs = batch_size
-learning_rate = 1e-1
+learning_rate = 1e-3
 
 # Readings
 # https://keras.io/examples/nlp/text_classification_with_transformer/
@@ -83,6 +83,21 @@ class TokenAndPositionEmbedding(Layer):
         positions = self.pos_emb(positions)
         x = self.token_emb(x)
         return x + positions
+
+
+def create_model(maxlen, vocab_size):
+    #enc_optimizer = tf.keras.optimizers.RMSprop() #learning_rate=learning_rate
+    inputs = Input(shape=(maxlen,))
+    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+    x = embedding_layer(inputs)
+    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
+    x, weights = transformer_block(x)
+    x = GlobalAveragePooling1D()(x)
+    x = Dropout(dropout)(x)
+    x = Dense(d_dim, activation="relu")(x)
+    x = Dropout(dropout)(x)
+    outputs = Dense(vocab_size, activation="softmax")(x)
+    return Model(inputs=inputs, outputs=[outputs, weights])
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
@@ -243,29 +258,16 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
 
     vocab_size = len(f_dict) + 1
     maxlen = train_data.shape[1]
+    #enc_optimizer = tf.keras.optimizers.RMSprop()
     #learning_rate = CustomSchedule(ff_dim, 2000)
-    #enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    enc_optimizer = tf.keras.optimizers.RMSprop() #learning_rate=learning_rate
+    enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-    inputs = Input(shape=(maxlen,))
-    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
-    x = embedding_layer(inputs)
-    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
-    x, weights = transformer_block(x)
-    x = GlobalAveragePooling1D()(x)
-    x = Dropout(dropout)(x)
-    x = Dense(d_dim, activation="relu")(x)
-    x = Dropout(dropout)(x)
-    outputs = Dense(vocab_size, activation="softmax")(x)
-
-    model = Model(inputs=inputs, outputs=[outputs, weights])
+    model = create_model(maxlen, vocab_size)
     #u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
     #u_te_labels, ulabels_te_dict  = get_u_labels(test_data)
 
     u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_labels)
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_labels)
-
-    #sys.exit()
 
     #x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
 
