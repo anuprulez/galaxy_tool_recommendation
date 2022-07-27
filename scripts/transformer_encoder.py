@@ -32,6 +32,8 @@ learning_rate = 1e-2
 # https://keras.io/examples/nlp/text_classification_with_transformer/
 # https://hannibunny.github.io/mlbook/transformer/attention.html
 
+#Train data:  (414952, 25)
+#Test data:  (103739, 25)
 
 
 #cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)

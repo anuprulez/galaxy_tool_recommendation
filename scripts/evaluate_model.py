@@ -8,6 +8,7 @@ import subprocess
 import h5py
 import matplotlib.pyplot as plt
 import sys
+import random
 
 import tensorflow as tf
 from tensorflow import keras
@@ -59,8 +60,8 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log_26_07_22_0/"
-model_path = base_path + "saved_model/50000/tf_model/"
+base_path = "log_27_07_22_0/"
+model_path = base_path + "saved_model/382000/tf_model/"
 
 
 def plot_loss_acc(loss, acc, t_value):
@@ -104,8 +105,47 @@ def visualize_loss_acc():
     plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "test")
 
 
+def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
+    batch_tools = list(ulabels_tr_dict.keys())
+    random.shuffle(batch_tools)
+    last_tools = batch_tools[:batch_size]
+    rand_batch_indices = list()
+    for l_tool in last_tools:
+        seq_indices = ulabels_tr_dict[l_tool]
+        random.shuffle(seq_indices)
+        rand_batch_indices.append(seq_indices[0])
+
+    x_batch_train = x_seqs[rand_batch_indices]
+    y_batch_train = y_labels[rand_batch_indices]
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+    return unrolled_x, unrolled_y
+
+
+def get_u_labels(y_train):
+    last_tools = list()
+    ulabels_dict = dict()
+    for item in range(y_train.shape[0]):
+        arr_seq = y_train[item]
+        #print(arr_seq)
+        label_pos = np.where(arr_seq > 0)[0]
+        #print(label_pos, arr_seq)
+        last_tool = str(int(arr_seq[label_pos[-1]]))
+        if last_tool not in ulabels_dict:
+            ulabels_dict[last_tool] = list()
+        ulabels_dict[last_tool].append(item)
+        seq = ",".join([str(int(a)) for a in arr_seq[0:label_pos[-1] + 1]])
+        #print(seq, last_tool)
+        last_tools.append(last_tool)
+        #print()
+    u_labels = list(set(last_tools))
+    #print(len(last_tools), len(u_labels))
+    random.shuffle(u_labels)
+    return u_labels, ulabels_dict
+
+
 def predict_seq():
-    n_topk = 5
+    n_topk = 10
     path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
     
@@ -116,48 +156,77 @@ def predict_seq():
     
     r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
+
+    class_weights = utils.read_file(base_path + "data/class_weights.txt")
+    #print(class_weights)
+    c_weights = list(class_weights.values())
+    #print(len(c_weights))
+    #c_weights.insert(0, 0.0)
+    c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
+    #print(c_weights.shape)
     
     tf_loaded_model = tf.saved_model.load(model_path)
 
-    n_test = test_input.shape[0]
+    #u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
+
+    
+
+    #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
+
+    n_test = 1 #te_x_batch.shape[0]
+
     precision = list()
     for i in range(n_test):
-        rand_index = np.random.randint(0, n_test - 1)
-        t_ip = test_input[rand_index]
-        #t_ip = np.zeros((25))
-        #t_ip[0] = 422
+        rand_index = i #np.random.randint(0, batch_size - 1)
+        #print(rand_index)
+        #t_ip = test_input[rand_index]
+        #print(t_ip, test_target[rand_index])
+        target_pos = [] #np.where(test_target[rand_index] > 0)[0]
+        t_ip = np.zeros((25))
+        t_ip[0] = int(f_dict["scanpy_find_markers"])
         #t_ip[1] = 637
         #print(t_ip)
         t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
         prediction, att_weights = tf_loaded_model([t_ip], training=False)
+        prediction = tf.math.multiply(c_weights, prediction)
         #print(prediction.shape)
-        top_k = tf.math.top_k(prediction, k=n_topk)
+        
+        #print(prediction.shape)
+        if len(target_pos) < 5:
+            #topk_pred = tf.math.top_k(te_pred_batch[idx], k=n_topk, sorted=True)
+            top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
+        else:
+            top_k = tf.math.top_k(prediction, k=len(target_pos), sorted=True)
+        
         #print("Top k: ", prediction.shape, top_k, top_k.indices)
         #print(np.all(top_k.indices.numpy(), axis=-1))
         t_ip = t_ip.numpy()
 
         label_pos = np.where(t_ip > 0)[0]
-        target_pos = np.where(test_target[rand_index] > 0)[0]
+        
         #print(t_ip, t_ip[label_pos])
         #print(label_pos, arr_seq)
-        i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]])
-        t_names = ",".join([r_dict[str(int(item))] for item in target_pos])
+        i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]  if item not in [0, "0"]])
+        #t_names = ",".join([r_dict[str(int(item))] for item in target_pos  if item not in [0, "0"]])
 
         
         #print(i_names, top_k.indices.numpy()[0])
         
         true_tools = [r_dict[str(int(item))] for item in target_pos]
-        pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]]
-        intersection = list(set(true_tools).intersection(set(pred_tools)))
-        pred_precision = float(len(intersection)) / len(true_tools)
-        precision.append(pred_precision)
+        pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
+        #intersection = list(set(true_tools).intersection(set(pred_tools)))
+        pred_precision = 0.0 #float(len(intersection)) / len(true_tools)
+        #precision.append(pred_precision)
         print("Tool sequence: {}".format([r_dict[str(item)] for item in t_ip[label_pos]]))
+        print()
         print("True tools: {}".format(true_tools))
+        print()
         print("Predicted top {} tools: {}".format(n_topk, pred_tools))
+        print()
         print("Precision: {}".format(pred_precision))
         print("=========================")
-        #generated_attention(att_weights, i_names, f_dict, r_dict)
-        if i == 10000:
+        generated_attention(att_weights, i_names, f_dict, r_dict)
+        if i == 100:
             break
     print("Precision@{}: {}".format(n_topk, np.mean(precision)))
 

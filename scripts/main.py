@@ -10,6 +10,9 @@ import sys
 import time
 import random
 
+# comment this if running on GPU
+#tf.config.set_visible_devices([], 'GPU')
+
 sys.path.append(os.getcwd())
 
 # machine learning library
