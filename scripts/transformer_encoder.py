@@ -16,10 +16,10 @@ from tensorflow.keras.models import Sequential, Model
 import utils
 
 
-embed_dim = 64 # Embedding size for each token d_model
+embed_dim = 128 # Embedding size for each token d_model
 num_heads = 8 # Number of attention heads
-ff_dim = 64 # Hidden layer size in feed forward network inside transformer # dff
-d_dim = 512
+ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
+d_dim = 256
 dropout = 0.1
 n_train_batches = 1000000
 batch_size = 32
@@ -38,10 +38,10 @@ learning_rate = 1e-3
 
 #cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction=tf.keras.losses.Reduction.NONE, axis=0)
+binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True) #, reduction=tf.keras.losses.Reduction.NONE, axis=0
 #binary_acc = tf.keras.metrics.BinaryAccuracy()
 
-#cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True) #reduction=tf.keras.losses.Reduction.NONE, axis=0
+cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True) #reduction=tf.keras.losses.Reduction.NONE, axis=0
 
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
@@ -86,7 +86,6 @@ class TokenAndPositionEmbedding(Layer):
 
 
 def create_model(maxlen, vocab_size):
-    #enc_optimizer = tf.keras.optimizers.RMSprop() #learning_rate=learning_rate
     inputs = Input(shape=(maxlen,))
     embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
@@ -96,7 +95,7 @@ def create_model(maxlen, vocab_size):
     x = Dropout(dropout)(x)
     x = Dense(d_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
-    outputs = Dense(vocab_size, activation="softmax")(x)
+    outputs = Dense(vocab_size, activation="sigmoid")(x)
     return Model(inputs=inputs, outputs=[outputs, weights])
 
 
@@ -203,15 +202,20 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
 
 def compute_loss(y_true, y_pred, class_weights=None):
     loss = binary_ce(y_true, y_pred)
-    #loss = cce(y_true, y_pred)
+    #cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
     categorical_loss = categorical_ce(y_true, y_pred)
     #return tf.tensordot(loss, class_weights, axes=1)
-    
-    return tf.reduce_mean(loss), categorical_loss 
+    #tf.reduce_mean(loss)
+    return loss, categorical_loss 
 
 
 def compute_acc(y_true, y_pred):
     return categorical_acc(y_true, y_pred)
+
+
+def compute_topk_acc(y_true, y_pred, k):
+    topk_acc = tf.keras.metrics.TopKCategoricalAccuracy(k=k)
+    return topk_acc
 
 
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
@@ -263,6 +267,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     model = create_model(maxlen, vocab_size)
+    #model.compile(optimizer='adam', loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
     #u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
     #u_te_labels, ulabels_te_dict  = get_u_labels(test_data)
 
