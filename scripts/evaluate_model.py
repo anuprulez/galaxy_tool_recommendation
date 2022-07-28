@@ -166,14 +166,19 @@ def get_u_tr_labels(y_tr):
 def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
     batch_y_tools = list(ulabels_tr_y_dict.keys())
     random.shuffle(batch_y_tools)
-    label_tools = batch_y_tools[:batch_size]
+    label_tools = list()
     rand_batch_indices = list()
 
-    for l_tool in label_tools:
+    for l_tool in batch_y_tools:
         seq_indices = ulabels_tr_y_dict[l_tool]
         random.shuffle(seq_indices)
-        rand_batch_indices.append(seq_indices[0])
-
+        
+        if seq_indices[0] not in rand_batch_indices:
+            rand_batch_indices.append(seq_indices[0])
+            label_tools.append(l_tool)
+        if len(rand_batch_indices) == batch_size:
+            break
+    
     x_batch_train = x_seqs[rand_batch_indices]
     y_batch_train = y_labels[rand_batch_indices]
 
