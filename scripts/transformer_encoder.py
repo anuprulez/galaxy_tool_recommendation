@@ -38,7 +38,7 @@ learning_rate = 1e-3
 
 #cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True) #, reduction=tf.keras.losses.Reduction.NONE, axis=0
+binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction=tf.keras.losses.Reduction.NONE, axis=0) 
 #binary_acc = tf.keras.metrics.BinaryAccuracy()
 
 cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True) #reduction=tf.keras.losses.Reduction.NONE, axis=0
@@ -213,7 +213,9 @@ def compute_loss(y_true, y_pred, class_weights=None):
     categorical_loss = categorical_ce(y_true, y_pred)
     #return tf.tensordot(loss, class_weights, axes=1)
     #tf.reduce_mean(loss)
-    return loss, categorical_loss 
+    if class_weights is None:
+        return tf.reduce_mean(loss), categorical_loss
+    return tf.tensordot(loss, class_weights, axes=1), categorical_loss
 
 
 def compute_acc(y_true, y_pred):
@@ -235,13 +237,13 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     #test_categorical_loss = categorical_ce(y_train_batch, te_pred_batch)
     test_err, test_categorical_loss = compute_loss(y_train_batch, te_pred_batch)
     te_pre_precision = list()
-    n_topk = 5
+    n_topk = 10
     for idx in range(te_pred_batch.shape[0]):
         label_pos = np.where(y_train_batch[idx] > 0)[0]
         if len(label_pos) < 5:
-            topk_pred = tf.math.top_k(te_pred_batch[idx], k=n_topk, sorted=True)
-        else:
             topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
+        else:
+            topk_pred = tf.math.top_k(te_pred_batch[idx], k=n_topk, sorted=True)
         topk_pred = topk_pred.indices.numpy()
         try:
             label_pos_tools = [r_dict[str(item)] for item in label_pos if item not in [0, "0"]]
@@ -250,7 +252,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
             label_pos_tools = [r_dict[item] for item in label_pos if item not in [0, "0"]]
             pred_label_pos_tools = [r_dict[item] for item in topk_pred if item not in [0, "0"]]
         intersection = list(set(label_pos_tools).intersection(set(pred_label_pos_tools)))
-        pred_precision = len(intersection) / len(label_pos_tools)
+        pred_precision = float(len(intersection)) / len(topk_pred)
         te_pre_precision.append(pred_precision)
         print("True labels: {}".format(label_pos_tools))
         print()
