@@ -60,9 +60,9 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log_27_07_22_0/"
+base_path = "log_28_07_22_1/"
 #model_path = base_path + "saved_model/382000/tf_model/"
-model_path = base_path + "saved_model/456000/tf_model/"
+model_path = base_path + "saved_model/285000/tf_model/"
 
 
 def plot_loss_acc(loss, acc, t_value):
@@ -145,8 +145,45 @@ def get_u_labels(y_train):
     return u_labels, ulabels_dict
 
 
+def get_u_tr_labels(y_tr):
+    labels = list()
+    labels_pos_dict = dict()
+    for i, item in enumerate(y_tr):
+        label_pos = np.where(item > 0)[0]
+        labels.extend(label_pos)
+        for label in label_pos:
+            if label not in labels_pos_dict:
+                labels_pos_dict[label] = list()
+            labels_pos_dict[label].append(i)
+
+    u_labels = list(set(labels))
+    
+    for item in labels_pos_dict:
+        labels_pos_dict[item] = list(set(labels_pos_dict[item]))
+    return u_labels, labels_pos_dict
+
+
+def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
+    batch_y_tools = list(ulabels_tr_y_dict.keys())
+    random.shuffle(batch_y_tools)
+    label_tools = batch_y_tools[:batch_size]
+    rand_batch_indices = list()
+
+    for l_tool in label_tools:
+        seq_indices = ulabels_tr_y_dict[l_tool]
+        random.shuffle(seq_indices)
+        rand_batch_indices.append(seq_indices[0])
+
+    x_batch_train = x_seqs[rand_batch_indices]
+    y_batch_train = y_labels[rand_batch_indices]
+
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+    return unrolled_x, unrolled_y, label_tools, rand_batch_indices
+
+
 def predict_seq():
-    n_topk = 10
+    n_topk = 1
     path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
     
@@ -159,6 +196,8 @@ def predict_seq():
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
 
     class_weights = utils.read_file(base_path + "data/class_weights.txt")
+
+    compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
     #print(class_weights)
     c_weights = list(class_weights.values())
     #print(len(c_weights))
@@ -168,17 +207,30 @@ def predict_seq():
     
     tf_loaded_model = tf.saved_model.load(model_path)
 
-    u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
+    #u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
+
+    u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_target)
     
-    test_batches = 0
+    test_batches = 100
 
     precision = list()
     for j in range(test_batches):
-        te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
+        #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
+        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        print()
+        print(bat_ind)
+        print()
+        print(selected_label_tools)
+        print()
+        select_tools = [r_dict[str(item)] for item in selected_label_tools]
+        print("Selected label tools: {}".format(select_tools))
+        #sys.exit()
         n_test = te_x_batch.shape[0]
-        for i in range(n_test):
-            t_ip = test_input[i]
-            target_pos = np.where(test_target[i] > 0)[0]
+        for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
+            print("Test batch selected tool and index: {}, {}".format(bat_ind[i], select_tools[i]))
+            s_label_tool = select_tools[i]
+            t_ip = inp #test_input[i]
+            target_pos = np.where(tar > 0)[0]
             t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
             prediction, att_weights = tf_loaded_model([t_ip], training=False)
             prediction_wts = tf.math.multiply(c_weights, prediction)
@@ -186,7 +238,7 @@ def predict_seq():
             '''if len(target_pos) < 5:
                 top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
             else:'''
-            n_topk = len(target_pos)
+            #n_topk = len(target_pos)
             top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
             top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
@@ -198,14 +250,16 @@ def predict_seq():
 
             true_tools = [r_dict[str(int(item))] for item in target_pos]
 
+            print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
+
             pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
             pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
 
             intersection = list(set(true_tools).intersection(set(pred_tools)))
-            intersection_wts = list(set(true_tools).intersection(set(pred_tools_wts)))
-            intersection.extend(intersection_wts)
+            #intersection_wts = list(set(true_tools).intersection(set(pred_tools_wts)))
+            #intersection.extend(intersection_wts)
 
-            pred_precision = float(len(intersection)) / (len(true_tools) + len(true_tools))
+            pred_precision = float(len(intersection)) / len(pred_tools) #( + len(true_tools))
             precision.append(pred_precision)
             print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
             print()
@@ -218,22 +272,23 @@ def predict_seq():
             print("Test batch {}, Precision: {}".format(j+1, pred_precision))
             print("=========================")
             #generated_attention(att_weights, i_names, f_dict, r_dict)
-        
-    #print("Precision@{}: {}".format(n_topk, np.mean(precision)))
+        print("Batch {} prediction finished ...".format(j+1))
+    print("Precision@{}: {}".format(n_topk, np.mean(precision)))
 
     # individual tools or seq prediction
-    print()
+    '''print()
     n_topk_ind = 10
     print("Predicting for individual tools or sequences")
     t_ip = np.zeros((25))
-    t_ip[0] = int(f_dict["ivar_variants"])
-    t_ip[1] = int(f_dict["ivar_filtervariants"])
+    t_ip[0] = int(f_dict["lofreq_call"])
+    #t_ip[1] = int(f_dict["lofreq_call"])
     #t_ip[2] = int(f_dict["remove_nucleotide_deletions"])
     #t_ip[3] = int(f_dict["pangolin"])
     # Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
     # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
+    # bowtie2,lofreq_call
     
-
+    last_tool_name = "lofreq_call"
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
     prediction, att_weights = tf_loaded_model([t_ip], training=False)
     prediction_cwts = tf.math.multiply(c_weights, prediction)
@@ -248,12 +303,16 @@ def predict_seq():
     
     pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
     pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
+   
+    c_tools = [r_dict[str(item)] for item in compatible_tools[str(f_dict[last_tool_name])]]
 
     print("Tool sequence: {}".format([r_dict[str(item)] for item in t_ip[label_pos]]))
     print()
+    print("Compatible true tools: {}, size: {}".format(c_tools, len(c_tools)))
+    print()
     print("Predicted top {} tools: {}".format(n_topk_ind, pred_tools))
     print()
-    print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
+    print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))'''
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):

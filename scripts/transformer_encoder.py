@@ -21,7 +21,7 @@ num_heads = 8 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 d_dim = 256
 dropout = 0.1
-n_train_batches = 1000000
+n_train_batches = 1000
 batch_size = 32
 test_logging_step = 100
 train_logging_step = 500
@@ -54,7 +54,8 @@ class TransformerBlock(Layer):
         super(TransformerBlock, self).__init__()
         self.att = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
         self.ffn = Sequential(
-            [Dense(ff_dim, activation="relu"), 
+            [Dense(2 * ff_dim, activation="relu"), 
+             Dense(ff_dim, activation="relu"), 
              Dense(embed_dim),]
         )
         self.layernorm1 = LayerNormalization(epsilon=1e-6)
@@ -169,16 +170,16 @@ def get_u_tr_labels(y_tr):
     for i, item in enumerate(y_tr):
         label_pos = np.where(item > 0)[0]
         labels.extend(label_pos)
-        #print(i, label_pos)
         for label in label_pos:
             if label not in labels_pos_dict:
                 labels_pos_dict[label] = list()
             labels_pos_dict[label].append(i)
-        '''if i == 10:
-            break'''
-    #print(labels_pos_dict)
+
     u_labels = list(set(labels))
-    #print(len(labels), len(u_labels))
+    
+    for item in labels_pos_dict:
+        labels_pos_dict[item] = list(set(labels_pos_dict[item]))
+
     return u_labels, labels_pos_dict
 
 
@@ -187,6 +188,7 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
     random.shuffle(batch_y_tools)
     label_tools = batch_y_tools[:batch_size]
     rand_batch_indices = list()
+
     for l_tool in label_tools:
         seq_indices = ulabels_tr_y_dict[l_tool]
         random.shuffle(seq_indices)
@@ -197,6 +199,7 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
 
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+
     return unrolled_x, unrolled_y
 
 
