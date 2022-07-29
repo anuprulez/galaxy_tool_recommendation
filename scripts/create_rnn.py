@@ -16,10 +16,26 @@ from tensorflow.keras.models import Sequential, Model
 import utils
 
 
+'''
+# Config for training transformers
 embed_dim = 128 # Embedding size for each token d_model
 num_heads = 8 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 d_dim = 256
+dropout = 0.1
+n_train_batches = 50000
+batch_size = 32
+test_logging_step = 100
+train_logging_step = 1000
+n_test_seqs = batch_size
+learning_rate = 1e-3'''
+
+
+# Config for training RNN
+embed_dim = 128 # Embedding size for each token d_model
+num_heads = 8 # Number of attention heads
+ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
+d_dim = 128
 dropout = 0.1
 n_train_batches = 50000
 batch_size = 32
@@ -41,79 +57,32 @@ learning_rate = 1e-3
 binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction=tf.keras.losses.Reduction.NONE, axis=0) 
 #binary_acc = tf.keras.metrics.BinaryAccuracy()
 
-cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True) #reduction=tf.keras.losses.Reduction.NONE, axis=0
-
+cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
-
 categorical_acc = tf.keras.metrics.CategoricalAccuracy()
 
 
+def create_model(seq_len, vocab_size):
 
-class TransformerBlock(Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
-        super(TransformerBlock, self).__init__()
-        self.att = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
-        self.ffn = Sequential(
-            [Dense(2 * ff_dim, activation="relu"), 
-             Dense(ff_dim, activation="relu"), 
-             Dense(embed_dim),]
-        )
-        self.layernorm1 = LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = LayerNormalization(epsilon=1e-6)
-        self.dropout1 = Dropout(rate)
-        self.dropout2 = Dropout(rate)
+    seq_inputs = tf.keras.Input(batch_shape=(None, seq_len))
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embed_dim, mask_zero=True)
+    gen_gru = tf.keras.layers.GRU(ff_dim, return_sequences=True, return_state=True)
 
-    def call(self, inputs, training):
-        attn_output, attention_scores = self.att(inputs, inputs, return_attention_scores=True)
-        attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(inputs + attn_output)
-        ffn_output = self.ffn(out1)
-        ffn_output = self.dropout2(ffn_output, training=training)
-        return self.layernorm2(out1 + ffn_output), attention_scores
+    enc_dense = tf.keras.layers.Dense(d_dim, activation='relu', kernel_regularizer="l2")
+    enc_fc = tf.keras.layers.Dense(vocab_size, activation='sigmoid', kernel_regularizer="l2")
 
+    # 
+    embed = gen_embedding(seq_inputs)
+    #print(embed.shape)
+    #embed = tf.keras.layers.SpatialDropout1D(dropout)(embed)
+    _, hidden_state = gen_gru(embed)
 
-class TokenAndPositionEmbedding(Layer):
-    def __init__(self, maxlen, vocab_size, embed_dim):
-        super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
-
-    def call(self, x):
-        maxlen = tf.shape(x)[-1]
-        positions = tf.range(start=0, limit=maxlen, delta=1)
-        positions = self.pos_emb(positions)
-        x = self.token_emb(x)
-        return x + positions
-
-
-def create_model(maxlen, vocab_size):
-    inputs = Input(shape=(maxlen,))
-    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
-    x = embedding_layer(inputs)
-    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
-    x, weights = transformer_block(x)
-    x = GlobalAveragePooling1D()(x)
-    x = Dropout(dropout)(x)
-    x = Dense(d_dim, activation="relu")(x)
-    x = Dropout(dropout)(x)
-    outputs = Dense(vocab_size, activation="sigmoid")(x)
-    return Model(inputs=inputs, outputs=[outputs, weights])
-
-
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-  def __init__(self, d_model, warmup_steps=4000):
-    super(CustomSchedule, self).__init__()
-
-    self.d_model = d_model
-    self.d_model = tf.cast(self.d_model, tf.float32)
-
-    self.warmup_steps = warmup_steps
-
-  def __call__(self, step):
-    arg1 = tf.math.rsqrt(step)
-    arg2 = step * (self.warmup_steps ** -1.5)
-
-    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+    #hidden_output = tf.keras.layers.Concatenate()([enc_f, enc_b])
+    hidden_output = tf.keras.layers.Dropout(dropout)(hidden_state)
+    dense_output = enc_dense(hidden_output)
+    dense_output = tf.keras.layers.Dropout(dropout)(dense_output)
+    fc_output = enc_fc(dense_output)
+    return Model(inputs=[seq_inputs], outputs=[fc_output])
 
 
 def get_u_labels(y_train):
@@ -231,7 +200,12 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
     #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     te_x_batch, y_train_batch = sample_balanced_tr_y(te_x, te_y, ulabels_te_dict)
-    te_pred_batch, att_weights = model([te_x_batch], training=False)
+
+    # transformer
+    #te_pred_batch, att_weights = model([te_x_batch], training=False)
+    # RNN
+    te_pred_batch = model([te_x_batch], training=False)
+
     test_acc = tf.reduce_mean(compute_acc(y_train_batch, te_pred_batch))
     #test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
     #test_categorical_loss = categorical_ce(y_train_batch, te_pred_batch)
@@ -267,8 +241,9 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     return test_err.numpy(), test_acc.numpy(), test_categorical_loss.numpy()
 
 
-def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts):
-    print("Train transformer...")
+def create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts):
+
+    print("Training RNN...")
     vocab_size = len(f_dict) + 1
     maxlen = train_data.shape[1]
     #enc_optimizer = tf.keras.optimizers.RMSprop()
@@ -276,9 +251,6 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     model = create_model(maxlen, vocab_size)
-    #model.compile(optimizer='adam', loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
-    #u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
-    #u_te_labels, ulabels_te_dict  = get_u_labels(test_data)
 
     u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_labels)
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_labels)
@@ -301,7 +273,10 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         #utils.verify_oversampling_freq(x_train, r_dict)
         #sys.exit()
         with tf.GradientTape() as model_tape:
-            prediction, att_weights = model([x_train], training=True)
+            # transformer
+            #prediction, att_weights = model([x_train], training=True)
+            # RNN
+            prediction = model([x_train], training=True)
             tr_loss, tr_cat_loss = compute_loss(y_train, prediction) #c_weights
             tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables
