@@ -195,11 +195,11 @@ if __name__ == "__main__":
         train_size = 100000
         test_size = 20000
 
-        train_data = train_data[:train_size]
-        train_labels = train_labels[:train_size]
+        #train_data = train_data[:train_size]
+        #train_labels = train_labels[:train_size]
 
-        test_data = test_data[:test_size]
-        test_labels = test_labels[:test_size]
+        #test_data = test_data[:test_size]
+        #test_labels = test_labels[:test_size]
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
@@ -211,18 +211,13 @@ if __name__ == "__main__":
         connections = extract_workflow_connections.ExtractWorkflowConnections()
         workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
 
-        #print(standard_connections)
-
-        #sys.exit()
-
         # Process the paths from workflows
         print("Dividing data...")
         data = prepare_data.PrepareData(maximum_path_length, test_share)
         train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        #sys.exit()
-        
+
         #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
         create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 

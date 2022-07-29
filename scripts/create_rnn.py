@@ -65,23 +65,27 @@ categorical_acc = tf.keras.metrics.CategoricalAccuracy()
 def create_model(seq_len, vocab_size):
 
     seq_inputs = tf.keras.Input(batch_shape=(None, seq_len))
-    gen_embedding = tf.keras.layers.Embedding(vocab_size, embed_dim, mask_zero=True)
-    gen_gru = tf.keras.layers.GRU(ff_dim, return_sequences=True, return_state=True)
 
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embed_dim, mask_zero=True)
+    in_gru = tf.keras.layers.GRU(ff_dim, return_sequences=True, return_state=False)
+    out_gru = tf.keras.layers.GRU(ff_dim, return_sequences=False, return_state=True)
     enc_dense = tf.keras.layers.Dense(d_dim, activation='relu', kernel_regularizer="l2")
     enc_fc = tf.keras.layers.Dense(vocab_size, activation='sigmoid', kernel_regularizer="l2")
 
-    # 
     embed = gen_embedding(seq_inputs)
-    #print(embed.shape)
-    #embed = tf.keras.layers.SpatialDropout1D(dropout)(embed)
-    _, hidden_state = gen_gru(embed)
 
-    #hidden_output = tf.keras.layers.Concatenate()([enc_f, enc_b])
-    hidden_output = tf.keras.layers.Dropout(dropout)(hidden_state)
-    dense_output = enc_dense(hidden_output)
-    dense_output = tf.keras.layers.Dropout(dropout)(dense_output)
-    fc_output = enc_fc(dense_output)
+    embed = tf.keras.layers.Dropout(dropout)(embed)
+
+    gru_output = in_gru(embed)
+
+    gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+
+    gru_output, hidden_state = out_gru(gru_output)
+
+    gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+
+    fc_output = enc_fc(gru_output)
+
     return Model(inputs=[seq_inputs], outputs=[fc_output])
 
 
