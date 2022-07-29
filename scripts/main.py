@@ -209,6 +209,10 @@ if __name__ == "__main__":
         connections = extract_workflow_connections.ExtractWorkflowConnections()
         workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
 
+        #print(standard_connections)
+
+        #sys.exit()
+
         # Process the paths from workflows
         print("Dividing data...")
         data = prepare_data.PrepareData(maximum_path_length, test_share)

@@ -60,9 +60,9 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log_28_07_22_0/"
+base_path = "log/"
 #model_path = base_path + "saved_model/382000/tf_model/"
-model_path = base_path + "saved_model/25000/tf_model/"
+model_path = base_path + "saved_model/4000/tf_model/"
 
 
 def plot_loss_acc(loss, acc, t_value):
@@ -201,15 +201,15 @@ def predict_seq():
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
 
     class_weights = utils.read_file(base_path + "data/class_weights.txt")
-
     compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
-    #print(class_weights)
+
+    tool_freq = utils.read_file(base_path + "data/freq_dict_names.txt")
+    published_connections = utils.read_file(base_path + "data/published_connections.txt")
+
     c_weights = list(class_weights.values())
-    #print(len(c_weights))
-    #c_weights.insert(0, 0.0)
+
     c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
-    #print(c_weights.shape)
-    
+
     tf_loaded_model = tf.saved_model.load(model_path)
 
     #u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
@@ -244,6 +244,7 @@ def predict_seq():
                 top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
             else:'''
             #n_topk = len(target_pos)
+
             top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
             top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
@@ -253,6 +254,8 @@ def predict_seq():
             i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]  if item not in [0, "0"]])
             t_names = ",".join([r_dict[str(int(item))] for item in target_pos  if item not in [0, "0"]])
 
+            last_i_tool = [r_dict[str(item)] for item in t_ip[label_pos]][-1]
+
             true_tools = [r_dict[str(int(item))] for item in target_pos]
 
             print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
@@ -261,10 +264,24 @@ def predict_seq():
             pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
 
             intersection = list(set(true_tools).intersection(set(pred_tools)))
-            #intersection_wts = list(set(true_tools).intersection(set(pred_tools_wts)))
-            #intersection.extend(intersection_wts)
 
-            pred_precision = float(len(intersection)) / len(pred_tools) #( + len(true_tools))
+            pub_prec = 0.0
+            pub_prec_wt = 0.0
+
+            if last_i_tool in published_connections:
+                true_pub_conn = published_connections[last_i_tool]
+                print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
+                print()
+                intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
+                intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
+                pub_prec = float(len(intersection_pub)) / len(true_pub_conn)
+                pub_prec_wt = float(len(intersection_pub_wt)) / len(true_pub_conn)
+            else:
+                pub_prec = False
+                pub_prec_wt = False
+            pred_precision = float(len(intersection)) / len(pred_tools)
+            
+            
             precision.append(pred_precision)
             print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
             print()
@@ -274,8 +291,13 @@ def predict_seq():
             print()
             print("Test batch {}, Predicted top {} tools with weights: {}".format(j+1, n_topk, pred_tools_wts))
             print()
-            print("Test batch {}, Precision: {}".format(j+1, pred_precision))
+            print("Test batch {}, Precision: {}".format(j+1, pred_precision)) 
+            print()
+            print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
+            print()
+            print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
             print("=========================")
+
             #generated_attention(att_weights, i_names, f_dict, r_dict)
         print("Batch {} prediction finished ...".format(j+1))
     print("Precision@{}: {}".format(n_topk, np.mean(precision)))

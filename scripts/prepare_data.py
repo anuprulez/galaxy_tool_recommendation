@@ -168,14 +168,14 @@ class PrepareData:
                 if t_tools not in input_target_paths[i_tools]:
                     input_target_paths[i_tools].append(t_tools)
             #print(input_target_paths)
-            '''print()
-            if i == 20:
+            #print()
+            '''if i == 10:
                 break'''
             #target_tools = ",".join(input_tools[1:])
             #input_target_paths[item] = target_tools
-        #print(input_target_paths)
-        #print()
-        #print(compatible_tools)
+        '''print(input_target_paths)
+        print()
+        print(compatible_tools)'''
         #sys.exit()
         for item in input_target_paths:
             d_size += len(input_target_paths[item])
@@ -184,92 +184,7 @@ class PrepareData:
         return input_target_paths, compatible_tools, d_size
 
 
-    def pad_test_paths(self, paths_dictionary, num_classes):
-        """
-        Add padding to the tools sequences and create multi-hot encoded labels
-        """
-        size_data = len(paths_dictionary)
-        data_mat = np.zeros([size_data, self.max_tool_sequence_len])
-        label_mat = np.zeros([size_data, num_classes + 1])
-        train_counter = 0
-        for train_seq, train_label in list(paths_dictionary.items()):
-            positions = train_seq.split(",")
-            print(train_seq, train_label)
-            start_pos = self.max_tool_sequence_len - len(positions)
-            for id_pos, pos in enumerate(positions):
-                data_mat[train_counter][start_pos + id_pos] = int(pos)
-                data_mat[train_counter][id_pos] = int(pos)
-            for label_item in train_label.split(","):
-                label_mat[train_counter][int(label_item)] = 1.0
-            train_counter += 1
-        return data_mat, label_mat
-
-
-    def pad_paths(self, paths_dictionary, num_classes, standard_connections, reverse_dictionary, dictionary):
-        """
-        Add padding to the tools sequences and create multi-hot encoded labels
-        """
-        size_data = len(paths_dictionary)
-        input_mat = np.zeros([size_data, self.max_tool_sequence_len])
-        target_mat = np.zeros([size_data, self.max_tool_sequence_len])
-        #print(input_mat.shape)
-        #print(target_mat.shape)
-        train_counter = 0
-        for input_seq, target_seq in list(paths_dictionary.items()):
-            input_seq_tools = input_seq.split(",")
-            target_seq_tools = target_seq.split(",")
-            input_seq_tools.insert(0, dictionary[start_token_name])
-            target_seq_tools.insert(0, dictionary[start_token_name])
-            #start_pos = self.max_tool_sequence_len - len(input_seq_tools)
-            #input_mat[train_counter][0] = index_start_token
-            #target_mat[train_counter][0] = index_start_token
-            #print(input_seq_tools, target_seq_tools)
-            for id_pos, pos in enumerate(input_seq_tools):
-                #input_mat[train_counter][start_pos + id_pos] = int(pos)
-                input_mat[train_counter][id_pos] = int(pos)
-            for id_pos, pos in enumerate(target_seq_tools):
-                #target_mat[train_counter][start_pos + id_pos + 1] = int(pos)
-                target_mat[train_counter][id_pos] = int(pos)
-            #print(input_mat[train_counter])
-            #print(target_mat[train_counter])
-            #print()
-            train_counter += 1
-        return input_mat, target_mat
-
-
-    def pad_paths_multi_target(self, multi_paths, d_size, standard_connections, rev_dict, dictionary):
-        input_mat = np.zeros([d_size, self.max_tool_sequence_len])
-        target_mat = np.zeros([d_size, self.max_tool_sequence_len]) #np.zeros([d_size, 2]) #
-        train_counter = 0
-        for input_seq, target_seq_tools in list(multi_paths.items()):
-            #print(input_seq, target_seq_tools)
-            input_seq_tools = input_seq.split(",")
-            #print(input_seq_tools, target_seq_tools)
-            for k, t_seq in enumerate(target_seq_tools):
-                t_seq = t_seq.split(",")
-                i_seq = list()
-                i_seq.insert(0, dictionary[start_token_name])
-                i_seq[1:] = input_seq_tools
-                t_seq.insert(0, dictionary[start_token_name])
-                #print(i_seq, t_seq)
-                for id_pos, pos in enumerate(i_seq):
-                    #print("input seq: ", train_counter, id_pos, pos)
-                    input_mat[train_counter][id_pos] = int(pos)
-                for id_pos, pos in enumerate(t_seq):
-                    #print("target seq: ", train_counter, id_pos, pos)
-                    target_mat[train_counter][id_pos] = int(pos)
-                train_counter += 1
-            #print("---------------")
-        #print(input_mat)
-        #print()
-        #print(target_mat)
-        #sys.exit()
-        print("Final data size: ", input_mat.shape, target_mat.shape)
-        train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)
-        return train_data, train_labels, test_data, test_labels
-
-
-    def pad_paths_one_tool_target(self, multi_paths, compatible_tools, d_size, standard_connections, rev_dict, dictionary):
+    def pad_paths_one_tool_target(self, multi_paths, compatible_tools, d_size, rev_dict, dictionary):
         d_size = len(multi_paths)
         input_mat = np.zeros([d_size, self.max_tool_sequence_len])
         target_mat = np.zeros([d_size, len(dictionary) + 1]) #np.zeros([d_size, self.max_tool_sequence_len]) #np.zeros([d_size, 2]) #
@@ -279,6 +194,7 @@ class PrepareData:
             #print(input_seq, target_seq_tools)
             input_seq_tools = input_seq.split(",")
             last_i_tool = input_seq_tools[-1]
+            l_name = rev_dict[int(last_i_tool)]
             compatible_targets = []
             if last_i_tool in compatible_tools:
                 compatible_targets = compatible_tools[last_i_tool]
@@ -360,12 +276,17 @@ class PrepareData:
         last_tool_freq = dict()
         freq_dict_names = dict()
         for path in train_paths:
-            last_tool = path.split(",")[-1]
+            tools_pos = np.where(path > 0)[0]
+            path_pos = path[tools_pos]
+            path_pos = [str(int(item)) for item in path_pos]
+            last_tool = path_pos[-1]
             if last_tool not in last_tool_freq:
                 last_tool_freq[last_tool] = 0
                 freq_dict_names[reverse_dictionary[int(last_tool)]] = 0
             last_tool_freq[last_tool] += 1
             freq_dict_names[reverse_dictionary[int(last_tool)]] += 1
+        
+        last_tool_freq = dict(sorted(last_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
         utils.write_file("log/data/freq_dict_names.txt", freq_dict_names)
         return last_tool_freq
 
@@ -408,30 +329,15 @@ class PrepareData:
         utils.write_file("log/data/all_paths.txt", all_paths)
 
         print("Creating dictionaries...")
-        #multilabels_paths = self.prepare_paths_labels_dictionary(dictionary, rev_dict, all_unique_paths, compatible_next_tools)
         multilabels_paths, compatible_tools, d_size = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
 
         print("Complete data: %d" % d_size)
-        #train_paths_dict, test_paths_dict = self.split_test_train_data(multilabels_paths)
 
-        utils.write_file("log/data/rev_dict.txt", rev_dict)
-        utils.write_file("log/data/f_dict.txt", dictionary)
-        utils.write_file("log/data/compatible_tools.txt", compatible_tools)
-        #utils.write_file("log/data/total_paths_dict.txt", multilabels_paths)
-
-        #sys.exit()
-        #utils.write_file("log/data/train_paths_dict.txt", train_paths_dict)
-        #utils.write_file("log/data/test_paths_dict.txt", test_paths_dict)
-
-        #print("Train data: %d" % len(train_paths_dict))
-        #print("Test data: %d" % len(test_paths_dict))
+        
 
         print("Padding train and test data...")
         # pad training and test data with trailing zeros
-        #train_data, train_labels, test_data, test_labels = self.pad_paths_multi_target(multilabels_paths, d_size, standard_connections, rev_dict, dictionary)
-        train_data, train_labels, test_data, test_labels = self.pad_paths_one_tool_target(multilabels_paths, compatible_tools, d_size, standard_connections, rev_dict, dictionary)
-        #train_data, train_labels = self.pad_paths(train_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
-        #test_data, test_labels = self.pad_paths(test_paths_dict, num_classes, standard_connections, rev_dict, dictionary)
+        train_data, train_labels, test_data, test_labels = self.pad_paths_one_tool_target(multilabels_paths, compatible_tools, d_size, rev_dict, dictionary)
 
         print(train_data[0:5])
         print()
@@ -440,12 +346,13 @@ class PrepareData:
         train_size = 1000
         test_size = 1000
 
-        print("Saving input and target datasets as h5...")
+        print("Saving datasets...")
+        utils.write_file("log/data/rev_dict.txt", rev_dict)
+        utils.write_file("log/data/f_dict.txt", dictionary)
+        utils.write_file("log/data/compatible_tools.txt", compatible_tools)
+        utils.write_file("log/data/published_connections.txt", standard_connections)
         utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")
         utils.save_h5_data(test_data, test_labels, "log/saved_data/test.h5")
-
-        #utils.save_data_as_dict(dictionary, rev_dict, train_data, train_labels, "log/data/train_dict.txt")
-        #utils.save_data_as_dict(dictionary, rev_dict, test_data, test_labels, "log/data/test_dict.txt")
 
         #train_data = train_data[:train_size]
         #train_labels = train_labels[:train_size]
@@ -456,9 +363,10 @@ class PrepareData:
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)
         
-        '''print("Estimating sample frequency...")
-        l_tool_freq = self.get_train_last_tool_freq(train_paths_dict, rev_dict)
-        l_tool_tr_samples = self.get_toolid_samples(train_data, l_tool_freq)'''
+        print("Estimating sample frequency...")
+        l_tool_freq = self.get_train_last_tool_freq(train_data, rev_dict)
+
+        #sys.exit()
 
         # Predict tools usage
         print("Predicting tools' usage...")
@@ -469,8 +377,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
         utils.write_file("log/data/class_weights.txt", class_weights)
-        #print(class_weights)
-        #sys.exit()
-
-        #return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, t_pred_usage, l_tool_freq, l_tool_tr_samples
         return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights

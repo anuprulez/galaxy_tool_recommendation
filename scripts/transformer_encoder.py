@@ -21,10 +21,10 @@ num_heads = 8 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 d_dim = 256
 dropout = 0.1
-n_train_batches = 500000
+n_train_batches = 50000
 batch_size = 32
 test_logging_step = 100
-train_logging_step = 5000
+train_logging_step = 1000
 n_test_seqs = batch_size
 learning_rate = 1e-3
 
@@ -302,7 +302,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         #sys.exit()
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
-            tr_loss, tr_cat_loss = compute_loss(y_train, prediction, c_weights)
+            tr_loss, tr_cat_loss = compute_loss(y_train, prediction) #c_weights
             tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(tr_loss, trainable_vars)

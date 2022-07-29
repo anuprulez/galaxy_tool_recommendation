@@ -84,9 +84,9 @@ class ExtractWorkflowConnections:
         return unique_paths, compatible_next_tools, standard_connections
 
     def __collect_standard_connections(self, row):
-        published = row[8]
-        deleted = row[9]
-        has_errors = row[10]
+        published = row[8].strip()
+        deleted = row[9].strip()
+        has_errors = row[10].strip()
         if published == "t" and deleted == "f" and has_errors == "f":
             return True
         return False
