@@ -302,7 +302,8 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     epo_te_batch_categorical_loss = list()
     
     c_weights = tf.convert_to_tensor(list(c_wts.values()), dtype=tf.float32)
-
+    print("Train data size: ", train_data.shape, train_labels.shape)
+    print("Test data size: ", test_data.shape, test_labels.shape)
     for batch in range(n_train_batches):
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)

@@ -159,28 +159,16 @@ class PrepareData:
                     input_target_paths[i_tools] = list()
                 if t_tools not in input_target_paths[i_tools]:
                     input_target_paths[i_tools].append(t_tools)
-                #tool_seq = input_tools[0: ctr+2]
-                '''i_tools = ",".join(input_tools[:ctr+1])
-                t_tools = ",".join(input_tools[ctr+1:])'''
-                #print(i_tools, "::", t_tools)
+
                 if i_tools not in input_target_paths:
                     input_target_paths[i_tools] = list()
                 if t_tools not in input_target_paths[i_tools]:
                     input_target_paths[i_tools].append(t_tools)
-            #print(input_target_paths)
-            #print()
-            if i == 10:
-                break
-            #target_tools = ",".join(input_tools[1:])
-            #input_target_paths[item] = target_tools
-        '''print(input_target_paths)
-        print()
-        print(compatible_tools)'''
-        #sys.exit()
+
         for item in input_target_paths:
             d_size += len(input_target_paths[item])
         print("Dataset size:", d_size)
-        #print(input_target_paths)
+
         return input_target_paths, compatible_tools, d_size
 
 
@@ -333,8 +321,6 @@ class PrepareData:
 
         print("Complete data: %d" % d_size)
 
-        
-
         print("Padding train and test data...")
         # pad training and test data with trailing zeros
         train_data, train_labels, test_data, test_labels = self.pad_paths_one_tool_target(multilabels_paths, compatible_tools, d_size, rev_dict, dictionary)
@@ -342,9 +328,6 @@ class PrepareData:
         print(train_data[0:5])
         print()
         print(train_labels[0:5])
-
-        train_size = 1000
-        test_size = 1000
 
         print("Saving datasets...")
         utils.write_file("log/data/rev_dict.txt", rev_dict)
@@ -354,19 +337,11 @@ class PrepareData:
         utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")
         utils.save_h5_data(test_data, test_labels, "log/saved_data/test.h5")
 
-        #train_data = train_data[:train_size]
-        #train_labels = train_labels[:train_size]
-
-        #test_data = test_data[:test_size]
-        #test_labels = test_labels[:test_size]
-
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)
         
         print("Estimating sample frequency...")
         l_tool_freq = self.get_train_last_tool_freq(train_data, rev_dict)
-
-        #sys.exit()
 
         # Predict tools usage
         print("Predicting tools' usage...")
