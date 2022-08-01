@@ -164,13 +164,21 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     return unrolled_x, unrolled_y
 
 
-def get_u_tr_labels(y_tr):
+def get_u_tr_labels(x_tr, y_tr):
     labels = list()
     labels_pos_dict = dict()
-    for i, item in enumerate(y_tr):
-        label_pos = np.where(item > 0)[0]
+    for i, (item_x, item_y) in enumerate(zip(x_tr, y_tr)):
+        all_pos = list()
+        label_pos = np.where(item_y > 0)[0]
+        data_pos = np.where(item_x > 0)[0]
+        data_pos = [int(a) for a in item_x[data_pos]]
         labels.extend(label_pos)
-        for label in label_pos:
+        labels.extend(data_pos) 
+        all_pos.extend(label_pos)
+        all_pos.extend(data_pos)
+        #print(i, item_x, data_pos, label_pos)
+        #print()
+        for label in all_pos:
             if label not in labels_pos_dict:
                 labels_pos_dict[label] = list()
             labels_pos_dict[label].append(i)
@@ -179,7 +187,8 @@ def get_u_tr_labels(y_tr):
     
     for item in labels_pos_dict:
         labels_pos_dict[item] = list(set(labels_pos_dict[item]))
-
+    #print(labels_pos_dict)
+    #sys.exit()
     return u_labels, labels_pos_dict
 
 
@@ -280,9 +289,9 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     #u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
     #u_te_labels, ulabels_te_dict  = get_u_labels(test_data)
 
-    u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_labels)
-    u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_labels)
-
+    u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_data, train_labels)
+    u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_data, test_labels)
+    #sys.exit()
     #x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
 
     epo_tr_batch_loss = list()

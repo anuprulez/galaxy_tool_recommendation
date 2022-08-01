@@ -169,8 +169,8 @@ class PrepareData:
                     input_target_paths[i_tools].append(t_tools)
             #print(input_target_paths)
             #print()
-            '''if i == 10:
-                break'''
+            if i == 10:
+                break
             #target_tools = ",".join(input_tools[1:])
             #input_target_paths[item] = target_tools
         '''print(input_target_paths)

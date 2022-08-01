@@ -202,8 +202,8 @@ if __name__ == "__main__":
         #test_labels = test_labels[:test_size]
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
-        create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
+        #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
     else:
         print("Preprocessing workflows...")
@@ -218,8 +218,8 @@ if __name__ == "__main__":
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
 
-        #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
-        create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
+        #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
     end_time = time.time()
     print()

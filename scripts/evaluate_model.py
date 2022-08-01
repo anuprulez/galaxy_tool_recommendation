@@ -53,6 +53,9 @@ fig_size = (12, 12)
 font = {'family': 'serif', 'size': 12}
 plt.rc('font', **font)
 
+test_batches = 100
+n_topk = 3
+
 '''loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 train_loss = tf.keras.metrics.Mean(name='train_loss')
 train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
@@ -60,9 +63,10 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log/"
+base_path = "log_01_08_22_0/"
 #model_path = base_path + "saved_model/382000/tf_model/"
-model_path = base_path + "saved_model/4000/tf_model/"
+model_number = 100000
+model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 
 def plot_loss_acc(loss, acc, t_value):
@@ -90,16 +94,18 @@ def plot_loss_acc(loss, acc, t_value):
 
 
 def visualize_loss_acc():
-    epo_tr_batch_loss = utils.read_file("log/data/epo_tr_batch_loss.txt").split(",")
+    epo_tr_batch_loss = utils.read_file(base_path + "data/epo_tr_batch_loss.txt").split(",")
+
+    #print(len(epo_tr_batch_loss))
     epo_tr_batch_loss = [np.round(float(item), 4) for item in epo_tr_batch_loss]
 
-    epo_tr_batch_acc = utils.read_file("log/data/epo_tr_batch_acc.txt").split(",")
+    epo_tr_batch_acc = utils.read_file(base_path + "data/epo_tr_batch_acc.txt").split(",")
     epo_tr_batch_acc = [np.round(float(item), 4) for item in epo_tr_batch_acc]
 
-    epo_te_batch_loss = utils.read_file("log/data/epo_te_batch_loss.txt").split(",")
+    epo_te_batch_loss = utils.read_file(base_path + "data/epo_te_batch_loss.txt").split(",")
     epo_te_batch_loss = [np.round(float(item), 4) for item in epo_te_batch_loss]
 
-    epo_te_batch_acc = utils.read_file("log/data/epo_te_batch_acc.txt").split(",")
+    epo_te_batch_acc = utils.read_file(base_path + "data/epo_te_batch_acc.txt").split(",")
     epo_te_batch_acc = [np.round(float(item), 4) for item in epo_te_batch_acc]
 
     plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
@@ -188,7 +194,11 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
 
 
 def predict_seq():
-    n_topk = 1
+
+    #visualize_loss_acc()
+    #sys.exit()
+
+    
     path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
     
@@ -215,10 +225,10 @@ def predict_seq():
     #u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
 
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_target)
-    
-    test_batches = 100
 
     precision = list()
+    pub_prec_list = list()
+    error_label_tools = list()
     for j in range(test_batches):
         #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
         te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
@@ -240,11 +250,7 @@ def predict_seq():
             prediction, att_weights = tf_loaded_model([t_ip], training=False)
             prediction_wts = tf.math.multiply(c_weights, prediction)
 
-            '''if len(target_pos) < 5:
-                top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
-            else:'''
-            #n_topk = len(target_pos)
-
+            n_topk = len(target_pos)
             top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
             top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
@@ -270,38 +276,43 @@ def predict_seq():
 
             if last_i_tool in published_connections:
                 true_pub_conn = published_connections[last_i_tool]
-                print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
-                print()
+                #print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
+                #print()
                 intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
                 intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
-                pub_prec = float(len(intersection_pub)) / len(true_pub_conn)
-                pub_prec_wt = float(len(intersection_pub_wt)) / len(true_pub_conn)
+                pub_prec = float(len(intersection_pub)) / len(pred_tools)
+                pub_prec_list.append(pub_prec)
+                pub_prec_wt = float(len(intersection_pub_wt)) / len(pred_tools)
             else:
                 pub_prec = False
                 pub_prec_wt = False
             pred_precision = float(len(intersection)) / len(pred_tools)
-            
-            
             precision.append(pred_precision)
-            print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
-            print()
-            print("Test batch {}, True tools: {}".format(j+1, true_tools))
-            print()
-            print("Test batch {}, Predicted top {} tools: {}".format(j+1, n_topk, pred_tools))
-            print()
-            print("Test batch {}, Predicted top {} tools with weights: {}".format(j+1, n_topk, pred_tools_wts))
-            print()
-            print("Test batch {}, Precision: {}".format(j+1, pred_precision)) 
-            print()
-            print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
-            print()
-            print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
-            print("=========================")
 
+            if pred_precision < 1.0:
+            
+                print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
+                print()
+                print("Test batch {}, True tools: {}".format(j+1, true_tools))
+                print()
+                print("Test batch {}, Predicted top {} tools: {}".format(j+1, n_topk, pred_tools))
+                print()
+                print("Test batch {}, Predicted top {} tools with weights: {}".format(j+1, n_topk, pred_tools_wts))
+                print()
+                print("Test batch {}, Precision: {}".format(j+1, pred_precision)) 
+                print()
+                print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
+                print()
+                print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
+                error_label_tools.append(select_tools[i])
+                print("=========================")
+            print("--------------------------")
             #generated_attention(att_weights, i_names, f_dict, r_dict)
         print("Batch {} prediction finished ...".format(j+1))
     print("Precision@{}: {}".format(n_topk, np.mean(precision)))
-
+    print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+    #print("Low precision on labels: {}".format(error_label_tools))
+    print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
     # individual tools or seq prediction
     '''print()
     n_topk_ind = 10
