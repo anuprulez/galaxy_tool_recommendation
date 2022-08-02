@@ -256,6 +256,33 @@ class PrepareData:
         return class_weights
 
 
+    def get_train_tool_labels_freq(self, train_paths, reverse_dictionary):
+        """
+        Get the frequency of last tool of each tool sequence
+        to estimate the frequency of tool sequences
+        """
+        last_tool_freq = dict()
+        freq_dict_names = dict()
+        for path in train_paths:
+            tools_pos = np.where(path > 0)[0]
+            path_pos = tools_pos #path[tools_pos]
+            path_pos = [str(int(item)) for item in path_pos]
+
+            for tool_pos in path_pos:
+                if tool_pos not in last_tool_freq:
+                    last_tool_freq[tool_pos] = 0
+                    freq_dict_names[reverse_dictionary[int(tool_pos)]] = 0
+                last_tool_freq[tool_pos] += 1
+                freq_dict_names[reverse_dictionary[int(tool_pos)]] += 1
+        
+        sorted_dict = dict(sorted(last_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
+        print(sorted_dict)
+        print()
+        #sys.exit()
+        utils.write_file("log/data/train_tool_freq.txt", sorted_dict)
+        return sorted_dict
+
+
     def get_train_last_tool_freq(self, train_paths, reverse_dictionary):
         """
         Get the frequency of last tool of each tool sequence
@@ -274,9 +301,9 @@ class PrepareData:
             last_tool_freq[last_tool] += 1
             freq_dict_names[reverse_dictionary[int(last_tool)]] += 1
         
-        last_tool_freq = dict(sorted(last_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
-        utils.write_file("log/data/freq_dict_names.txt", freq_dict_names)
-        return last_tool_freq
+        sorted_dict = dict(sorted(last_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
+        utils.write_file("log/data/train_last_tool_freq.txt", sorted_dict)
+        return sorted_dict
 
 
     def get_toolid_samples(self, train_data, l_tool_freq):
@@ -341,8 +368,12 @@ class PrepareData:
         print("Test data: ", test_data.shape)
         
         print("Estimating sample frequency...")
-        l_tool_freq = self.get_train_last_tool_freq(train_data, rev_dict)
+        tr_tool_last_freq = self.get_train_last_tool_freq(train_data, rev_dict)
+        tr_tool_freq = self.get_train_tool_labels_freq(train_labels, rev_dict)
 
+        print(tr_tool_freq, len(tr_tool_freq))
+
+        #sys.exit()
         # Predict tools usage
         print("Predicting tools' usage...")
         usage_pred = predict_tool_usage.ToolPopularity()
@@ -352,4 +383,4 @@ class PrepareData:
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
         utils.write_file("log/data/class_weights.txt", class_weights)
-        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights
+        return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, tr_tool_freq

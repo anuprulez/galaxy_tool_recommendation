@@ -54,7 +54,7 @@ font = {'family': 'serif', 'size': 12}
 plt.rc('font', **font)
 
 batch_size = 32
-test_batches = 0
+test_batches = 1000
 n_topk = 1
 
 '''loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -64,17 +64,16 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log_01_08_22_0/"
+base_path = "log_02_08_22_1/"
 predict_rnn = False
 #model_path = base_path + "saved_model/382000/tf_model/"
-model_number = 100000
+model_number = 4000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
+
 
 '''
  ['dropletutils_read_10x', 'scmap_preprocess_sce']
 ['msnbase-read-msms', 'map-msms2camera', 'msms2metfrag-multiple', 'metfrag-cli-batch-multiple', 'passatutto']
-
-
 '''
 
 
@@ -286,8 +285,6 @@ def predict_seq():
     tool_freq = utils.read_file(base_path + "data/freq_dict_names.txt")
     published_connections = utils.read_file(base_path + "data/published_connections.txt")
 
-    
-
     c_weights = list(class_weights.values())
 
     c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
@@ -302,6 +299,8 @@ def predict_seq():
     precision = list()
     pub_prec_list = list()
     error_label_tools = list()
+    seq_len = 5
+
     for j in range(test_batches):
         #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
         te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
@@ -312,81 +311,85 @@ def predict_seq():
         print()
         select_tools = [r_dict[str(item)] for item in selected_label_tools]
         print("Selected label tools: {}".format(select_tools))
-        #sys.exit()
+
         n_test = te_x_batch.shape[0]
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
+            
             print("Test batch selected tool and index: {}, {}".format(bat_ind[i], select_tools[i]))
             s_label_tool = select_tools[i]
-            t_ip = inp #test_input[i]
-            target_pos = np.where(tar > 0)[0]
-            t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
-            if predict_rnn is True:
-                prediction = tf_loaded_model([t_ip], training=False)
-            else:
-                prediction, att_weights = tf_loaded_model([t_ip], training=False)
-            prediction_wts = tf.math.multiply(c_weights, prediction)
+            t_ip = inp
+            if len(np.where(inp > 0)[0]) < seq_len:
+                target_pos = np.where(tar > 0)[0]
+                t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
+                if predict_rnn is True:
+                    prediction = tf_loaded_model([t_ip], training=False)
+                else:
+                    prediction, att_weights = tf_loaded_model([t_ip], training=False)
+                prediction_wts = tf.math.multiply(c_weights, prediction)
 
-            #n_topk = len(target_pos)
-            top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
-            top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
+                n_topk = len(target_pos)
+                top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
+                top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
-            t_ip = t_ip.numpy()
-            label_pos = np.where(t_ip > 0)[0]
+                t_ip = t_ip.numpy()
+                label_pos = np.where(t_ip > 0)[0]
 
-            i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]  if item not in [0, "0"]])
-            t_names = ",".join([r_dict[str(int(item))] for item in target_pos  if item not in [0, "0"]])
+                i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]  if item not in [0, "0"]])
+                t_names = ",".join([r_dict[str(int(item))] for item in target_pos  if item not in [0, "0"]])
 
-            last_i_tool = [r_dict[str(item)] for item in t_ip[label_pos]][-1]
+                last_i_tool = [r_dict[str(item)] for item in t_ip[label_pos]][-1]
 
-            true_tools = [r_dict[str(int(item))] for item in target_pos]
+                true_tools = [r_dict[str(int(item))] for item in target_pos]
 
-            print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
+                print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
 
-            pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
-            pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
+                pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
+                pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
 
-            intersection = list(set(true_tools).intersection(set(pred_tools)))
+                intersection = list(set(true_tools).intersection(set(pred_tools)))
 
-            pub_prec = 0.0
-            pub_prec_wt = 0.0
+                pub_prec = 0.0
+                pub_prec_wt = 0.0
 
-            if last_i_tool in published_connections:
-                true_pub_conn = published_connections[last_i_tool]
-                #print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
-                #print()
-                intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
-                intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
-                pub_prec = float(len(intersection_pub)) / len(pred_tools)
-                pub_prec_list.append(pub_prec)
-                pub_prec_wt = float(len(intersection_pub_wt)) / len(pred_tools)
-            else:
-                pub_prec = False
-                pub_prec_wt = False
-            pred_precision = float(len(intersection)) / len(pred_tools)
-            precision.append(pred_precision)
+                if last_i_tool in published_connections:
+                    true_pub_conn = published_connections[last_i_tool]
+                    #print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
+                    #print()
+                    intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
+                    intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
+                    pub_prec = float(len(intersection_pub)) / len(pred_tools)
+                    pub_prec_list.append(pub_prec)
+                    pub_prec_wt = float(len(intersection_pub_wt)) / len(pred_tools)
+                else:
+                    pub_prec = False
+                    pub_prec_wt = False
+                pred_precision = float(len(intersection)) / len(pred_tools)
+                precision.append(pred_precision)
 
-            if pred_precision < 1.0:
+                if pred_precision < 1.0:
             
-                print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
-                print()
-                print("Test batch {}, True tools: {}".format(j+1, true_tools))
-                print()
-                print("Test batch {}, Predicted top {} tools: {}".format(j+1, n_topk, pred_tools))
-                print()
-                print("Test batch {}, Predicted top {} tools with weights: {}".format(j+1, n_topk, pred_tools_wts))
-                print()
-                print("Test batch {}, Precision: {}".format(j+1, pred_precision)) 
-                print()
-                print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
-                print()
-                print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
-                error_label_tools.append(select_tools[i])
-                print("=========================")
-            print("--------------------------")
-            #generated_attention(att_weights, i_names, f_dict, r_dict)
-        print("Batch {} prediction finished ...".format(j+1))
-    #print("Precision@{}: {}".format(n_topk, np.mean(precision)))
-    #print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+                    print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
+                    print()
+                    print("Test batch {}, True tools: {}".format(j+1, true_tools))
+                    print()
+                    print("Test batch {}, Predicted top {} tools: {}".format(j+1, n_topk, pred_tools))
+                    print()
+                    print("Test batch {}, Predicted top {} tools with weights: {}".format(j+1, n_topk, pred_tools_wts))
+                    print()
+                    print("Test batch {}, Precision: {}".format(j+1, pred_precision)) 
+                    print()
+                    print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
+                    print()
+                    print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
+                    error_label_tools.append(select_tools[i])
+                    print("=========================")
+                print("--------------------------")
+                #generated_attention(att_weights, i_names, f_dict, r_dict)
+        
+            print("Batch {} prediction finished ...".format(j+1))
+
+    print("Precision@{}: {}".format(n_topk, np.mean(precision)))
+    print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
     #print("Low precision on labels: {}".format(error_label_tools))
     #print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
     # individual tools or seq prediction
@@ -457,7 +460,7 @@ def plot_attention_head(in_tokens, out_tokens, attention):
   # The plot is of the attention when a token was generated.
   # The model didn't generate `<START>` in the output. Skip it.
   #translated_tokens = translated_tokens[1:]
-  print(attention)
+  #print(attention)
   ax = plt.gca()
   ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
 

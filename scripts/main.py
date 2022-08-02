@@ -189,11 +189,12 @@ if __name__ == "__main__":
         r_dict = utils.read_file(base_path + "data/rev_dict.txt")
         f_dict = utils.read_file(base_path + "data/f_dict.txt")
         c_wts = utils.read_file(base_path + "data/class_weights.txt")
+        train_tool_freq = utils.read_file(base_path + "data/train_tool_freq.txt")
         print("True size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         print(len(r_dict), len(f_dict))
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, train_tool_freq)
         #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
     else:
@@ -205,11 +206,11 @@ if __name__ == "__main__":
         # Process the paths from workflows
         print("Dividing data...")
         data = prepare_data.PrepareData(maximum_path_length, test_share)
-        train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
+        train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
 
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
+        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
         #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts)
 
     end_time = time.time()
