@@ -37,24 +37,25 @@ EPOCHS = 20
 max_seq_len = 25
 index_start_token = 2'''
 
-embed_dim = 128 # Embedding size for each token
+'''embed_dim = 128 # Embedding size for each token
 num_heads = 8 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer
 d_dim = 128
 dropout = 0.1
 n_train_batches = 1000000
-batch_size = 32
+
 test_logging_step = 100
 train_logging_step = 2000
 n_test_seqs = batch_size
-learning_rate = 1e-2
+learning_rate = 1e-2'''
 
 fig_size = (12, 12)
 font = {'family': 'serif', 'size': 12}
 plt.rc('font', **font)
 
-test_batches = 100
-n_topk = 3
+batch_size = 32
+test_batches = 0
+n_topk = 1
 
 '''loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 train_loss = tf.keras.metrics.Mean(name='train_loss')
@@ -63,10 +64,39 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log_01_08_22_0/"
+base_path = "log/"
+predict_rnn = False
 #model_path = base_path + "saved_model/382000/tf_model/"
 model_number = 100000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
+
+'''
+ ['dropletutils_read_10x', 'scmap_preprocess_sce']
+['msnbase-read-msms', 'map-msms2camera', 'msms2metfrag-multiple', 'metfrag-cli-batch-multiple', 'passatutto']
+
+
+'''
+
+
+def verify_training_sampling(sampled_tool_ids, rev_dict):
+    """
+    Compute the frequency of tool sequences after oversampling
+    """
+    freq_dict = dict()
+    freq_dict_names = dict()
+    sampled_tool_ids = sampled_tool_ids.split(",")
+    for tr_tool_id in sampled_tool_ids:
+        tr_tool_id = tr_tool_id  #str(int(tr_data[-1]))
+        if tr_tool_id not in freq_dict:
+            freq_dict[tr_tool_id] = 0
+            freq_dict_names[rev_dict[str(tr_tool_id)]] = 0
+        freq_dict[tr_tool_id] += 1
+        freq_dict_names[rev_dict[str(tr_tool_id)]] += 1
+    #print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
+    s_freq = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
+    print(s_freq)
+    return s_freq
+
 
 
 def plot_loss_acc(loss, acc, t_value):
@@ -169,6 +199,39 @@ def get_u_tr_labels(y_tr):
     return u_labels, labels_pos_dict
 
 
+'''
+
+#TODO: to change
+
+def get_u_tr_labels(x_tr, y_tr):
+    labels = list()
+    labels_pos_dict = dict()
+    for i, (item_x, item_y) in enumerate(zip(x_tr, y_tr)):
+        all_pos = list()
+        label_pos = np.where(item_y > 0)[0]
+        data_pos = np.where(item_x > 0)[0]
+        data_pos = [int(a) for a in item_x[data_pos]]
+        labels.extend(label_pos)
+        labels.extend(data_pos) 
+        all_pos.extend(label_pos)
+        all_pos.extend(data_pos)
+        #print(i, item_x, data_pos, label_pos)
+        #print()
+        for label in all_pos:
+            if label not in labels_pos_dict:
+                labels_pos_dict[label] = list()
+            labels_pos_dict[label].append(i)
+
+    u_labels = list(set(labels))
+    
+    for item in labels_pos_dict:
+        labels_pos_dict[item] = list(set(labels_pos_dict[item]))
+    #print(labels_pos_dict)
+    #sys.exit()
+    return u_labels, labels_pos_dict
+'''
+
+
 def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
     batch_y_tools = list(ulabels_tr_y_dict.keys())
     random.shuffle(batch_y_tools)
@@ -196,7 +259,14 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
 def predict_seq():
 
     #visualize_loss_acc()
-    #sys.exit()
+
+    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
+    verify_training_sampling(tool_tr_freq, r_dict)
+
+    sys.exit()
+
+    
 
     
     path_test_data = base_path + "saved_data/test.h5"
@@ -216,6 +286,8 @@ def predict_seq():
     tool_freq = utils.read_file(base_path + "data/freq_dict_names.txt")
     published_connections = utils.read_file(base_path + "data/published_connections.txt")
 
+    
+
     c_weights = list(class_weights.values())
 
     c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
@@ -224,6 +296,7 @@ def predict_seq():
 
     #u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
 
+    #u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_input, test_target)
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_target)
 
     precision = list()
@@ -247,10 +320,13 @@ def predict_seq():
             t_ip = inp #test_input[i]
             target_pos = np.where(tar > 0)[0]
             t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
-            prediction, att_weights = tf_loaded_model([t_ip], training=False)
+            if predict_rnn is True:
+                prediction = tf_loaded_model([t_ip], training=False)
+            else:
+                prediction, att_weights = tf_loaded_model([t_ip], training=False)
             prediction_wts = tf.math.multiply(c_weights, prediction)
 
-            n_topk = len(target_pos)
+            #n_topk = len(target_pos)
             top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
             top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
@@ -309,26 +385,31 @@ def predict_seq():
             print("--------------------------")
             #generated_attention(att_weights, i_names, f_dict, r_dict)
         print("Batch {} prediction finished ...".format(j+1))
-    print("Precision@{}: {}".format(n_topk, np.mean(precision)))
-    print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+    #print("Precision@{}: {}".format(n_topk, np.mean(precision)))
+    #print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
     #print("Low precision on labels: {}".format(error_label_tools))
-    print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
+    #print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
     # individual tools or seq prediction
-    '''print()
-    n_topk_ind = 10
+    print()
+    n_topk_ind = 20
     print("Predicting for individual tools or sequences")
     t_ip = np.zeros((25))
-    t_ip[0] = int(f_dict["lofreq_call"])
-    #t_ip[1] = int(f_dict["lofreq_call"])
-    #t_ip[2] = int(f_dict["remove_nucleotide_deletions"])
+    t_ip[0] = int(f_dict["bowtie2"])
+    t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
+    t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
     #t_ip[3] = int(f_dict["pangolin"])
     # Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
     # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
     # bowtie2,lofreq_call
+    # dropletutils_read_10x
+    # 'bowtie2', 'hicexplorer_hicbuildmatrix'
     
-    last_tool_name = "lofreq_call"
+    last_tool_name = "hicexplorer_hicfindtads"
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
-    prediction, att_weights = tf_loaded_model([t_ip], training=False)
+    if predict_rnn is True:
+        prediction = tf_loaded_model([t_ip], training=False)
+    else:
+        prediction, att_weights = tf_loaded_model([t_ip], training=False)
     prediction_cwts = tf.math.multiply(c_weights, prediction)
 
     top_k = tf.math.top_k(prediction, k=n_topk_ind, sorted=True)
@@ -350,7 +431,7 @@ def predict_seq():
     print()
     print("Predicted top {} tools: {}".format(n_topk_ind, pred_tools))
     print()
-    print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))'''
+    print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):
