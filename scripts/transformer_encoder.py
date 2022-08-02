@@ -271,10 +271,12 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     n_topk = 10
     for idx in range(te_pred_batch.shape[0]):
         label_pos = np.where(y_train_batch[idx] > 0)[0]
-        if len(label_pos) < 5:
+        '''if len(label_pos) < 5:
             topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         else:
             topk_pred = tf.math.top_k(te_pred_batch[idx], k=n_topk, sorted=True)
+        topk_pred = topk_pred.indices.numpy()'''
+        topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
         try:
             label_pos_tools = [r_dict[str(item)] for item in label_pos if item not in [0, "0"]]
@@ -295,7 +297,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict):
     print("Test binary error: {}, test categorical loss: {}, test categorical accuracy: {}".format(test_err.numpy(), test_categorical_loss.numpy(), test_acc.numpy()))
     print("Test prediction precision: {}".format(np.mean(te_pre_precision)))
     print("Test finished")
-    return test_err.numpy(), test_acc.numpy(), test_categorical_loss.numpy()
+    return test_err.numpy(), test_acc.numpy(), test_categorical_loss.numpy(), np.mean(te_pre_precision)
 
 
 def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts):
@@ -327,7 +329,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     epo_te_batch_acc = list()
     epo_te_batch_categorical_loss = list()
     all_sel_tool_ids = list()
-    
+    epo_te_precision = list()
     c_weights = tf.convert_to_tensor(list(c_wts.values()), dtype=tf.float32)
     for batch in range(n_train_batches):
         print("Total train data size: ", train_data.shape, train_labels.shape)
@@ -353,10 +355,11 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         print("Step {}/{}, training binary loss: {}, categorical_loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_cat_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            te_loss, te_acc, test_cat_loss = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict)
+            te_loss, te_acc, test_cat_loss, te_prec = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict)
             epo_te_batch_loss.append(te_loss)
             epo_te_batch_acc.append(te_acc)
             epo_te_batch_categorical_loss.append(test_cat_loss)
+            epo_te_precision.append(te_prec)
         print()
         if (batch+1) % train_logging_step == 0:
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
@@ -373,5 +376,6 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))
     utils.write_file("log/data/epo_tr_batch_categorical_loss.txt", ",".join([str(item) for item in epo_tr_batch_categorical_loss]))
     utils.write_file("log/data/epo_te_batch_categorical_loss.txt", ",".join([str(item) for item in epo_te_batch_categorical_loss]))
+    utils.write_file("log/data/epo_te_precision.txt", ",".join([str(item) for item in epo_te_precision]))
     utils.write_file("log/data/all_sel_tool_ids.txt", ",".join([str(item) for item in all_sel_tool_ids]))
     
