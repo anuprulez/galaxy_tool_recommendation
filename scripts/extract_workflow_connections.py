@@ -14,7 +14,7 @@ class ExtractWorkflowConnections:
     def __init__(self):
         """ Init method. """
 
-    def read_tabular_file(self, raw_file_path):
+    def read_tabular_file(self, raw_file_path, config):
         """
         Read tabular file and extract workflow connections
         """
@@ -28,21 +28,23 @@ class ExtractWorkflowConnections:
         with open(raw_file_path, 'rt') as workflow_connections_file:
             workflow_connections = csv.reader(workflow_connections_file, delimiter=',')
             for index, row in enumerate(workflow_connections):
+                row = [item.strip() for item in row]
                 wf_id = str(row[0])
-                in_tool = row[3].strip()
-                out_tool = row[6].strip()
-                if wf_id not in workflows:
-                    workflows[wf_id] = list()
-                if out_tool and in_tool and out_tool != in_tool:
-                    workflows[wf_id].append((out_tool, in_tool))
-                    qc = self.__collect_standard_connections(row)
-                    if qc:
-                        i_t = format_tool_id(in_tool)
-                        o_t = format_tool_id(out_tool)
-                        if i_t not in standard_connections:
-                            standard_connections[i_t] = list()
-                        if o_t not in standard_connections[i_t]:
-                            standard_connections[i_t].append(o_t)
+                if row[1] > config["cutoff_date"]:
+                    in_tool = row[3]
+                    out_tool = row[6]
+                    if wf_id not in workflows:
+                        workflows[wf_id] = list()
+                    if out_tool and in_tool and out_tool != in_tool:
+                        workflows[wf_id].append((out_tool, in_tool))
+                        qc = self.__collect_standard_connections(row)
+                        if qc:
+                            i_t = format_tool_id(in_tool)
+                            o_t = format_tool_id(out_tool)
+                            if i_t not in standard_connections:
+                                standard_connections[i_t] = list()
+                            if o_t not in standard_connections[i_t]:
+                                standard_connections[i_t].append(o_t)
         print("Processing workflows...")
         wf_ctr = 0
         for wf_id in workflows:

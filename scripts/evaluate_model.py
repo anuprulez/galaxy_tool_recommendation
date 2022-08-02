@@ -64,7 +64,7 @@ test_loss = tf.keras.metrics.Mean(name='test_loss')
 test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
 
 
-base_path = "log/"
+base_path = "log_01_08_22_0/"
 predict_rnn = False
 #model_path = base_path + "saved_model/382000/tf_model/"
 model_number = 100000
@@ -94,7 +94,7 @@ def verify_training_sampling(sampled_tool_ids, rev_dict):
         freq_dict_names[rev_dict[str(tr_tool_id)]] += 1
     #print(dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)))
     s_freq = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
-    print(s_freq)
+    print(s_freq, len(s_freq))
     return s_freq
 
 
@@ -261,10 +261,10 @@ def predict_seq():
     #visualize_loss_acc()
 
     r_dict = utils.read_file(base_path + "data/rev_dict.txt")
-    tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
-    verify_training_sampling(tool_tr_freq, r_dict)
+    #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
+    #verify_training_sampling(tool_tr_freq, r_dict)
 
-    sys.exit()
+    #sys.exit()
 
     
 
@@ -397,7 +397,7 @@ def predict_seq():
     t_ip[0] = int(f_dict["bowtie2"])
     t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
-    #t_ip[3] = int(f_dict["pangolin"])
+    t_ip[3] = int(f_dict["hicexplorer_hicpca"])
     # Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
     # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
     # bowtie2,lofreq_call
@@ -433,6 +433,8 @@ def predict_seq():
     print()
     print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
 
+    generated_attention(att_weights, i_names, f_dict, r_dict)
+
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):
 
@@ -455,7 +457,7 @@ def plot_attention_head(in_tokens, out_tokens, attention):
   # The plot is of the attention when a token was generated.
   # The model didn't generate `<START>` in the output. Skip it.
   #translated_tokens = translated_tokens[1:]
-
+  print(attention)
   ax = plt.gca()
   ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
 

@@ -200,7 +200,7 @@ if __name__ == "__main__":
         print("Preprocessing workflows...")
         # Extract and process workflows
         connections = extract_workflow_connections.ExtractWorkflowConnections()
-        workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path)
+        workflow_paths, compatible_next_tools, standard_connections = connections.read_tabular_file(workflows_path, config)
 
         # Process the paths from workflows
         print("Dividing data...")

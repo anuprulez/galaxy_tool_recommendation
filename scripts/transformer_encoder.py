@@ -16,17 +16,17 @@ from tensorflow.keras.models import Sequential, Model
 import utils
 
 
-embed_dim = 128 # Embedding size for each token d_model
+embed_dim = 32 # Embedding size for each token d_model
 num_heads = 8 # Number of attention heads
-ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
-d_dim = 256
-dropout = 0.1
-n_train_batches = 1000
+ff_dim = 32 # Hidden layer size in feed forward network inside transformer # dff
+d_dim = 512
+dropout = 0.2
+n_train_batches = 2000
 batch_size = 32
 test_logging_step = 100
 train_logging_step = 500
-n_test_seqs = batch_size
-learning_rate = 1e-3
+n_test_seqs = 3 * batch_size
+learning_rate = 1e-2
 
 # Readings
 # https://keras.io/examples/nlp/text_classification_with_transformer/
@@ -240,8 +240,12 @@ def compute_loss(y_true, y_pred, class_weights=None):
     loss = binary_ce(y_true, y_pred)
     #cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
     categorical_loss = categorical_ce(y_true, y_pred)
-    #return tf.tensordot(loss, class_weights, axes=1)
-    #tf.reduce_mean(loss)
+    
+    #print(y_true, y_pred)
+    y_true = tf.cast(y_true, dtype=tf.float32)
+    #sigmoid_cross_entropy_with_logits = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    #print("sigmoid_cross_entropy_with_logits: ", tf.reduce_mean(sigmoid_cross_entropy_with_logits))
+
     if class_weights is None:
         return tf.reduce_mean(loss), categorical_loss
     return tf.tensordot(loss, class_weights, axes=1), categorical_loss
