@@ -53,21 +53,18 @@ fig_size = (12, 12)
 font = {'family': 'serif', 'size': 12}
 plt.rc('font', **font)
 
-batch_size = 32
-test_batches = 1000
+batch_size = 100
+test_batches = 10
 n_topk = 1
+max_seq_len = 25
 
-'''loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
-train_loss = tf.keras.metrics.Mean(name='train_loss')
-train_accuracy = tf.keras.metrics.Mean(name='train_accuracy')
-test_loss = tf.keras.metrics.Mean(name='test_loss')
-test_accuracy = tf.keras.metrics.Mean(name='test_accuracy')'''
-
-
-base_path = "log_02_08_22_1/"
+base_path = "log_03_08_22_1/" 
+#"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
+# RNN: log_01_08_22_3_rnn
+# Transformer: log_01_08_22_0
 predict_rnn = False
 #model_path = base_path + "saved_model/382000/tf_model/"
-model_number = 4000
+model_number = 10000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 
@@ -134,7 +131,7 @@ def visualize_loss_acc():
     epo_te_batch_loss = utils.read_file(base_path + "data/epo_te_batch_loss.txt").split(",")
     epo_te_batch_loss = [np.round(float(item), 4) for item in epo_te_batch_loss]
 
-    epo_te_batch_acc = utils.read_file(base_path + "data/epo_te_batch_acc.txt").split(",")
+    epo_te_batch_acc = utils.read_file(base_path + "data/epo_te_precision.txt").split(",")
     epo_te_batch_acc = [np.round(float(item), 4) for item in epo_te_batch_acc]
 
     plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
@@ -257,16 +254,13 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
 
 def predict_seq():
 
-    #visualize_loss_acc()
+    visualize_loss_acc()
 
-    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    #r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
     #verify_training_sampling(tool_tr_freq, r_dict)
 
     #sys.exit()
-
-    
-
     
     path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
@@ -282,7 +276,7 @@ def predict_seq():
     class_weights = utils.read_file(base_path + "data/class_weights.txt")
     compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
 
-    tool_freq = utils.read_file(base_path + "data/freq_dict_names.txt")
+    #tool_freq = utils.read_file(base_path + "data/freq_dict_names.txt")
     published_connections = utils.read_file(base_path + "data/published_connections.txt")
 
     c_weights = list(class_weights.values())
@@ -299,26 +293,28 @@ def predict_seq():
     precision = list()
     pub_prec_list = list()
     error_label_tools = list()
-    seq_len = 5
-
+    #seq_len = 5
+    #test_batches = 10000
     for j in range(test_batches):
         #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
         te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
-        print()
-        print(bat_ind)
-        print()
-        print(selected_label_tools)
-        print()
-        select_tools = [r_dict[str(item)] for item in selected_label_tools]
-        print("Selected label tools: {}".format(select_tools))
+        '''print(j * batch_size, j * batch_size + batch_size)
+        te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
+        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]'''
+        #print()
+        #print(bat_ind)
+        #print()
+        #print(selected_label_tools)
+        #print()
+        #select_tools = [r_dict[str(item)] for item in selected_label_tools]
+        #print("Selected label tools: {}".format(select_tools))
 
-        n_test = te_x_batch.shape[0]
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
             
-            print("Test batch selected tool and index: {}, {}".format(bat_ind[i], select_tools[i]))
-            s_label_tool = select_tools[i]
+            #print("Test batch selected tool and index: {}, {}".format(bat_ind[i], select_tools[i]))
+            #s_label_tool = select_tools[i]
             t_ip = inp
-            if len(np.where(inp > 0)[0]) < seq_len:
+            if len(np.where(inp > 0)[0]) < max_seq_len:
                 target_pos = np.where(tar > 0)[0]
                 t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
                 if predict_rnn is True:
@@ -341,7 +337,7 @@ def predict_seq():
 
                 true_tools = [r_dict[str(int(item))] for item in target_pos]
 
-                print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
+                #print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
 
                 pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
                 pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
@@ -381,7 +377,7 @@ def predict_seq():
                     print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
                     print()
                     print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
-                    error_label_tools.append(select_tools[i])
+                    #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
                 #generated_attention(att_weights, i_names, f_dict, r_dict)
@@ -397,17 +393,42 @@ def predict_seq():
     n_topk_ind = 20
     print("Predicting for individual tools or sequences")
     t_ip = np.zeros((25))
-    t_ip[0] = int(f_dict["bowtie2"])
+    t_ip[0] = int(f_dict["ncbi_eutils_esearch"])
+    #t_ip[1] = int(f_dict["mtbls520_05a_import_maf"])
+    #t_ip[2] = int(f_dict["mtbls520_06_import_traits"])
+    #t_ip[3] = int(f_dict["mtbls520_07_species_diversity"])
+
+    '''t_ip[0] = int(f_dict["bowtie2"])
     t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
-    t_ip[3] = int(f_dict["hicexplorer_hicpca"])
+    t_ip[3] = int(f_dict["hicexplorer_hicpca"])'''
     # Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
     # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
     # bowtie2,lofreq_call
     # dropletutils_read_10x
     # 'bowtie2', 'hicexplorer_hicbuildmatrix'
+    # 'mtbls520_04_preparations', 'mtbls520_05a_import_maf', 'mtbls520_06_import_traits', 'mtbls520_07_species_diversity'
+    # ctsm_fates: 'xarray_metadata_info', 'interactive_tool_panoply', 'xarray_select', '__EXTRACT_DATASET__'
+    # msnbase_readmsdata: 'abims_xcms_xcmsSet', 'xcms_export_samplemetadata', 'xcms_plot_chromatogram'
+    # ncbi_eutils_esearch: ncbi_eutils_elink
+    # 1_create_conf: '5_calc_stat', '4_filter_sam', '2_map', 'conf4circos', '3_filter_single_pair'
+    # pdaug_peptide_data_access: pdaug_tsvtofasta
+    # 'pdaug_peptide_data_access', 'pdaug_tsvtofasta': 'pdaug_peptide_sequence_analysis', 'pdaug_fishers_plot', 'pdaug_sequence_property_based_descriptors'
+    # 'rankprodthree', 'Remove beginning1', 'cat1', 'Cut1', 'interactions': 'biotranslator', 'awkscript'
+    # rpExtractSink: rpCompletion', 'retropath2'
+    # 'EMBOSS: transeq101', 'ncbi_makeblastdb', 'ncbi_blastp_wrapper', 'blast_parser', 'hcluster_sg'
+    # 'Remove beginning1', 'Cut1', 'param_value_from_file', 'kc-align', 'sarscov2formatter', 'hyphy_fel'
+    # abims_CAMERA_annotateDiffreport
+    # cooler_csort_pairix
+    # mycrobiota-split-multi-otutable
+    # XY_Plot_1
+    # mycrobiota-qc-report
+    # 1_create_conf
+    # RNAlien
+    # ont_fast5_api_multi_to_single_fast5
     
-    last_tool_name = "hicexplorer_hicfindtads"
+    
+    last_tool_name = "ncbi_eutils_esearch"
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
     if predict_rnn is True:
         prediction = tf_loaded_model([t_ip], training=False)
@@ -436,7 +457,7 @@ def predict_seq():
     print()
     print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
 
-    generated_attention(att_weights, i_names, f_dict, r_dict)
+    #generated_attention(att_weights, i_names, f_dict, r_dict)
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):

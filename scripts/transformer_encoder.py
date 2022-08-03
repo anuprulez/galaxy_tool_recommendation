@@ -22,8 +22,8 @@ ff_dim = 128 # Hidden layer size in feed forward network inside transformer # df
 d_dim = 512
 dropout = 0.2
 n_train_batches = 20000
-batch_size = 32
-test_logging_step = 100
+batch_size = 64
+test_logging_step = 10
 train_logging_step = 1000
 te_batch_size = batch_size
 learning_rate = 1e-2
@@ -252,11 +252,24 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq)
     max_wt = np.max(label_weights)
     norm_label_weights = [max_wt / float(item) for item in label_weights]
 
-    selected_tools = random.choices(batch_y_tools, weights=norm_label_weights, k=int(b_size / 2))
-    
-    rand_selected_tools = batch_y_tools[:int(b_size / 2)]
+    selected_tools = random.choices(batch_y_tools, weights=norm_label_weights, k=int(b_size / 4))
+
+    rem_tools = list(set(batch_y_tools).difference(set(selected_tools)))
+
+    '''print(sorted(selected_tools), len(selected_tools))
+    print()
+    print(sorted(rem_tools), len(rem_tools))
+    print()'''
+    rand_selected_tools = rem_tools[:int(float(3 * b_size) / 4)]
+    #print(sorted(rand_selected_tools), len(rand_selected_tools))
+    #print()
     rand_selected_tools.extend(selected_tools)
+
+    #print(sorted(rand_selected_tools), len(rand_selected_tools))
     sel_tools.extend(selected_tools)
+
+    #print("rand_selected_tools: ", len(rand_selected_tools))
+    #print("U rand_selected_tools: ", len(list(set(rand_selected_tools))))'''
     
     for l_tool in rand_selected_tools:
         seq_indices = ulabels_tr_y_dict[l_tool]
@@ -264,10 +277,10 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq)
         rand_s_index = np.random.randint(0, len(seq_indices), 1)[0]
         rand_sample = seq_indices[rand_s_index]
         sel_tools.append(l_tool)
-        if rand_sample not in rand_batch_indices:
-            rand_batch_indices.append(rand_sample)
-            label_tools.append(l_tool)
-
+        #if rand_sample not in rand_batch_indices:
+        rand_batch_indices.append(rand_sample)
+        label_tools.append(l_tool)
+    #sys.exit()
     #selected_t_freq = [tr_t_freq[str(item)] for item in rand_selected_tools]
 
     x_batch_train = x_seqs[rand_batch_indices]
