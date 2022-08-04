@@ -24,7 +24,7 @@ ff_dim = 128 # Hidden layer size in feed forward network inside transformer # df
 dropout = 0.1
 n_train_batches = 20000
 batch_size = 32
-test_logging_step = 50
+test_logging_step = 100
 train_logging_step = 1000
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
@@ -406,7 +406,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, lowest_t_
     print("Low test prediction precision: {}".format(np.mean(low_te_precision)))
 
     print("Test finished")
-    return test_err.numpy(), test_acc.numpy(), test_categorical_loss.numpy(), np.mean(te_pre_precision)
+    return test_err.numpy(), test_acc.numpy(), test_categorical_loss.numpy(), np.mean(te_pre_precision), np.mean(low_te_precision)
 
 
 def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_t_freq):
@@ -440,6 +440,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     epo_te_batch_categorical_loss = list()
     all_sel_tool_ids = list()
     epo_te_precision = list()
+    epo_low_te_precision = list()
     c_weights = tf.convert_to_tensor(list(c_wts.values()), dtype=tf.float32)
 
     te_lowest_t_ids = utils.get_low_freq_te_samples(test_data, test_labels, tr_t_freq)
@@ -470,11 +471,12 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         print("Step {}/{}, training binary loss: {}, categorical_loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_cat_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            te_loss, te_acc, test_cat_loss, te_prec = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict, te_lowest_t_ids)
+            te_loss, te_acc, test_cat_loss, te_prec, low_te_prec = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict, te_lowest_t_ids)
             epo_te_batch_loss.append(te_loss)
             epo_te_batch_acc.append(te_acc)
             epo_te_batch_categorical_loss.append(test_cat_loss)
             epo_te_precision.append(te_prec)
+            epo_low_te_precision.append(low_te_prec)
         print()
         if (batch+1) % train_logging_step == 0:
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
@@ -493,4 +495,4 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     utils.write_file("log/data/epo_te_batch_categorical_loss.txt", ",".join([str(item) for item in epo_te_batch_categorical_loss]))
     utils.write_file("log/data/epo_te_precision.txt", ",".join([str(item) for item in epo_te_precision]))
     utils.write_file("log/data/all_sel_tool_ids.txt", ",".join([str(item) for item in all_sel_tool_ids]))
-    
+    utils.write_file("log/data/epo_low_te_precision.txt", ",".join([str(item) for item in epo_low_te_precision]))
