@@ -49,24 +49,23 @@ train_logging_step = 2000
 n_test_seqs = batch_size
 learning_rate = 1e-2'''
 
-fig_size = (12, 12)
-font = {'family': 'serif', 'size': 12}
+fig_size = (15, 15)
+font = {'family': 'serif', 'size': 6}
 plt.rc('font', **font)
 
 batch_size = 100
-test_batches = 10
-n_topk = 1
+test_batches = 100
+n_topk = 2
 max_seq_len = 25
 
-base_path = "log_03_08_22_1/" 
+base_path = "log_04_08_22_1/" 
+predict_rnn = False # set to True for RNN model
 #"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
-predict_rnn = False
-#model_path = base_path + "saved_model/382000/tf_model/"
-model_number = 10000
-model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
+model_number = 20000
+model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 '''
  ['dropletutils_read_10x', 'scmap_preprocess_sce']
@@ -95,6 +94,51 @@ def verify_training_sampling(sampled_tool_ids, rev_dict):
 
 
 
+def plot_rnn_transformer(tr_loss, te_loss):
+    # plot training loss
+    tr_pos_plot = [5000, 10000, 20000, 30000, 40000, 75000, 100000]
+    te_pos_plot = [50, 100, 200, 300, 400, 750, 1000]
+
+    print(len(tr_loss), len(te_loss))
+
+    tr_loss_val = [tr_loss[item] for item in tr_pos_plot]
+    te_loss_val = [te_loss[item] for item in te_pos_plot]
+
+    print(tr_loss_val)
+    print(te_loss_val)
+
+    x_val = np.arange(len(tr_loss_val))
+    plt.plot(x_val, tr_loss_val)
+    plt.plot(x_val, te_loss_val)
+    plt.ylabel("Loss")
+    plt.ylim((0.00, 0.07))
+    plt.xlabel("Training steps")
+    plt.xticks(x_val, [str(item) for item in tr_pos_plot])
+    plt.legend(["Training", "Test"])
+    plt.grid(True)
+    plt.title("Transformer training and test loss".format())
+    plt.savefig(base_path + "data/{}_loss.png".format("transformer_tr_te_loss"), dpi=150)
+    plt.show()
+
+    # tr_pos_plot = [5000, 10000, 20000, 30000, 40000, 75000, 100000]
+    rnn_te_prec = [0.22, 0.42, 0.68, 0.84, 0.89, 0.95, 0.9579]
+    transformer_te_prec = [0.79, 0.90, 0.93, 0.94, 0.948, 0.953, 0.950]
+
+    # plot topk precision for RNN and Transformer
+    '''x_val = np.arange(len(rnn_te_prec))
+    #x_val = np.arange(n_epo)
+    plt.plot(x_val, rnn_te_prec)
+    plt.plot(x_val, transformer_te_prec)
+    plt.ylabel("Precision@k")
+    plt.xlabel("Training steps")
+    plt.xticks(x_val, [str(item) for item in tr_pos_plot])
+    plt.legend(["RNN (GRU)", "Transformer"])
+    plt.grid(True)
+    plt.title("(Test) Precision@k for RNN (GRU) (~20 hrs) and Transformer (~ 12 hrs)")
+    plt.savefig(base_path + "data/precision_k_rnn_vs_transformer.png", dpi=150)
+    plt.show()'''
+
+
 def plot_loss_acc(loss, acc, t_value):
     # plot training loss
     x_val = np.arange(len(loss))
@@ -104,7 +148,7 @@ def plot_loss_acc(loss, acc, t_value):
     plt.xlabel("Training steps")
     plt.grid(True)
     plt.title("{} vs loss".format(t_value))
-    plt.savefig("log/data/{}_loss.pdf".format(t_value), dpi=200)
+    plt.savefig(base_path + "/data/{}_loss.pdf".format(t_value), dpi=200)
     plt.show()
 
     # plot driver gene precision vs epochs
@@ -115,7 +159,7 @@ def plot_loss_acc(loss, acc, t_value):
     plt.xlabel("Training steps")
     plt.grid(True)
     plt.title("{} steps vs accuracy".format(t_value))
-    plt.savefig("log/data/{}_acc.pdf".format(t_value), dpi=200)
+    plt.savefig(base_path + "/data/{}_acc.pdf".format(t_value), dpi=200)
     plt.show()
 
 
@@ -136,6 +180,8 @@ def visualize_loss_acc():
 
     plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
     plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "test")
+    
+    #plot_rnn_transformer(epo_tr_batch_loss, epo_te_batch_loss)
 
 
 def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
@@ -254,7 +300,7 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
 
 def predict_seq():
 
-    visualize_loss_acc()
+    #visualize_loss_acc()
 
     #r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
@@ -297,10 +343,10 @@ def predict_seq():
     #test_batches = 10000
     for j in range(test_batches):
         #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
-        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
-        '''print(j * batch_size, j * batch_size + batch_size)
+        #te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        print(j * batch_size, j * batch_size + batch_size)
         te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]'''
+        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
         #print()
         #print(bat_ind)
         #print()
@@ -323,7 +369,7 @@ def predict_seq():
                     prediction, att_weights = tf_loaded_model([t_ip], training=False)
                 prediction_wts = tf.math.multiply(c_weights, prediction)
 
-                n_topk = len(target_pos)
+                #n_topk = len(target_pos)
                 top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
                 top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
@@ -382,53 +428,37 @@ def predict_seq():
                 print("--------------------------")
                 #generated_attention(att_weights, i_names, f_dict, r_dict)
         
-            print("Batch {} prediction finished ...".format(j+1))
-
-    print("Precision@{}: {}".format(n_topk, np.mean(precision)))
-    print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+                print("Batch {} prediction finished ...".format(j+1))
+    if test_batches > 0:
+        print("Precision@{}: {}".format(n_topk, np.mean(precision)))
+        print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
     #print("Low precision on labels: {}".format(error_label_tools))
     #print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
     # individual tools or seq prediction
-    print()
+    '''print()
     n_topk_ind = 20
     print("Predicting for individual tools or sequences")
     t_ip = np.zeros((25))
     t_ip[0] = int(f_dict["ncbi_eutils_esearch"])
     #t_ip[1] = int(f_dict["mtbls520_05a_import_maf"])
     #t_ip[2] = int(f_dict["mtbls520_06_import_traits"])
-    #t_ip[3] = int(f_dict["mtbls520_07_species_diversity"])
-
+    #t_ip[3] = int(f_dict["mtbls520_07_species_diversity"])'''
+    n_topk_ind = 10
+    t_ip = np.zeros((25))
     '''t_ip[0] = int(f_dict["bowtie2"])
     t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
     t_ip[3] = int(f_dict["hicexplorer_hicpca"])'''
-    # Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
-    # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
-    # bowtie2,lofreq_call
-    # dropletutils_read_10x
-    # 'bowtie2', 'hicexplorer_hicbuildmatrix'
-    # 'mtbls520_04_preparations', 'mtbls520_05a_import_maf', 'mtbls520_06_import_traits', 'mtbls520_07_species_diversity'
-    # ctsm_fates: 'xarray_metadata_info', 'interactive_tool_panoply', 'xarray_select', '__EXTRACT_DATASET__'
-    # msnbase_readmsdata: 'abims_xcms_xcmsSet', 'xcms_export_samplemetadata', 'xcms_plot_chromatogram'
-    # ncbi_eutils_esearch: ncbi_eutils_elink
-    # 1_create_conf: '5_calc_stat', '4_filter_sam', '2_map', 'conf4circos', '3_filter_single_pair'
-    # pdaug_peptide_data_access: pdaug_tsvtofasta
-    # 'pdaug_peptide_data_access', 'pdaug_tsvtofasta': 'pdaug_peptide_sequence_analysis', 'pdaug_fishers_plot', 'pdaug_sequence_property_based_descriptors'
-    # 'rankprodthree', 'Remove beginning1', 'cat1', 'Cut1', 'interactions': 'biotranslator', 'awkscript'
-    # rpExtractSink: rpCompletion', 'retropath2'
-    # 'EMBOSS: transeq101', 'ncbi_makeblastdb', 'ncbi_blastp_wrapper', 'blast_parser', 'hcluster_sg'
-    # 'Remove beginning1', 'Cut1', 'param_value_from_file', 'kc-align', 'sarscov2formatter', 'hyphy_fel'
-    # abims_CAMERA_annotateDiffreport
-    # cooler_csort_pairix
-    # mycrobiota-split-multi-otutable
-    # XY_Plot_1
-    # mycrobiota-qc-report
-    # 1_create_conf
-    # RNAlien
-    # ont_fast5_api_multi_to_single_fast5
+
+    t_ip[0] = int(f_dict["porechop"])
+    #t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
+    #t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
+    #t_ip[3] = int(f_dict["hicexplorer_hicpca"])
+
+    last_tool_name = "porechop"
     
     
-    last_tool_name = "ncbi_eutils_esearch"
+    
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
     if predict_rnn is True:
         prediction = tf_loaded_model([t_ip], training=False)
@@ -449,11 +479,18 @@ def predict_seq():
    
     c_tools = [r_dict[str(item)] for item in compatible_tools[str(f_dict[last_tool_name])]]
 
+    pred_intersection = list(set(pred_tools).intersection(set(c_tools)))
+    prd_te_prec = len(pred_intersection) / float(n_topk_ind)
+
     print("Tool sequence: {}".format([r_dict[str(item)] for item in t_ip[label_pos]]))
     print()
     print("Compatible true tools: {}, size: {}".format(c_tools, len(c_tools)))
     print()
     print("Predicted top {} tools: {}".format(n_topk_ind, pred_tools))
+    print()
+    print("Predicted precision: {}".format(prd_te_prec))
+    print()
+    print("Correctly predicted tools: {}".format(pred_intersection))
     print()
     print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
 
@@ -484,13 +521,71 @@ def plot_attention_head(in_tokens, out_tokens, attention):
   #print(attention)
   ax = plt.gca()
   ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
+  #ax.matshow(attention[:len(in_tokens), :])
 
-  '''ax.set_xticks(range(len(in_tokens)))
+  ax.set_xticks(range(len(in_tokens)))
   ax.set_yticks(range(len(out_tokens)))
 
   ax.set_xticklabels(in_tokens, rotation=90)
-  ax.set_yticklabels(out_tokens)'''
+  ax.set_yticklabels(out_tokens)
 
+
+'''
+
+# Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
+    # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
+    # bowtie2,lofreq_call
+    # dropletutils_read_10x
+    # 'bowtie2', 'hicexplorer_hicbuildmatrix'
+    # 'mtbls520_04_preparations', 'mtbls520_05a_import_maf', 'mtbls520_06_import_traits', 'mtbls520_07_species_diversity'
+    # ctsm_fates: 'xarray_metadata_info', 'interactive_tool_panoply', 'xarray_select', '__EXTRACT_DATASET__'
+    # msnbase_readmsdata: 'abims_xcms_xcmsSet', 'xcms_export_samplemetadata', 'xcms_plot_chromatogram'
+    # ncbi_eutils_esearch: ncbi_eutils_elink
+    # 1_create_conf: '5_calc_stat', '4_filter_sam', '2_map', 'conf4circos', '3_filter_single_pair'
+    # pdaug_peptide_data_access: pdaug_tsvtofasta
+    # 'pdaug_peptide_data_access', 'pdaug_tsvtofasta': 'pdaug_peptide_sequence_analysis', 'pdaug_fishers_plot', 'pdaug_sequence_property_based_descriptors'
+    # 'rankprodthree', 'Remove beginning1', 'cat1', 'Cut1', 'interactions': 'biotranslator', 'awkscript'
+    # rpExtractSink: rpCompletion', 'retropath2'
+    # 'EMBOSS: transeq101', 'ncbi_makeblastdb', 'ncbi_blastp_wrapper', 'blast_parser', 'hcluster_sg'
+    # 'Remove beginning1', 'Cut1', 'param_value_from_file', 'kc-align', 'sarscov2formatter', 'hyphy_fel'
+    # abims_CAMERA_annotateDiffreport
+    # cooler_csort_pairix
+    # mycrobiota-split-multi-otutable
+    # XY_Plot_1
+    # mycrobiota-qc-report
+    # 1_create_conf
+    # RNAlien
+    # ont_fast5_api_multi_to_single_fast5
+
+    Incorrect predictions
+    # scpipe, 
+    # 'delly_call', 'delly_merge'
+    # 'gmap_build', 'gsnap', 'sam_to_bam', 'filter', 'assign', 'polyA'
+    # 'bioext_bealign', 'tn93_filter', 'hyphy_cfel'
+    # sklearn_build_pipeline
+    # split_file_to_collection', 'rdock_rbdock', 'xchem_pose_scoring', 'sucos_max_score'
+    # 'rmcontamination', 'scaffold2fasta'  
+    # 'rmcontamination', 'scaffold2fasta'
+    # cat1', 'fastq_filter', 'cshl_fastq_to_fasta', 'filter_16s_wrapper_script 1'
+    # 'TrimPrimer', 'Flash', 'Btrim64', 'uparse'
+    # 'cshl_fastq_to_fasta', 'cshl_fastx_trimmer', 'fasta_tabular_converter
+    # CryptoGenotyper
+    # cooler_makebins
+    # 'PeakPickerHiRes', 'FileFilter', 'xcms-find-peaks', 'xcms-collect-peaks'
+    # 'TrimPrimer', 'Flash', 'Btrim64'
+    # cryptotyper
+    # ip_spot_detection_2d
+    # 'picard_FastqToSam', 'TagBamWithReadSequenceExtended', 'FilterBAM', 'BAMTagHistogram'
+    # 'basic_illumination', 'ashlar'
+    # 'cghub_genetorrent', 'gatk_indel'
+    # 'FeatureFinderMultiplex', 'HighResPrecursorMassCorrector', 'MSGFPlusAdapter', 'PeptideIndexer', 'IDMerger', 'ConsensusID'
+    # 'PeakPickerHiRes', 'FileFilter', 'xcms-find-peaks', 'xcms-collect-peaks'
+    # 'PeakPickerHiRes', 'FileFilter', 'xcms-find-peaks', 'xcms-collect-peaks', 'xcms-group-peaks', 'xcms-blankfilter', 'xcms-dilutionfilter', 'camera-annotate-peaks', 'camera-group-fwhm', 'camera-find-adducts', 'camera-find-isotopes'
+    # 'minfi_read450k', 'minfi_mset'
+    # 'msnbase_readmsdata', 'abims_xcms_xcmsSet', 'abims_xcms_refine'
+    
+
+'''
 
 '''
 def predict_seq():

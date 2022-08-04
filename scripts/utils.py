@@ -37,6 +37,28 @@ def save_h5_data(inp, tar, filename):
     hf_file.close()
 
 
+def get_low_freq_te_samples(te_data, te_target, tr_freq_dict):
+    lowest_tool_te_ids = list()
+    lowest_t_ids = get_lowest_tools(tr_freq_dict)
+    
+    print(sorted([int(item) for item in lowest_t_ids]), len(lowest_t_ids))
+    print()
+    for i, te_labels in enumerate(te_target):
+        tools_pos = np.where(te_labels > 0)[0]
+        tools_pos = [str(int(item)) for item in tools_pos]
+        intersection = list(set(tools_pos).intersection(set(lowest_t_ids)))
+        
+        if len(intersection ) > 0:
+            lowest_tool_te_ids.append(i)
+            lowest_t_ids = [item for item in lowest_t_ids if item not in intersection]
+            '''print(i, tools_pos, len(tools_pos))
+            print(i, intersection, len(intersection))
+            print(i, lowest_t_ids, len(lowest_t_ids))
+            print("---")
+            print()'''
+    #print("lowest_t_ids: ", lowest_tool_te_ids)
+    return lowest_tool_te_ids
+
 def save_processed_workflows(file_path, unique_paths):
     workflow_paths_unique = ""
     for path in unique_paths:
