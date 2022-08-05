@@ -40,24 +40,15 @@ def save_h5_data(inp, tar, filename):
 def get_low_freq_te_samples(te_data, te_target, tr_freq_dict):
     lowest_tool_te_ids = list()
     lowest_t_ids = get_lowest_tools(tr_freq_dict)
-    
-    print(sorted([int(item) for item in lowest_t_ids]), len(lowest_t_ids))
-    print()
     for i, te_labels in enumerate(te_target):
         tools_pos = np.where(te_labels > 0)[0]
         tools_pos = [str(int(item)) for item in tools_pos]
         intersection = list(set(tools_pos).intersection(set(lowest_t_ids)))
-        
         if len(intersection ) > 0:
             lowest_tool_te_ids.append(i)
             lowest_t_ids = [item for item in lowest_t_ids if item not in intersection]
-            '''print(i, tools_pos, len(tools_pos))
-            print(i, intersection, len(intersection))
-            print(i, lowest_t_ids, len(lowest_t_ids))
-            print("---")
-            print()'''
-    #print("lowest_t_ids: ", lowest_tool_te_ids)
     return lowest_tool_te_ids
+
 
 def save_processed_workflows(file_path, unique_paths):
     workflow_paths_unique = ""
@@ -127,15 +118,13 @@ def verify_oversampling_freq(oversampled_tr_data, rev_dict):
     freq_dict_names = dict()
     for tr_data in oversampled_tr_data:
         t_pos = np.where(tr_data > 0)[0]
-        last_tool_id = str(int(tr_data[t_pos[-1]])) #str(int(tr_data[-1]))
-        #print(tr_data, last_tool_id)
+        last_tool_id = str(int(tr_data[t_pos[-1]]))
         if last_tool_id not in freq_dict:
             freq_dict[last_tool_id] = 0
             freq_dict_names[rev_dict[int(last_tool_id)]] = 0
         freq_dict[last_tool_id] += 1
         freq_dict_names[rev_dict[int(last_tool_id)]] += 1
     s_freq = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
-    #print(s_freq)
     return s_freq
 
 

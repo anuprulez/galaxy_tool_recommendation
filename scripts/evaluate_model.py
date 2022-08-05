@@ -50,21 +50,21 @@ n_test_seqs = batch_size
 learning_rate = 1e-2'''
 
 fig_size = (15, 15)
-font = {'family': 'serif', 'size': 6}
+font = {'family': 'serif', 'size': 12}
 plt.rc('font', **font)
 
 batch_size = 100
-test_batches = 100
+test_batches = 18
 n_topk = 2
 max_seq_len = 25
 
-base_path = "log_04_08_22_1/" 
+base_path = "log_local_05_08_22_0/" 
 predict_rnn = False # set to True for RNN model
 #"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 20000
+model_number = 10000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 '''
@@ -81,7 +81,6 @@ def verify_training_sampling(sampled_tool_ids, rev_dict):
     freq_dict_names = dict()
     sampled_tool_ids = sampled_tool_ids.split(",")
     for tr_tool_id in sampled_tool_ids:
-        tr_tool_id = tr_tool_id  #str(int(tr_data[-1]))
         if tr_tool_id not in freq_dict:
             freq_dict[tr_tool_id] = 0
             freq_dict_names[rev_dict[str(tr_tool_id)]] = 0
@@ -163,6 +162,17 @@ def plot_loss_acc(loss, acc, t_value):
     plt.show()
 
 
+def plot_low_te_prec(prec, t_value):
+    x_val_acc = np.arange(len(prec))
+    plt.plot(x_val_acc, prec)
+    plt.ylabel("Precision@k".format(t_value))
+    plt.xlabel("Training steps")
+    plt.grid(True)
+    plt.title("{} steps vs accuracy".format(t_value))
+    plt.savefig(base_path + "/data/{}_low_acc.pdf".format(t_value), dpi=200)
+    plt.show()
+
+
 def visualize_loss_acc():
     epo_tr_batch_loss = utils.read_file(base_path + "data/epo_tr_batch_loss.txt").split(",")
 
@@ -180,6 +190,11 @@ def visualize_loss_acc():
 
     plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
     plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "test")
+
+    epo_te_low_batch_acc = utils.read_file(base_path + "data/epo_low_te_precision.txt").split(",")
+    epo_te_low_batch_acc = [np.round(float(item), 4) for item in epo_te_low_batch_acc]
+
+    plot_low_te_prec(epo_te_low_batch_acc, "Low test")
     
     #plot_rnn_transformer(epo_tr_batch_loss, epo_te_batch_loss)
 
@@ -298,15 +313,46 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict):
     return unrolled_x, unrolled_y, label_tools, rand_batch_indices
 
 
+def verify_tool_in_tr(r_dict):
+    all_sel_tool_ids = utils.read_file(base_path + "data/all_sel_tool_ids.txt").split(",")
+
+    freq_dict = dict()
+    freq_dict_names = dict()
+
+    for tool_id in all_sel_tool_ids:
+        if tool_id not in freq_dict:
+            freq_dict[tool_id] = 0
+
+        if tool_id not in freq_dict_names:
+            freq_dict_names[r_dict[str(int(tool_id))]] = 0
+
+        freq_dict[tool_id] += 1
+        freq_dict_names[r_dict[str(int(tool_id))]] += 1
+
+    s_freq = dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True))
+    s_freq_names = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
+
+
+    utils.write_file(base_path + "data/s_freq_names.txt", s_freq_names)
+    utils.write_file(base_path + "data/s_freq.txt", s_freq)
+
+    return s_freq
+
+
 def predict_seq():
 
     #visualize_loss_acc()
 
-    #r_dict = utils.read_file(base_path + "data/rev_dict.txt")
-    #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
-    #verify_training_sampling(tool_tr_freq, r_dict)
+    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
+    
+    #s
+    verify_training_sampling(tool_tr_freq, r_dict)
+    
+    all_tr_label_tools = verify_tool_in_tr(r_dict)
 
-    #sys.exit()
+    all_tr_label_tools_ids = list(all_tr_label_tools.keys())
+    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
     
     path_test_data = base_path + "saved_data/test.h5"
     file_obj = h5py.File(path_test_data, 'r')
@@ -347,21 +393,15 @@ def predict_seq():
         print(j * batch_size, j * batch_size + batch_size)
         te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
         y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
-        #print()
-        #print(bat_ind)
-        #print()
-        #print(selected_label_tools)
-        #print()
-        #select_tools = [r_dict[str(item)] for item in selected_label_tools]
-        #print("Selected label tools: {}".format(select_tools))
 
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
-            
-            #print("Test batch selected tool and index: {}, {}".format(bat_ind[i], select_tools[i]))
-            #s_label_tool = select_tools[i]
+
             t_ip = inp
             if len(np.where(inp > 0)[0]) < max_seq_len:
-                target_pos = np.where(tar > 0)[0]
+                real_prediction = np.where(tar > 0)[0]
+                target_pos = list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
+                print("Real predicted tools: {}, Actual trained labels: {}".format(real_prediction, target_pos))
+                print()
                 t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
                 if predict_rnn is True:
                     prediction = tf_loaded_model([t_ip], training=False)
@@ -369,7 +409,7 @@ def predict_seq():
                     prediction, att_weights = tf_loaded_model([t_ip], training=False)
                 prediction_wts = tf.math.multiply(c_weights, prediction)
 
-                #n_topk = len(target_pos)
+                n_topk = len(target_pos)
                 top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
                 top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
@@ -397,16 +437,19 @@ def predict_seq():
                     true_pub_conn = published_connections[last_i_tool]
                     #print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
                     #print()
-                    intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
-                    intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
-                    pub_prec = float(len(intersection_pub)) / len(pred_tools)
-                    pub_prec_list.append(pub_prec)
-                    pub_prec_wt = float(len(intersection_pub_wt)) / len(pred_tools)
-                else:
-                    pub_prec = False
-                    pub_prec_wt = False
-                pred_precision = float(len(intersection)) / len(pred_tools)
-                precision.append(pred_precision)
+                    if len(pred_tools) > 0:
+                        intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
+                        intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
+                        pub_prec = float(len(intersection_pub)) / len(pred_tools)
+                        pub_prec_list.append(pub_prec)
+                        pub_prec_wt = float(len(intersection_pub_wt)) / len(pred_tools)
+                    else:
+                        pub_prec = False
+                        pub_prec_wt = False
+
+                if len(pred_tools) > 0:
+                    pred_precision = float(len(intersection)) / len(pred_tools)
+                    precision.append(pred_precision)
 
                 if pred_precision < 1.0:
             
@@ -429,9 +472,46 @@ def predict_seq():
                 #generated_attention(att_weights, i_names, f_dict, r_dict)
         
                 print("Batch {} prediction finished ...".format(j+1))
+
+    te_lowest_t_ids = utils.read_file(base_path + "data/te_lowest_t_ids.txt")
+    lowest_t_ids = [int(item) for item in te_lowest_t_ids.split(",")]
+    
+    low_te_data = test_input[lowest_t_ids]
+    low_te_labels = test_target[lowest_t_ids]
+    print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
+    #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
+
+    low_te_precision = list()
+    for i, (low_inp, low_tar) in enumerate(zip(low_te_data, low_te_labels)):
+        if predict_rnn is True:
+            low_prediction = tf_loaded_model([low_inp], training=False)
+        else:
+            low_prediction, att_weights = tf_loaded_model([low_inp], training=False)
+        print(low_prediction.shape)
+        low_label_pos = np.where(low_tar > 0)[0]
+        low_topk_pred = tf.math.top_k(low_prediction, k=len(low_label_pos), sorted=True)
+        low_topk_pred = low_topk_pred.indices.numpy()[0]
+        print(low_topk_pred)
+        #try:
+        low_label_pos_tools = [r_dict[str(item)] for item in low_label_pos if item not in [0, "0"]]
+        low_pred_label_pos_tools = [r_dict[str(item)] for item in low_topk_pred if item not in [0, "0"]]
+
+        low_intersection = list(set(low_label_pos_tools).intersection(set(low_pred_label_pos_tools)))
+        low_pred_precision = float(len(low_intersection)) / len(low_label_pos)
+        low_te_precision.append(low_pred_precision)
+        print("Low: True labels: {}".format(low_label_pos_tools))
+        print()
+        print("Low: Predicted labels: {}, Precision: {}".format(low_pred_label_pos_tools, low_pred_precision))
+        print("-----------------")
+        print()
+
     if test_batches > 0:
         print("Precision@{}: {}".format(n_topk, np.mean(precision)))
         print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+
+    if len(lowest_t_ids) > 0:
+        print("Low test prediction precision: {}".format(np.mean(low_te_precision)))
+
     #print("Low precision on labels: {}".format(error_label_tools))
     #print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
     # individual tools or seq prediction

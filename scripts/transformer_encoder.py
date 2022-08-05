@@ -4,6 +4,7 @@ import random
 import numpy as np
 import subprocess
 import sys
+import json
 
 import tensorflow as tf
 #import tensorflow_addons as tfa
@@ -23,8 +24,8 @@ ff_dim = 128 # Hidden layer size in feed forward network inside transformer # df
 #d_dim = 512
 dropout = 0.1
 n_train_batches = 20000
-batch_size = 32
-test_logging_step = 100
+batch_size = 1024
+test_logging_step = 10
 train_logging_step = 1000
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
@@ -65,6 +66,7 @@ class TransformerBlock(Layer):
         # TODO: Add kernel_regularizer='l2', activity_regularizer='l2' to MHA
         self.ffn = Sequential(
             [Dense(ff_dim, activation="relu"),
+             #Dense(ff_dim, activation="relu"),
              Dense(embed_dim),]
         )
         self.layernorm1 = LayerNormalization(epsilon=1e-6)
@@ -229,34 +231,36 @@ def sample_balanced_te_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size):
     return unrolled_x, unrolled_y, sel_tools     
 
 
-def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq):
+def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq, prev_sel_tools):
     batch_y_tools = list(ulabels_tr_y_dict.keys())
     random.shuffle(batch_y_tools)
     label_tools = list()
     rand_batch_indices = list()
     sel_tools = list()
 
-    label_weights = list()
-    for la in batch_y_tools:
+    unselected_tools = [t for t in batch_y_tools if t not in prev_sel_tools]
+
+    '''label_weights = list()
+    for la in unselected_tools:
         label_weights.append(tr_t_freq[str(la)])
     max_wt = np.max(label_weights)
     norm_label_weights = [max_wt / float(item) for item in label_weights]
 
-    selected_tools = random.choices(batch_y_tools, weights=norm_label_weights, k=int(b_size / 4))
+    selected_tools = random.choices(unselected_tools, weights=norm_label_weights, k=int(b_size / 4))'''
 
-    rem_tools = list(set(batch_y_tools).difference(set(selected_tools)))
+    #rem_tools = unselected_tools #list(set(unselected_tools).difference(set(selected_tools)))
 
     '''print(sorted(selected_tools), len(selected_tools))
     print()
     print(sorted(rem_tools), len(rem_tools))
     print()'''
-    rand_selected_tools = rem_tools[:int(float(3 * b_size) / 4)]
+    rand_selected_tools = unselected_tools[:b_size] #rem_tools[:int(float(3 * b_size) / 4)]
     #print(sorted(rand_selected_tools), len(rand_selected_tools))
     #print()
-    rand_selected_tools.extend(selected_tools)
+    #rand_selected_tools.extend(selected_tools)
 
     #print(sorted(rand_selected_tools), len(rand_selected_tools))
-    sel_tools.extend(selected_tools)
+    #sel_tools.extend(selected_tools)
 
     #print("rand_selected_tools: ", len(rand_selected_tools))
     #print("U rand_selected_tools: ", len(list(set(rand_selected_tools))))'''
@@ -335,7 +339,42 @@ def compute_topk_acc(y_true, y_pred, k):
     return topk_acc
 
 
-def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, lowest_t_ids):
+def circular_sampling(x_seqs, y_labels, ulabels_tr_y_dict, b_size, prev_tool_selection):
+    batch_y_tools = list(ulabels_tr_y_dict.keys())
+    random.shuffle(batch_y_tools)
+    rand_batch_indices = list()
+    sel_tools = list()
+
+    unselected_tools = list(set(prev_tool_selection).difference(set(batch_y_tools)))
+
+    '''for l_tool in unselected_tools:
+        seq_indices = ulabels_tr_y_dict[l_tool]
+        random.shuffle(seq_indices)
+        
+        if len(rand_batch_indices) < b_size:
+            sel_tools.append(l_tool)
+            rand_batch_indices.extend(seq_indices)
+            rand_batch_indices = list(set(rand_batch_indices))
+        print(l_tool, len(seq_indices), len(rand_batch_indices), rand_batch_indices)
+        print("--")  
+
+        if len(rand_batch_indices) >= b_size:
+            random.shuffle(rand_batch_indices)
+            rand_batch_indices = rand_batch_indices[:b_size]
+            print(len(seq_indices), len(rand_batch_indices), rand_batch_indices)
+            print("--")
+            break'''
+    print(sel_tools, rand_batch_indices)
+    print()
+    x_batch_train = x_seqs[rand_batch_indices]
+    y_batch_train = y_labels[rand_batch_indices]
+
+    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
+    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
+    return unrolled_x, unrolled_y, sel_tools
+
+
+def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels, lowest_t_ids):
     #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
     #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     print("Total test data size: ", te_x.shape, te_y.shape)
@@ -347,11 +386,13 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, lowest_t_
 
     #test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
     #test_categorical_loss = categorical_ce(y_train_batch, te_pred_batch)
-   
+    
     te_pre_precision = list()
     
     for idx in range(te_pred_batch.shape[0]):
-        label_pos = np.where(y_train_batch[idx] > 0)[0]
+        label_pos = np.where(y_train_batch[idx] > 0)[0] 
+        # verify only on those tools are present in labels in training
+        label_pos = list(set(tr_labels).intersection(set(label_pos)))
         topk_pred = tf.math.top_k(te_pred_batch[idx], k=len(label_pos), sorted=True)
         topk_pred = topk_pred.indices.numpy()
         try:
@@ -361,18 +402,18 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, lowest_t_
             label_pos_tools = [r_dict[item] for item in label_pos if item not in [0, "0"]]
             pred_label_pos_tools = [r_dict[item] for item in topk_pred if item not in [0, "0"]]
         intersection = list(set(label_pos_tools).intersection(set(pred_label_pos_tools)))
-        pred_precision = float(len(intersection)) / len(topk_pred)
-        te_pre_precision.append(pred_precision)
-        print("True labels: {}".format(label_pos_tools))
-        print()
-        print("Predicted labels: {}, Precision: {}".format(pred_label_pos_tools, pred_precision))
-        print("-----------------")
-        print()
+        if len(topk_pred) > 0:
+            pred_precision = float(len(intersection)) / len(topk_pred)
+            te_pre_precision.append(pred_precision)
+            print("True labels: {}".format(label_pos_tools))
+            print()
+            print("Predicted labels: {}, Precision: {}".format(pred_label_pos_tools, pred_precision))
+            print("-----------------")
+            print()
+
         if idx == te_batch_size - 1:
             break
 
-    
-    
     print("Test lowest ids", len(lowest_t_ids))
     low_te_data = te_x[lowest_t_ids]
     low_te_labels = te_y[lowest_t_ids]
@@ -382,6 +423,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, lowest_t_
     low_te_precision = list()
     for idx in range(low_te_pred_batch.shape[0]):
         low_label_pos = np.where(low_te_labels[idx] > 0)[0]
+        low_label_pos = list(set(tr_labels).intersection(set(low_label_pos)))
         low_topk_pred = tf.math.top_k(low_te_pred_batch[idx], k=len(low_label_pos), sorted=True)
         low_topk_pred = low_topk_pred.indices.numpy()
         try:
@@ -391,14 +433,16 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, lowest_t_
             low_label_pos_tools = [r_dict[item] for item in low_label_pos if item not in [0, "0"]]
             low_pred_label_pos_tools = [r_dict[item] for item in low_topk_pred if item not in [0, "0"]]
 
+        
         low_intersection = list(set(low_label_pos_tools).intersection(set(low_pred_label_pos_tools)))
-        low_pred_precision = float(len(low_intersection)) / len(low_label_pos)
-        low_te_precision.append(low_pred_precision)
-        print("Low: True labels: {}".format(low_label_pos_tools))
-        print()
-        print("Low: Predicted labels: {}, Precision: {}".format(low_pred_label_pos_tools, low_pred_precision))
-        print("-----------------")
-        print()
+        if len(low_label_pos) > 0:
+            low_pred_precision = float(len(low_intersection)) / len(low_label_pos)
+            low_te_precision.append(low_pred_precision)
+            print("Low: True labels: {}".format(low_label_pos_tools))
+            print()
+            print("Low: Predicted labels: {}, Precision: {}".format(low_pred_label_pos_tools, low_pred_precision))
+            print("-----------------")
+            print()
 
     print("Test binary error: {}, test categorical loss: {}, test categorical accuracy: {}".format(test_err.numpy(), test_categorical_loss.numpy(), test_acc.numpy()))
     print("Test prediction precision: {}".format(np.mean(te_pre_precision)))
@@ -429,6 +473,9 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_labels)
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_labels)
 
+    #print("u_tr_y_labels_dict", len(u_tr_y_labels_dict))
+    trained_on_labels = [int(item) for item in list(u_tr_y_labels_dict.keys())]
+
     #sys.exit()
     #x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
 
@@ -447,12 +494,16 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     utils.write_file("log/data/te_lowest_t_ids.txt", ",".join([str(item) for item in te_lowest_t_ids]))
 
     #sys.exit()
+    sel_tools = list()
     for batch in range(n_train_batches):
+        
         print("Total train data size: ", train_data.shape, train_labels.shape)
         
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
-        x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq)
+        #print("Selected tool ids: ", sel_tools)
+        x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq, sel_tools)
+        #x_train, y_train, sel_tools = circular_sampling(train_data, train_labels, u_tr_y_labels_dict, batch_size)
         print("Batch train data size: ", x_train.shape, y_train.shape)
         #print("Batch total test data size: ", x_train.shape, test_labels.shape)
         all_sel_tool_ids.extend(sel_tools)
@@ -471,7 +522,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         print("Step {}/{}, training binary loss: {}, categorical_loss: {}, training accuracy: {}".format(batch+1, n_train_batches, tr_loss.numpy(), tr_cat_loss.numpy(), tr_acc.numpy()))
         if (batch+1) % test_logging_step == 0:
             print("Predicting on test data...")
-            te_loss, te_acc, test_cat_loss, te_prec, low_te_prec = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict, te_lowest_t_ids)
+            te_loss, te_acc, test_cat_loss, te_prec, low_te_prec = validate_model(test_data, test_labels, model, f_dict, r_dict, u_te_y_labels_dict, trained_on_labels, te_lowest_t_ids)
             epo_te_batch_loss.append(te_loss)
             epo_te_batch_acc.append(te_acc)
             epo_te_batch_categorical_loss.append(test_cat_loss)
@@ -487,6 +538,10 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
                 os.mkdir(tf_path)
             tf.saved_model.save(model, tf_model_save)
 
+    new_dict = dict()
+    for k in u_tr_y_labels_dict:
+        new_dict[str(k)] = ",".join([str(item) for item in u_tr_y_labels_dict[k]])
+
     utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
     utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
     utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
@@ -496,3 +551,4 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     utils.write_file("log/data/epo_te_precision.txt", ",".join([str(item) for item in epo_te_precision]))
     utils.write_file("log/data/all_sel_tool_ids.txt", ",".join([str(item) for item in all_sel_tool_ids]))
     utils.write_file("log/data/epo_low_te_precision.txt", ",".join([str(item) for item in epo_low_te_precision]))
+    utils.write_file("log/data/u_tr_y_labels_dict.txt", new_dict)  
