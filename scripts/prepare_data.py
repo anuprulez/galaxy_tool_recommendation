@@ -103,36 +103,6 @@ class PrepareData:
         return sub_paths_pos
 
 
-    def prepare_paths_labels_dictionary(self, dictionary, reverse_dictionary, paths, compatible_next_tools):
-        """
-        Create a dictionary of sequences with their labels for training and test paths
-        """
-        paths_labels = dict()
-        random.shuffle(paths)
-        for item in paths:
-            if item and item not in "":
-                tools = item.split(",")
-                label = tools[-1]
-                train_tools = tools[:len(tools) - 1]
-                last_but_one_name = reverse_dictionary[int(train_tools[-1])]
-                try:
-                    compatible_tools = compatible_next_tools[last_but_one_name].split(",")
-                except Exception:
-                    continue
-                if len(compatible_tools) > 0:
-                    compatible_tools_ids = [str(dictionary[x]) for x in compatible_tools]
-                    compatible_tools_ids.append(label)
-                    composite_labels = ",".join(compatible_tools_ids)
-                train_tools = ",".join(train_tools)
-                if train_tools in paths_labels:
-                    paths_labels[train_tools] += "," + composite_labels
-                else:
-                    paths_labels[train_tools] = composite_labels
-        for item in paths_labels:
-            paths_labels[item] = ",".join(list(set(paths_labels[item].split(","))))
-        return paths_labels
-
-
     def prepare_input_target_paths(self, dictionary, reverse_dictionary, paths):
         input_target_paths = dict()
         compatible_tools = dict()
@@ -175,35 +145,28 @@ class PrepareData:
     def pad_paths_one_tool_target(self, multi_paths, compatible_tools, d_size, rev_dict, dictionary):
         d_size = len(multi_paths)
         input_mat = np.zeros([d_size, self.max_tool_sequence_len])
-        target_mat = np.zeros([d_size, len(dictionary) + 1]) #np.zeros([d_size, self.max_tool_sequence_len]) #np.zeros([d_size, 2]) #
+        target_mat = np.zeros([d_size, len(dictionary) + 1])
         train_counter = 0
-        #print(multi_paths)
         for input_seq, target_seq_tools in list(multi_paths.items()):
-            #print(input_seq, target_seq_tools)
             input_seq_tools = input_seq.split(",")
             last_i_tool = input_seq_tools[-1]
             l_name = rev_dict[int(last_i_tool)]
+            composite_targets = []
             compatible_targets = []
             if last_i_tool in compatible_tools:
                 compatible_targets = compatible_tools[last_i_tool]
             for id_pos, pos in enumerate(input_seq_tools):
-                #print("input seq: ", train_counter, id_pos, pos)
                 input_mat[train_counter][id_pos] = int(pos)
-            for k, t_label in enumerate(target_seq_tools):
-                target_mat[train_counter][int(t_label)] = 1
-                #print("target seq: ", train_counter, k, t_label)
-            for c_tool in compatible_targets:
+            composite_targets = list(set(target_seq_tools).union(set(compatible_targets)))
+            composite_targets = list(set(composite_targets))
+            for c_tool in composite_targets:
                 target_mat[train_counter][int(c_tool)] = 1
-                #print("compatible target seq: ", train_counter, c_tool)
-            '''print(input_mat[train_counter])
-            print()
-            print(target_mat[train_counter])
-            print("---------------")'''
+
             train_counter += 1
-        #sys.exit()
         print("Final data size: ", input_mat.shape, target_mat.shape)
         train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)
         return train_data, train_labels, test_data, test_labels
+
 
     def split_test_train_data(self, multilabels_paths):
         """
@@ -278,7 +241,6 @@ class PrepareData:
         sorted_dict = dict(sorted(last_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
         print(sorted_dict)
         print()
-        #sys.exit()
         utils.write_file("log/data/train_tool_freq.txt", sorted_dict)
         return sorted_dict
 
@@ -373,7 +335,6 @@ class PrepareData:
 
         print(tr_tool_freq, len(tr_tool_freq))
 
-        #sys.exit()
         # Predict tools usage
         print("Predicting tools' usage...")
         usage_pred = predict_tool_usage.ToolPopularity()

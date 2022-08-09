@@ -50,21 +50,29 @@ n_test_seqs = batch_size
 learning_rate = 1e-2'''
 
 fig_size = (15, 15)
-font = {'family': 'serif', 'size': 12}
+font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
 batch_size = 100
-test_batches = 18
+test_batches = 1000
 n_topk = 2
-max_seq_len = 25
+max_seq_len = 1
 
-base_path = "log_local_05_08_22_0/" 
+
+#base_path = "log_08_08_22_2/"
+#predict_rnn = False # set to True for RNN model
+
+base_path = "log_08_08_22_2/"
 predict_rnn = False # set to True for RNN model
+
+# log_08_08_22_2 (finish time: 40,000 steps in 158683.60082054138 seconds)
+# log_08_08_22_rnn (finish time: 40,000 steps in 173480.83078551292 seconds)
+
 #"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 10000
+model_number = 40000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 '''
@@ -346,8 +354,9 @@ def predict_seq():
     r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
     
-    #s
-    verify_training_sampling(tool_tr_freq, r_dict)
+    #sys.exit()
+
+    #verify_training_sampling(tool_tr_freq, r_dict)
     
     all_tr_label_tools = verify_tool_in_tr(r_dict)
 
@@ -355,6 +364,8 @@ def predict_seq():
     all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
     
     path_test_data = base_path + "saved_data/test.h5"
+
+
     file_obj = h5py.File(path_test_data, 'r')
     
     #test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
@@ -397,11 +408,11 @@ def predict_seq():
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
 
             t_ip = inp
-            if len(np.where(inp > 0)[0]) < max_seq_len:
+            if len(np.where(inp > 0)[0]) == max_seq_len:
                 real_prediction = np.where(tar > 0)[0]
                 target_pos = list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
-                print("Real predicted tools: {}, Actual trained labels: {}".format(real_prediction, target_pos))
-                print()
+                #print("Real predicted tools: {}, Actual trained labels: {}".format(real_prediction, target_pos))
+                #print()
                 t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
                 if predict_rnn is True:
                     prediction = tf_loaded_model([t_ip], training=False)
@@ -451,7 +462,7 @@ def predict_seq():
                     pred_precision = float(len(intersection)) / len(pred_tools)
                     precision.append(pred_precision)
 
-                if pred_precision < 1.0:
+                if pred_precision < 2.0:
             
                     print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
                     print()
@@ -474,31 +485,38 @@ def predict_seq():
                 print("Batch {} prediction finished ...".format(j+1))
 
     te_lowest_t_ids = utils.read_file(base_path + "data/te_lowest_t_ids.txt")
-    lowest_t_ids = [int(item) for item in te_lowest_t_ids.split(",")]
+    lowest_t_ids = [] #[int(item) for item in te_lowest_t_ids.split(",")]
     
     low_te_data = test_input[lowest_t_ids]
     low_te_labels = test_target[lowest_t_ids]
-    print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
+    #print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
     #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
-
+    low_topk = 5
     low_te_precision = list()
     for i, (low_inp, low_tar) in enumerate(zip(low_te_data, low_te_labels)):
         if predict_rnn is True:
             low_prediction = tf_loaded_model([low_inp], training=False)
         else:
             low_prediction, att_weights = tf_loaded_model([low_inp], training=False)
-        print(low_prediction.shape)
+        #print(low_prediction.shape)
+        
         low_label_pos = np.where(low_tar > 0)[0]
-        low_topk_pred = tf.math.top_k(low_prediction, k=len(low_label_pos), sorted=True)
+        low_topk = len(low_label_pos)
+        low_topk_pred = tf.math.top_k(low_prediction, k=low_topk, sorted=True)
         low_topk_pred = low_topk_pred.indices.numpy()[0]
-        print(low_topk_pred)
-        #try:
+        
         low_label_pos_tools = [r_dict[str(item)] for item in low_label_pos if item not in [0, "0"]]
         low_pred_label_pos_tools = [r_dict[str(item)] for item in low_topk_pred if item not in [0, "0"]]
 
         low_intersection = list(set(low_label_pos_tools).intersection(set(low_pred_label_pos_tools)))
         low_pred_precision = float(len(low_intersection)) / len(low_label_pos)
         low_te_precision.append(low_pred_precision)
+        
+        #low_inp = low_inp.numpy()
+        low_inp_pos = np.where(low_inp > 0)[0]
+
+        print("Low: test tool sequence: {}".format([r_dict[str(int(item))] for item in low_inp[low_inp_pos]]))
+        print()
         print("Low: True labels: {}".format(low_label_pos_tools))
         print()
         print("Low: Predicted labels: {}, Precision: {}".format(low_pred_label_pos_tools, low_pred_precision))
@@ -523,21 +541,19 @@ def predict_seq():
     #t_ip[1] = int(f_dict["mtbls520_05a_import_maf"])
     #t_ip[2] = int(f_dict["mtbls520_06_import_traits"])
     #t_ip[3] = int(f_dict["mtbls520_07_species_diversity"])'''
-    n_topk_ind = 10
+    n_topk_ind = 20
     t_ip = np.zeros((25))
     '''t_ip[0] = int(f_dict["bowtie2"])
     t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
     t_ip[3] = int(f_dict["hicexplorer_hicpca"])'''
 
-    t_ip[0] = int(f_dict["porechop"])
-    #t_ip[1] = int(f_dict["hicexplorer_hicbuildmatrix"])
-    #t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
-    #t_ip[3] = int(f_dict["hicexplorer_hicpca"])
-
-    last_tool_name = "porechop"
-    
-    
+    t_ip[0] = int(f_dict["snpEff_build_gb"])
+    t_ip[1] = int(f_dict["bwa_mem"])
+    t_ip[2] = int(f_dict["samtools_view"])
+    #t_ip[3] = int(f_dict["samtools_view"])
+    # 'snpEff_build_gb', 'bwa_mem', 'samtools_view',
+    last_tool_name = "samtools_view"
     
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
     if predict_rnn is True:
@@ -573,14 +589,16 @@ def predict_seq():
     print("Correctly predicted tools: {}".format(pred_intersection))
     print()
     print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
-
-    #generated_attention(att_weights, i_names, f_dict, r_dict)
+    print()
+    '''if predict_rnn is False:
+        generated_attention(att_weights, i_names, f_dict, r_dict)'''
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):
 
-    #print(attention_weights.shape)
+    print(attention_weights.shape)
     attention_heads = tf.squeeze(attention_weights, 0)
+    n_heads = attention_heads.shape[1]
     i_names = i_names.split(",")
     in_tokens = i_names
     out_tokens = i_names
@@ -600,17 +618,21 @@ def plot_attention_head(in_tokens, out_tokens, attention):
   #translated_tokens = translated_tokens[1:]
   #print(attention)
   ax = plt.gca()
-  ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
-  #ax.matshow(attention[:len(in_tokens), :])
+  #ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
+  ax.matshow(attention)
 
-  ax.set_xticks(range(len(in_tokens)))
+  '''ax.set_xticks(range(len(in_tokens)))
   ax.set_yticks(range(len(out_tokens)))
 
   ax.set_xticklabels(in_tokens, rotation=90)
-  ax.set_yticklabels(out_tokens)
+  ax.set_yticklabels(out_tokens)'''
 
 
 '''
+
+Tool seqs for good attention plots:
+'schicexplorer_schicqualitycontrol', 'schicexplorer_schicnormalize', 'schicexplorer_schicclustersvl'
+
 
 # Tested tools: porechop, schicexplorer_schicqualitycontrol, schicexplorer_schicclustersvl, snpeff_sars_cov_2
     # sarscov2genomes, ivar_covid_aries_consensus, remove_nucleotide_deletions, pangolin
@@ -635,7 +657,8 @@ def plot_attention_head(in_tokens, out_tokens, attention):
     # mycrobiota-qc-report
     # 1_create_conf
     # RNAlien
-    # ont_fast5_api_multi_to_single_fast5
+    # ont_fast5_api_multi_to_single_fast5 
+    # ctb_remIons
 
     Incorrect predictions
     # scpipe, 
