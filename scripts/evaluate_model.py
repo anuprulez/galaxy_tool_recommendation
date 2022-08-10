@@ -54,13 +54,13 @@ font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
 batch_size = 100
-test_batches = 1000
+test_batches = 0
 n_topk = 2
-max_seq_len = 1
+max_seq_len = 10
 
 
-#base_path = "log_08_08_22_2/"
-#predict_rnn = False # set to True for RNN model
+#base_path = "log_08_08_22_rnn/"
+#predict_rnn = True # set to True for RNN model
 
 base_path = "log_08_08_22_2/"
 predict_rnn = False # set to True for RNN model
@@ -72,7 +72,7 @@ predict_rnn = False # set to True for RNN model
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 40000
+model_number = 10000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 '''
@@ -149,7 +149,8 @@ def plot_rnn_transformer(tr_loss, te_loss):
 def plot_loss_acc(loss, acc, t_value):
     # plot training loss
     x_val = np.arange(len(loss))
-    #x_val = np.arange(n_epo)
+    '''if t_value == "test":
+        x_val = 20 * x_val'''
     plt.plot(x_val, loss)
     plt.ylabel("Loss".format(t_value))
     plt.xlabel("Training steps")
@@ -400,10 +401,10 @@ def predict_seq():
     #test_batches = 10000
     for j in range(test_batches):
         #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
-        #te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
-        print(j * batch_size, j * batch_size + batch_size)
-        te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        #print(j * batch_size, j * batch_size + batch_size)
+        #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
+        #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
 
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
 
@@ -548,12 +549,12 @@ def predict_seq():
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
     t_ip[3] = int(f_dict["hicexplorer_hicpca"])'''
 
-    t_ip[0] = int(f_dict["snpEff_build_gb"])
-    t_ip[1] = int(f_dict["bwa_mem"])
-    t_ip[2] = int(f_dict["samtools_view"])
+    t_ip[0] = int(f_dict["anndata_import"])
+    t_ip[1] = int(f_dict["scanpy_filter"])
+    #t_ip[2] = int(f_dict["samtools_view"])
     #t_ip[3] = int(f_dict["samtools_view"])
     # 'snpEff_build_gb', 'bwa_mem', 'samtools_view',
-    last_tool_name = "samtools_view"
+    last_tool_name = "scanpy_filter"
     
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
     if predict_rnn is True:
@@ -686,7 +687,7 @@ Tool seqs for good attention plots:
     # 'PeakPickerHiRes', 'FileFilter', 'xcms-find-peaks', 'xcms-collect-peaks', 'xcms-group-peaks', 'xcms-blankfilter', 'xcms-dilutionfilter', 'camera-annotate-peaks', 'camera-group-fwhm', 'camera-find-adducts', 'camera-find-isotopes'
     # 'minfi_read450k', 'minfi_mset'
     # 'msnbase_readmsdata', 'abims_xcms_xcmsSet', 'abims_xcms_refine'
-    
+    # # 'snpEff_build_gb', 'bwa_mem', 'samtools_view',
 
 '''
 

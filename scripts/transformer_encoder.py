@@ -88,14 +88,14 @@ def create_model(maxlen, vocab_size):
 
 
 embed_dim = 128 # Embedding size for each token d_model
-num_heads = 8 # Number of attention heads
+num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 200
+n_train_batches = 40000
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 100
+train_logging_step = 1000
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
 
@@ -111,21 +111,9 @@ learning_rate = 1e-3 #2e-5 #1e-3
 #Train data:  (414952, 25)
 #Test data:  (103739, 25)
 
-
-#cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-
-#binary_ce = tf.keras.losses.BinaryCrossentropy(from_logits=True, reduction=tf.keras.losses.Reduction.NONE, axis=0)
 binary_ce = tf.keras.losses.BinaryCrossentropy()
-
-binary_fce = tf.keras.losses.BinaryFocalCrossentropy(gamma=2.0)
 binary_acc = tf.keras.metrics.BinaryAccuracy()
-
-cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True) #reduction=tf.keras.losses.Reduction.NONE, axis=0
-
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
-
-categorical_acc = tf.keras.metrics.CategoricalAccuracy()
-
 
 
 class TransformerBlock(Layer):
@@ -227,34 +215,6 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     return unrolled_x, unrolled_y
 
 
-'''def get_u_tr_labels(x_tr, y_tr):
-    labels = list()
-    labels_pos_dict = dict()
-    for i, (item_x, item_y) in enumerate(zip(x_tr, y_tr)):
-        all_pos = list()
-        label_pos = np.where(item_y > 0)[0]
-        data_pos = np.where(item_x > 0)[0]
-        data_pos = [int(a) for a in item_x[data_pos]]
-        labels.extend(label_pos)
-        labels.extend(data_pos) 
-        all_pos.extend(label_pos)
-        all_pos.extend(data_pos)
-        #print(i, item_x, data_pos, label_pos)
-        #print()
-        for label in all_pos:
-            if label not in labels_pos_dict:
-                labels_pos_dict[label] = list()
-            labels_pos_dict[label].append(i)
-
-    u_labels = list(set(labels))
-    
-    for item in labels_pos_dict:
-        labels_pos_dict[item] = list(set(labels_pos_dict[item]))
-    #print(labels_pos_dict)
-    #sys.exit()
-    return u_labels, labels_pos_dict'''
-
-
 def get_u_tr_labels(y_tr):
     labels = list()
     labels_pos_dict = dict()
@@ -307,43 +267,16 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq,
     sel_tools = list()
 
     unselected_tools = [t for t in batch_y_tools if t not in prev_sel_tools]
+    rand_selected_tools = unselected_tools[:b_size]
 
-    '''label_weights = list()
-    for la in unselected_tools:
-        label_weights.append(tr_t_freq[str(la)])
-    max_wt = np.max(label_weights)
-    norm_label_weights = [max_wt / float(item) for item in label_weights]
-
-    selected_tools = random.choices(unselected_tools, weights=norm_label_weights, k=int(b_size / 4))'''
-
-    #rem_tools = unselected_tools #list(set(unselected_tools).difference(set(selected_tools)))
-
-    '''print(sorted(selected_tools), len(selected_tools))
-    print()
-    print(sorted(rem_tools), len(rem_tools))
-    print()'''
-    rand_selected_tools = unselected_tools[:b_size] #rem_tools[:int(float(3 * b_size) / 4)]
-    #print(sorted(rand_selected_tools), len(rand_selected_tools))
-    #print()
-    #rand_selected_tools.extend(selected_tools)
-
-    #print(sorted(rand_selected_tools), len(rand_selected_tools))
-    #sel_tools.extend(selected_tools)
-
-    #print("rand_selected_tools: ", len(rand_selected_tools))
-    #print("U rand_selected_tools: ", len(list(set(rand_selected_tools))))'''
-    
     for l_tool in rand_selected_tools:
         seq_indices = ulabels_tr_y_dict[l_tool]
         random.shuffle(seq_indices)
         rand_s_index = np.random.randint(0, len(seq_indices), 1)[0]
         rand_sample = seq_indices[rand_s_index]
         sel_tools.append(l_tool)
-        #if rand_sample not in rand_batch_indices:
         rand_batch_indices.append(rand_sample)
         label_tools.append(l_tool)
-    #sys.exit()
-    #selected_t_freq = [tr_t_freq[str(item)] for item in rand_selected_tools]
 
     x_batch_train = x_seqs[rand_batch_indices]
     y_batch_train = y_labels[rand_batch_indices]
@@ -353,44 +286,10 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq,
     return unrolled_x, unrolled_y, sel_tools
 
 
-'''def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq):
-    batch_y_tools = list(ulabels_tr_y_dict.keys())
-    random.shuffle(batch_y_tools)
-
-    label_tools = list()
-    rand_batch_indices = list()
-    sel_tools = list()
-    for l_tool in batch_y_tools:
-        seq_indices = ulabels_tr_y_dict[l_tool]
-        random.shuffle(seq_indices)
-        rand_s_index = np.random.randint(0, len(seq_indices), 1)[0]
-        rand_sample = seq_indices[rand_s_index]
-        sel_tools.append(l_tool)
-        if rand_sample not in rand_batch_indices:
-            rand_batch_indices.append(rand_sample)
-            label_tools.append(l_tool)
-        if len(rand_batch_indices) == b_size:
-            break
-    
-    x_batch_train = x_seqs[rand_batch_indices]
-    y_batch_train = y_labels[rand_batch_indices]
-
-    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
-    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
-    return unrolled_x, unrolled_y, sel_tools'''
-
-
 def compute_loss(y_true, y_pred, class_weights=None):
     y_true = tf.cast(y_true, dtype=tf.float32)
     loss = binary_ce(y_true, y_pred)
-    #loss = binary_fce(y_true, y_pred)
-    #cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
     categorical_loss = categorical_ce(y_true, y_pred)
-    #print(loss, focal_loss)
-    #print(y_true, y_pred)
-    #y_true = tf.cast(y_true, dtype=tf.float32)
-    #sigmoid_cross_entropy_with_logits = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
-    #print("sigmoid_cross_entropy_with_logits: ", tf.reduce_mean(sigmoid_cross_entropy_with_logits))
 
     if class_weights is None:
         return tf.reduce_mean(loss), categorical_loss
@@ -399,47 +298,11 @@ def compute_loss(y_true, y_pred, class_weights=None):
 
 def compute_acc(y_true, y_pred):
     return binary_acc(y_true, y_pred)
-    #return categorical_acc(y_true, y_pred)
 
 
 def compute_topk_acc(y_true, y_pred, k):
     topk_acc = tf.keras.metrics.TopKCategoricalAccuracy(k=k)
     return topk_acc
-
-
-def circular_sampling(x_seqs, y_labels, ulabels_tr_y_dict, b_size, prev_tool_selection):
-    batch_y_tools = list(ulabels_tr_y_dict.keys())
-    random.shuffle(batch_y_tools)
-    rand_batch_indices = list()
-    sel_tools = list()
-
-    unselected_tools = list(set(prev_tool_selection).difference(set(batch_y_tools)))
-
-    '''for l_tool in unselected_tools:
-        seq_indices = ulabels_tr_y_dict[l_tool]
-        random.shuffle(seq_indices)
-        
-        if len(rand_batch_indices) < b_size:
-            sel_tools.append(l_tool)
-            rand_batch_indices.extend(seq_indices)
-            rand_batch_indices = list(set(rand_batch_indices))
-        print(l_tool, len(seq_indices), len(rand_batch_indices), rand_batch_indices)
-        print("--")  
-
-        if len(rand_batch_indices) >= b_size:
-            random.shuffle(rand_batch_indices)
-            rand_batch_indices = rand_batch_indices[:b_size]
-            print(len(seq_indices), len(rand_batch_indices), rand_batch_indices)
-            print("--")
-            break'''
-    print(sel_tools, rand_batch_indices)
-    print()
-    x_batch_train = x_seqs[rand_batch_indices]
-    y_batch_train = y_labels[rand_batch_indices]
-
-    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
-    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
-    return unrolled_x, unrolled_y, sel_tools
 
 
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels, lowest_t_ids):
@@ -452,9 +315,6 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
     test_acc = tf.reduce_mean(compute_acc(y_train_batch, te_pred_batch))
     test_err, test_categorical_loss = compute_loss(y_train_batch, te_pred_batch)
 
-    #test_err = tf.reduce_mean(binary_ce(y_train_batch, te_pred_batch))
-    #test_categorical_loss = categorical_ce(y_train_batch, te_pred_batch)
-    
     te_pre_precision = list()
     
     for idx in range(te_pred_batch.shape[0]):
@@ -524,27 +384,15 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     print("Train transformer...")
     vocab_size = len(f_dict) + 1
     maxlen = train_data.shape[1]
-    #enc_optimizer = tf.keras.optimizers.RMSprop()
-    #learning_rate = CustomSchedule(ff_dim, 2000)
-    #enc_optimizer = tfa.optimizers.AdamW(learning_rate=learning_rate, weight_decay=0.01)
+
     enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     model = create_model(maxlen, vocab_size)
-    #model.compile(optimizer='adam', loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
-    #u_train_labels, ulabels_tr_dict = get_u_labels(train_data)
-    #u_te_labels, ulabels_te_dict  = get_u_labels(test_data)
-
-    #u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_data, train_labels)
-    #u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_data, test_labels)
 
     u_tr_y_labels, u_tr_y_labels_dict = get_u_tr_labels(train_labels)
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_labels)
 
-    #print("u_tr_y_labels_dict", len(u_tr_y_labels_dict))
     trained_on_labels = [int(item) for item in list(u_tr_y_labels_dict.keys())]
-
-    #sys.exit()
-    #x_train, y_train = sample_balanced(train_data, train_labels, u_train_labels)
 
     epo_tr_batch_loss = list()
     epo_tr_batch_acc = list()
@@ -560,25 +408,19 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     te_lowest_t_ids = utils.get_low_freq_te_samples(test_data, test_labels, tr_t_freq)
     utils.write_file("log/data/te_lowest_t_ids.txt", ",".join([str(item) for item in te_lowest_t_ids]))
 
-    #sys.exit()
     sel_tools = list()
     for batch in range(n_train_batches):
         
         print("Total train data size: ", train_data.shape, train_labels.shape)
-        
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
-        #print("Selected tool ids: ", sel_tools)
         x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq, sel_tools)
-        #x_train, y_train, sel_tools = circular_sampling(train_data, train_labels, u_tr_y_labels_dict, batch_size)
         print("Batch train data size: ", x_train.shape, y_train.shape)
-        #print("Batch total test data size: ", x_train.shape, test_labels.shape)
         all_sel_tool_ids.extend(sel_tools)
-        #utils.verify_oversampling_freq(x_train, r_dict)
-        #sys.exit()
+
         with tf.GradientTape() as model_tape:
             prediction, att_weights = model([x_train], training=True)
-            tr_loss, tr_cat_loss = compute_loss(y_train, prediction) #c_weights
+            tr_loss, tr_cat_loss = compute_loss(y_train, prediction)
             tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(tr_loss, trainable_vars)

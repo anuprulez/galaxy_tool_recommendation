@@ -161,7 +161,6 @@ class PrepareData:
             composite_targets = list(set(composite_targets))
             for c_tool in composite_targets:
                 target_mat[train_counter][int(c_tool)] = 1
-
             train_counter += 1
         print("Final data size: ", input_mat.shape, target_mat.shape)
         train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)
