@@ -92,10 +92,10 @@ num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 2000
+n_train_batches = 40000
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 100
+train_logging_step = 1000
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
 
@@ -131,8 +131,8 @@ class TransformerBlock(Layer):
         self.dropout1 = Dropout(rate)
         self.dropout2 = Dropout(rate)
 
-    def call(self, inputs, training):
-        attn_output, attention_scores = self.att(inputs, inputs, inputs, return_attention_scores=True, training=training)
+    def call(self, inputs, a_mask, training):
+        attn_output, attention_scores = self.att(inputs, inputs, inputs, attention_mask=a_mask, return_attention_scores=True, training=training)
         attn_output = self.dropout1(attn_output, training=training)
         out1 = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(out1)
@@ -143,8 +143,8 @@ class TransformerBlock(Layer):
 class TokenAndPositionEmbedding(Layer):
     def __init__(self, maxlen, vocab_size, embed_dim):
         super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim)
+        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
+        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
 
     def call(self, x):
         maxlen = tf.shape(x)[-1]
@@ -156,16 +156,17 @@ class TokenAndPositionEmbedding(Layer):
 
 def create_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
+    a_mask = Input(shape=(1, maxlen))
     embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
     transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
-    x, weights = transformer_block(x)
+    x, weights = transformer_block(x, a_mask)
     x = GlobalAveragePooling1D()(x)
     x = Dropout(dropout)(x)
     x = Dense(ff_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
     outputs = Dense(vocab_size, activation="sigmoid")(x)
-    return Model(inputs=inputs, outputs=[outputs, weights])
+    return Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
 
 
 def get_u_labels(y_train):
@@ -307,13 +308,15 @@ def compute_topk_acc(y_true, y_pred, k):
     return topk_acc
 
 
+
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels, lowest_t_ids):
     #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
     #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     print("Total test data size: ", te_x.shape, te_y.shape)
     te_x_batch, y_train_batch, _ = sample_balanced_te_y(te_x, te_y, ulabels_te_dict, te_batch_size)
+    te_mask = utils.create_attention_mask(te_x_batch)
     print("Batch test data size: ", te_x_batch.shape, y_train_batch.shape)
-    te_pred_batch, att_weights = model([te_x_batch], training=False)
+    te_pred_batch, att_weights = model([te_x_batch, te_mask], training=False)
     test_acc = tf.reduce_mean(compute_acc(y_train_batch, te_pred_batch))
     test_err, test_categorical_loss = compute_loss(y_train_batch, te_pred_batch)
 
@@ -347,7 +350,8 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
     print("Test lowest ids", len(lowest_t_ids))
     low_te_data = te_x[lowest_t_ids]
     low_te_labels = te_y[lowest_t_ids]
-    low_te_pred_batch, low_att_weights = model([low_te_data], training=False)
+    low_att_mask = utils.create_attention_mask(low_te_data)
+    low_te_pred_batch, low_att_weights = model([low_te_data, low_att_mask], training=False)
     low_test_err, low_test_categorical_loss = compute_loss(low_te_labels, low_te_pred_batch)
 
     low_te_precision = list()
@@ -417,11 +421,14 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
         x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq, sel_tools)
+        att_mask = utils.create_attention_mask(x_train)
+
         print("Batch train data size: ", x_train.shape, y_train.shape)
+        print("att_mask", att_mask.shape)
         all_sel_tool_ids.extend(sel_tools)
 
         with tf.GradientTape() as model_tape:
-            prediction, att_weights = model([x_train], training=True)
+            prediction, att_weights = model([x_train, att_mask], training=True)
             tr_loss, tr_cat_loss = compute_loss(y_train, prediction)
             tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables

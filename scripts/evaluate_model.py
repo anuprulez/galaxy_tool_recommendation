@@ -53,7 +53,7 @@ fig_size = (15, 15)
 font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
-batch_size = 100
+batch_size = 10
 test_batches = 10
 n_topk = 1
 max_seq_len = 25
@@ -64,7 +64,9 @@ predict_rnn = False
 if predict_rnn is True:
     base_path = "log_08_08_22_rnn/"
 else:
-    base_path = "log_local_11_08_22_2/" #"log_08_08_22_2/"  log_12_08_22_2 log_local_11_08_22_1
+    base_path = "log_local_11_08_22_4/" 
+
+#"log_08_08_22_2/"  log_12_08_22_2 log_local_11_08_22_1 log_local_11_08_22_2 log_local_11_08_22_3
 
 #predict_rnn = True # set to True for RNN model
 
@@ -78,8 +80,8 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 3900
-onnx_model_path = base_path + "saved_model/"
+model_number = 760
+#onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 '''
@@ -413,6 +415,7 @@ def predict_seq():
     c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
 
     m_load_s_time = time.time()
+    print(model_path)
     tf_loaded_model = tf.saved_model.load(model_path)
     m_load_e_time = time.time()
     model_loading_time = m_load_e_time - m_load_s_time
@@ -435,41 +438,51 @@ def predict_seq():
         #print(j * batch_size, j * batch_size + batch_size)
         #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
         #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
+        te_x_mask = utils.create_attention_mask(te_x_batch)
+        print(te_x_batch.shape, te_x_mask.shape)
+        #model([x_train, att_mask], training=True)
+        pred_s_time = time.time()
+        if predict_rnn is True:
+            te_prediction = tf_loaded_model([te_x_batch], training=False)
+        else:
+            te_x_batch = tf.cast(te_x_batch, dtype=tf.float32)
+            te_x_mask = tf.cast(te_x_mask, dtype=tf.float32)
+            te_prediction, att_weights = tf_loaded_model([te_x_batch, te_x_mask], training=False)
+            print("att_weights", att_weights.shape)
+        pred_e_time = time.time()
+        diff_time = pred_e_time - pred_s_time
+        batch_pred_time.append(diff_time)
         
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
 
-            t_ip = inp
+            t_ip = te_x_batch[i]
+            tar = y_train_batch[i]
+            prediction = te_prediction[i]
             if len(np.where(inp > 0)[0]) <= max_seq_len:
+               
                 real_prediction = np.where(tar > 0)[0]
                 target_pos = real_prediction #list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
 
-                t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
-                pred_s_time = time.time()
-                if predict_rnn is True:
-                    prediction = tf_loaded_model([t_ip], training=False)
-                else:
-                    prediction, att_weights = tf_loaded_model([t_ip], training=False)
-                pred_e_time = time.time()
-                diff_time = pred_e_time - pred_s_time
-                batch_pred_time.append(diff_time)
                 prediction_wts = tf.math.multiply(c_weights, prediction)
 
                 n_topk = len(target_pos)
                 top_k = tf.math.top_k(prediction, k=n_topk, sorted=True)
+                print(top_k.indices.numpy())
                 top_k_wts = tf.math.top_k(prediction_wts, k=n_topk, sorted=True)
 
                 t_ip = t_ip.numpy()
                 label_pos = np.where(t_ip > 0)[0]
 
-                i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]  if item not in [0, "0"]])
+                i_names = ",".join([r_dict[str(int(item))] for item in t_ip[label_pos]  if item not in [0, "0"]])
                 t_names = ",".join([r_dict[str(int(item))] for item in target_pos  if item not in [0, "0"]])
 
-                last_i_tool = [r_dict[str(item)] for item in t_ip[label_pos]][-1]
+                last_i_tool = [r_dict[str(int(item))] for item in t_ip[label_pos]][-1]
 
                 true_tools = [r_dict[str(int(item))] for item in target_pos]
 
-                pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
-                pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
+                pred_tools = [r_dict[str(int(item))] for item in top_k.indices.numpy()  if item not in [0, "0"]]
+                pred_tools_wts = [r_dict[str(int(item))] for item in top_k_wts.indices.numpy()  if item not in [0, "0"]]
 
                 intersection = list(set(true_tools).intersection(set(pred_tools)))
 
@@ -495,7 +508,7 @@ def predict_seq():
 
                 if pred_precision < 2.0:
             
-                    print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(item)] for item in t_ip[label_pos]]))
+                    print("Test batch {}, Tool sequence: {}".format(j+1, [r_dict[str(int(item))] for item in t_ip[label_pos]]))
                     print()
                     print("Test batch {}, True tools: {}".format(j+1, true_tools))
                     print()
@@ -513,8 +526,8 @@ def predict_seq():
                     #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
-                generated_attention(att_weights, i_names, f_dict, r_dict)
-        
+                generated_attention(att_weights[i], i_names, f_dict, r_dict)
+                #plot_attention_head_axes(att_weights)
                 print("Batch {} prediction finished ...".format(j+1))
 
     te_lowest_t_ids = utils.read_file(base_path + "data/te_lowest_t_ids.txt")
@@ -522,21 +535,34 @@ def predict_seq():
     
     low_te_data = test_input[lowest_t_ids]
     low_te_labels = test_target[lowest_t_ids]
+    low_te_data_mask = utils.create_attention_mask(low_te_data)
     #print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
     #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
     low_topk = 20
     low_te_precision = list()
     low_te_pred_time = list()
+
+    pred_s_time = time.time()
+    if predict_rnn is True:
+        low_prediction = tf_loaded_model([low_te_data, low_te_data_mask], training=False)
+    else:
+        low_prediction, att_weights = tf_loaded_model([low_inp], training=False)
+    pred_e_time = time.time()
+    low_diff_pred_t = pred_e_time - pred_s_time
+    low_te_pred_time.append(low_diff_pred_t)
+    print("Time taken to predict tools: {} seconds".format(low_diff_pred_t))
+
     for i, (low_inp, low_tar) in enumerate(zip(low_te_data, low_te_labels)):
-        pred_s_time = time.time()
+        '''pred_s_time = time.time()
         if predict_rnn is True:
             low_prediction = tf_loaded_model([low_inp], training=False)
         else:
+            
             low_prediction, att_weights = tf_loaded_model([low_inp], training=False)
         pred_e_time = time.time()
         low_diff_pred_t = pred_e_time - pred_s_time
         low_te_pred_time.append(low_diff_pred_t)
-        print("Time taken to predict tools: {} seconds".format(low_diff_pred_t))
+        print("Time taken to predict tools: {} seconds".format(low_diff_pred_t))'''
         low_label_pos = np.where(low_tar > 0)[0]
         low_topk = len(low_label_pos)
         low_topk_pred = tf.math.top_k(low_prediction, k=low_topk, sorted=True)
@@ -604,10 +630,12 @@ def predict_seq():
     last_tool_name = "heinz"
     
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
+    
     pred_s_time = time.time()
     if predict_rnn is True:
         prediction = tf_loaded_model([t_ip], training=False)
     else:
+        #t_ip_mask = utils.create_attention_mask(t_ip)
         prediction, att_weights = tf_loaded_model([t_ip], training=False)
     pred_e_time = time.time()
     print("Time taken to predict tools: {} seconds".format(pred_e_time - pred_s_time))
@@ -648,9 +676,8 @@ def predict_seq():
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):
-
-    print(attention_weights.shape)
-    attention_heads = tf.squeeze(attention_weights, 0)
+    attention_heads = attention_weights #tf.squeeze(attention_weights, 0)
+    print(attention_heads.shape)
     n_heads = attention_heads.shape[1]
     i_names = i_names.split(",")
     in_tokens = i_names
@@ -679,6 +706,27 @@ def plot_attention_head(in_tokens, out_tokens, attention):
 
   ax.set_xticklabels(in_tokens, rotation=90)
   ax.set_yticklabels(out_tokens)
+
+
+def plot_attention_head_axes(att_weights):
+    seq_len = 25
+    n_heads = 4
+    attention_heads = tf.squeeze(att_weights, 0)
+    attention_heads = attention_heads.numpy()
+    print(attention_heads.shape)
+    #print(attention_heads[0:, 0:])
+    att_flatten = attention_heads.flatten()
+    print(att_flatten.shape)
+    block1 = att_flatten[0: seq_len * n_heads]
+    block1 = block1.reshape((seq_len, n_heads))
+    print(block1.shape)
+    
+    block2 = att_flatten[attention_heads.shape[0] * attention_heads.shape[1]: ]
+    block2 = block2.reshape((attention_heads.shape[0], attention_heads.shape[1]))
+    print(block2.shape)
+    plt.matshow(block1)
+    plt.matshow(block2)
+    plt.show()
 
 '''
 

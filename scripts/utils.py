@@ -51,6 +51,21 @@ def load_onnx_model(model_path):
     #print("Prediction using loaded model...")
     
 
+def create_attention_mask(seq):
+    mask = tf.math.logical_not(tf.cast(tf.math.equal(seq, 0), tf.bool))
+    mask = tf.cast(tf.math.equal(mask, True), tf.int64)
+    mask = mask[:, tf.newaxis, :]
+    #print(seq.shape, seq[:, tf.newaxis, :])
+    #s_t = tf.concat([seq, seq], axis=-1)
+    
+    #print("s_t.shape", s_t.shape)
+    #mask = np.ones((512, 25, 25))
+    
+
+    #mask[seq[:512,:,0]==0] = 0
+    #print(mask)
+    return mask
+
 
 def save_h5_data(inp, tar, filename):
     hf_file = h5py.File(filename, 'w')
