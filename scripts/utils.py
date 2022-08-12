@@ -3,13 +3,17 @@ import numpy as np
 import json
 import h5py
 import random
+import subprocess
 from numpy.random import choice
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
+
 #from tensorflow.compat.v2 import backend as K
 from tensorflow.keras import backend
 #crossentropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+import onnx
+from onnx_tf.backend import prepare
 
 
 def read_file(file_path):
@@ -28,6 +32,24 @@ def write_file(file_path, content):
     remove_file(file_path)
     with open(file_path, "w") as json_file:
         json_file.write(json.dumps(content))
+
+
+def convert_to_onnx(tf_model_save, onnx_model_save):
+    if not os.path.isdir(onnx_model_save):
+        os.mkdir(onnx_model_save)
+    python_shell_script = "python -m tf2onnx.convert --saved-model " + tf_model_save + " --output " + onnx_model_save + "model.onnx" + " --opset 15 "
+    print(python_shell_script)
+    # convert tf/keras model to ONNX and save it to output file
+    subprocess.run(python_shell_script, shell=True, check=True)
+
+def load_onnx_model(model_path):
+    #print("Loading ONNX model...")
+    loaded_model = onnx.load(model_path)
+    tf_loaded_model = prepare(loaded_model)
+    return tf_loaded_model
+    #prediction = tf_loaded_model.run(item, training=False)
+    #print("Prediction using loaded model...")
+    
 
 
 def save_h5_data(inp, tar, filename):

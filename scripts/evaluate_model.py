@@ -54,16 +54,22 @@ font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
 batch_size = 100
-test_batches = 0
-n_topk = 2
-max_seq_len = 10
+test_batches = 10
+n_topk = 1
+max_seq_len = 25
 
 
-#base_path = "log_08_08_22_rnn/"
+predict_rnn = False
+
+if predict_rnn is True:
+    base_path = "log_08_08_22_rnn/"
+else:
+    base_path = "log_local_11_08_22_2/" #"log_08_08_22_2/"  log_12_08_22_2 log_local_11_08_22_1
+
 #predict_rnn = True # set to True for RNN model
 
-base_path = "log_08_08_22_2/"
-predict_rnn = False # set to True for RNN model
+#base_path = "log_08_08_22_2/"
+#predict_rnn = False # set to True for RNN model
 
 # log_08_08_22_2 (finish time: 40,000 steps in 158683.60082054138 seconds)
 # log_08_08_22_rnn (finish time: 40,000 steps in 173480.83078551292 seconds)
@@ -72,7 +78,8 @@ predict_rnn = False # set to True for RNN model
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 10000
+model_number = 3900
+onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
 '''
@@ -99,6 +106,25 @@ def verify_training_sampling(sampled_tool_ids, rev_dict):
     print(s_freq, len(s_freq))
     return s_freq
 
+
+def plot_model_usage_time():
+    steps = [1, 5, 10, 15, 20]
+
+    rnn_time = [9.10, 8.229, 14.79, 10.39, 13.96]
+    transformer_time = [0.92, 2.96, 0.97, 2.02, 1.68] 
+
+    x_val = np.arange(len(steps))
+    plt.plot(x_val, rnn_time)
+    plt.plot(x_val, transformer_time)
+    plt.ylabel("Model usage (load + prediction) time (seconds)")
+    #plt.ylim((0.00, 0.07))
+    plt.xlabel("Top K predictions")
+    plt.xticks(x_val, [str(item) for item in steps])
+    plt.legend(["RNN (GRU)", "Transformer"])
+    plt.grid(True)
+    plt.title("Model usage time comparison between RNN and Transformer".format())
+    plt.savefig(base_path + "data/model_usage_time_rnn_transformer.png", dpi=150)
+    plt.show()
 
 
 def plot_rnn_transformer(tr_loss, te_loss):
@@ -341,7 +367,6 @@ def verify_tool_in_tr(r_dict):
     s_freq = dict(sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True))
     s_freq_names = dict(sorted(freq_dict_names.items(), key=lambda kv: kv[1], reverse=True))
 
-
     utils.write_file(base_path + "data/s_freq_names.txt", s_freq_names)
     utils.write_file(base_path + "data/s_freq.txt", s_freq)
 
@@ -352,17 +377,17 @@ def predict_seq():
 
     #visualize_loss_acc()
 
-    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
-    tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
-    
-    #sys.exit()
+    #plot_model_usage_time()
 
+    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
+    
     #verify_training_sampling(tool_tr_freq, r_dict)
     
-    all_tr_label_tools = verify_tool_in_tr(r_dict)
+    #all_tr_label_tools = verify_tool_in_tr(r_dict)
 
-    all_tr_label_tools_ids = list(all_tr_label_tools.keys())
-    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
+    #all_tr_label_tools_ids = list(all_tr_label_tools.keys())
+    #all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
     
     path_test_data = base_path + "saved_data/test.h5"
 
@@ -387,11 +412,15 @@ def predict_seq():
 
     c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
 
+    m_load_s_time = time.time()
     tf_loaded_model = tf.saved_model.load(model_path)
+    m_load_e_time = time.time()
+    model_loading_time = m_load_e_time - m_load_s_time
 
-    #u_te_labels, ulabels_te_dict  = get_u_labels(test_input)
+    '''print("Saving as ONNX model...")
+    onnx_model_save_path = onnx_model_path + "{}/onnx_model/".format(model_number)
+    utils.convert_to_onnx(model_path, onnx_model_save_path)'''
 
-    #u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_input, test_target)
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_target)
 
     precision = list()
@@ -399,26 +428,30 @@ def predict_seq():
     error_label_tools = list()
     #seq_len = 5
     #test_batches = 10000
+    batch_pred_time = list()
     for j in range(test_batches):
-        #te_x_batch, y_train_batch = sample_balanced(test_input, test_target, ulabels_te_dict)
+
         te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
         #print(j * batch_size, j * batch_size + batch_size)
         #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
         #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
-
+        
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
 
             t_ip = inp
-            if len(np.where(inp > 0)[0]) == max_seq_len:
+            if len(np.where(inp > 0)[0]) <= max_seq_len:
                 real_prediction = np.where(tar > 0)[0]
-                target_pos = list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
-                #print("Real predicted tools: {}, Actual trained labels: {}".format(real_prediction, target_pos))
-                #print()
+                target_pos = real_prediction #list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
+
                 t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
+                pred_s_time = time.time()
                 if predict_rnn is True:
                     prediction = tf_loaded_model([t_ip], training=False)
                 else:
                     prediction, att_weights = tf_loaded_model([t_ip], training=False)
+                pred_e_time = time.time()
+                diff_time = pred_e_time - pred_s_time
+                batch_pred_time.append(diff_time)
                 prediction_wts = tf.math.multiply(c_weights, prediction)
 
                 n_topk = len(target_pos)
@@ -435,8 +468,6 @@ def predict_seq():
 
                 true_tools = [r_dict[str(int(item))] for item in target_pos]
 
-                #print("Selected tool in true tools: {}".format(s_label_tool in true_tools))
-
                 pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
                 pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
 
@@ -447,8 +478,7 @@ def predict_seq():
 
                 if last_i_tool in published_connections:
                     true_pub_conn = published_connections[last_i_tool]
-                    #print("Test batch {}, True published tools: {}".format(j+1, true_pub_conn)) 
-                    #print()
+
                     if len(pred_tools) > 0:
                         intersection_pub = list(set(true_pub_conn).intersection(set(pred_tools)))
                         intersection_pub_wt = list(set(true_pub_conn).intersection(set(pred_tools_wts)))
@@ -478,29 +508,35 @@ def predict_seq():
                     print("Test batch {}, Published precision: {}".format(j+1, pub_prec))
                     print()
                     print("Test batch {}, Published precision with weights: {}".format(j+1, pub_prec_wt))
+                    print()
+                    print("Time taken to predict tools: {} seconds".format(diff_time))
                     #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
-                #generated_attention(att_weights, i_names, f_dict, r_dict)
+                generated_attention(att_weights, i_names, f_dict, r_dict)
         
                 print("Batch {} prediction finished ...".format(j+1))
 
     te_lowest_t_ids = utils.read_file(base_path + "data/te_lowest_t_ids.txt")
-    lowest_t_ids = [] #[int(item) for item in te_lowest_t_ids.split(",")]
+    lowest_t_ids = [int(item) for item in te_lowest_t_ids.split(",")]
     
     low_te_data = test_input[lowest_t_ids]
     low_te_labels = test_target[lowest_t_ids]
     #print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
     #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
-    low_topk = 5
+    low_topk = 20
     low_te_precision = list()
+    low_te_pred_time = list()
     for i, (low_inp, low_tar) in enumerate(zip(low_te_data, low_te_labels)):
+        pred_s_time = time.time()
         if predict_rnn is True:
             low_prediction = tf_loaded_model([low_inp], training=False)
         else:
             low_prediction, att_weights = tf_loaded_model([low_inp], training=False)
-        #print(low_prediction.shape)
-        
+        pred_e_time = time.time()
+        low_diff_pred_t = pred_e_time - pred_s_time
+        low_te_pred_time.append(low_diff_pred_t)
+        print("Time taken to predict tools: {} seconds".format(low_diff_pred_t))
         low_label_pos = np.where(low_tar > 0)[0]
         low_topk = len(low_label_pos)
         low_topk_pred = tf.math.top_k(low_prediction, k=low_topk, sorted=True)
@@ -512,25 +548,31 @@ def predict_seq():
         low_intersection = list(set(low_label_pos_tools).intersection(set(low_pred_label_pos_tools)))
         low_pred_precision = float(len(low_intersection)) / len(low_label_pos)
         low_te_precision.append(low_pred_precision)
-        
-        #low_inp = low_inp.numpy()
+
         low_inp_pos = np.where(low_inp > 0)[0]
 
-        print("Low: test tool sequence: {}".format([r_dict[str(int(item))] for item in low_inp[low_inp_pos]]))
+        print("{}, Low: test tool sequence: {}".format(i, [r_dict[str(int(item))] for item in low_inp[low_inp_pos]]))
         print()
-        print("Low: True labels: {}".format(low_label_pos_tools))
+        print("{},Low: True labels: {}".format(i, low_label_pos_tools))
         print()
-        print("Low: Predicted labels: {}, Precision: {}".format(low_pred_label_pos_tools, low_pred_precision))
+        print("{},Low: Predicted labels: {}, Precision: {}".format(i, low_pred_label_pos_tools, low_pred_precision))
+       
         print("-----------------")
         print()
 
     if test_batches > 0:
-        print("Precision@{}: {}".format(n_topk, np.mean(precision)))
-        print("Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+        print("Batch Precision@{}: {}".format(n_topk, np.mean(precision)))
+        print("Batch Published Precision@{}: {}".format(n_topk, np.mean(pub_prec_list)))
+        print("Batch Trained model loading time: {} seconds".format(model_loading_time))
+        print("Batch average seq pred time: {} seconds".format(np.mean(batch_pred_time)))
+        print("Batch total model loading and pred time: {} seconds".format(model_loading_time + np.mean(batch_pred_time)))
+        print()
 
     if len(lowest_t_ids) > 0:
         print("Low test prediction precision: {}".format(np.mean(low_te_precision)))
-
+        print()
+        print("Low: test average prediction time: {}".format(np.mean(low_te_pred_time)))
+        print()
     #print("Low precision on labels: {}".format(error_label_tools))
     #print("Low precision on labels: {}, # tools: {}".format(list(set(error_label_tools)), len(list(set(error_label_tools)))))
     # individual tools or seq prediction
@@ -549,18 +591,26 @@ def predict_seq():
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
     t_ip[3] = int(f_dict["hicexplorer_hicpca"])'''
 
-    t_ip[0] = int(f_dict["anndata_import"])
-    t_ip[1] = int(f_dict["scanpy_filter"])
-    #t_ip[2] = int(f_dict["samtools_view"])
-    #t_ip[3] = int(f_dict["samtools_view"])
+    t_ip[0] = int(f_dict["deseq2"])
+    t_ip[1] = int(f_dict["tp_cut_tool"])
+    t_ip[2] = int(f_dict["heinz_scoring"])
+    t_ip[3] = int(f_dict["heinz"])
+    #t_ip[4] = int(f_dict["prokka"])
+    #t_ip[5] = int(f_dict["roary"]) 
+    #t_ip[6] = int(f_dict["Cut1"])
+    #t_ip[7] = int(f_dict["cat1"])
+    #t_ip[8] = int(f_dict["anndata_manipulate"])
     # 'snpEff_build_gb', 'bwa_mem', 'samtools_view',
-    last_tool_name = "scanpy_filter"
+    last_tool_name = "heinz"
     
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
+    pred_s_time = time.time()
     if predict_rnn is True:
         prediction = tf_loaded_model([t_ip], training=False)
     else:
         prediction, att_weights = tf_loaded_model([t_ip], training=False)
+    pred_e_time = time.time()
+    print("Time taken to predict tools: {} seconds".format(pred_e_time - pred_s_time))
     prediction_cwts = tf.math.multiply(c_weights, prediction)
 
     top_k = tf.math.top_k(prediction, k=n_topk_ind, sorted=True)
@@ -574,7 +624,9 @@ def predict_seq():
     pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
     pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
    
-    c_tools = [r_dict[str(item)] for item in compatible_tools[str(f_dict[last_tool_name])]]
+    c_tools = []
+    if str(f_dict[last_tool_name]) in compatible_tools:
+        c_tools = [r_dict[str(item)] for item in compatible_tools[str(f_dict[last_tool_name])]]
 
     pred_intersection = list(set(pred_tools).intersection(set(c_tools)))
     prd_te_prec = len(pred_intersection) / float(n_topk_ind)
@@ -591,8 +643,8 @@ def predict_seq():
     print()
     print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
     print()
-    '''if predict_rnn is False:
-        generated_attention(att_weights, i_names, f_dict, r_dict)'''
+    if predict_rnn is False:
+        generated_attention(att_weights, i_names, f_dict, r_dict)
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):
@@ -619,15 +671,14 @@ def plot_attention_head(in_tokens, out_tokens, attention):
   #translated_tokens = translated_tokens[1:]
   #print(attention)
   ax = plt.gca()
-  #ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
-  ax.matshow(attention)
+  ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
+  #ax.matshow(attention)
 
-  '''ax.set_xticks(range(len(in_tokens)))
+  ax.set_xticks(range(len(in_tokens)))
   ax.set_yticks(range(len(out_tokens)))
 
   ax.set_xticklabels(in_tokens, rotation=90)
-  ax.set_yticklabels(out_tokens)'''
-
+  ax.set_yticklabels(out_tokens)
 
 '''
 

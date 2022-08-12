@@ -151,16 +151,18 @@ class PrepareData:
             input_seq_tools = input_seq.split(",")
             last_i_tool = input_seq_tools[-1]
             l_name = rev_dict[int(last_i_tool)]
-            composite_targets = []
-            compatible_targets = []
-            if last_i_tool in compatible_tools:
-                compatible_targets = compatible_tools[last_i_tool]
             for id_pos, pos in enumerate(input_seq_tools):
                 input_mat[train_counter][id_pos] = int(pos)
-            composite_targets = list(set(target_seq_tools).union(set(compatible_targets)))
-            composite_targets = list(set(composite_targets))
-            for c_tool in composite_targets:
+
+            if last_i_tool in compatible_tools:
+                compatible_targets = compatible_tools[last_i_tool]
+            
+            for k, t_label in enumerate(target_seq_tools):
+                target_mat[train_counter][int(t_label)] = 1
+
+            for c_tool in compatible_targets:
                 target_mat[train_counter][int(c_tool)] = 1
+
             train_counter += 1
         print("Final data size: ", input_mat.shape, target_mat.shape)
         train_data, test_data, train_labels, test_labels = train_test_split(input_mat, target_mat, test_size=self.test_share, random_state=42)

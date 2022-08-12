@@ -92,10 +92,10 @@ num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 40000
+n_train_batches = 2000
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 1000
+train_logging_step = 100
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
 
@@ -112,6 +112,7 @@ learning_rate = 1e-3 #2e-5 #1e-3
 #Test data:  (103739, 25)
 
 binary_ce = tf.keras.losses.BinaryCrossentropy()
+binary_fce = tf.keras.losses.BinaryFocalCrossentropy(gamma=5)
 binary_acc = tf.keras.metrics.BinaryAccuracy()
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
@@ -131,7 +132,7 @@ class TransformerBlock(Layer):
         self.dropout2 = Dropout(rate)
 
     def call(self, inputs, training):
-        attn_output, attention_scores = self.att(inputs, inputs, return_attention_scores=True, training=training)
+        attn_output, attention_scores = self.att(inputs, inputs, inputs, return_attention_scores=True, training=training)
         attn_output = self.dropout1(attn_output, training=training)
         out1 = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(out1)
@@ -142,8 +143,8 @@ class TransformerBlock(Layer):
 class TokenAndPositionEmbedding(Layer):
     def __init__(self, maxlen, vocab_size, embed_dim):
         super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
+        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim)
+        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim)
 
     def call(self, x):
         maxlen = tf.shape(x)[-1]
@@ -288,7 +289,8 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq,
 
 def compute_loss(y_true, y_pred, class_weights=None):
     y_true = tf.cast(y_true, dtype=tf.float32)
-    loss = binary_ce(y_true, y_pred)
+    #loss = binary_ce(y_true, y_pred)
+    loss = binary_fce(y_true, y_pred)
     categorical_loss = categorical_ce(y_true, y_pred)
 
     if class_weights is None:
@@ -446,6 +448,12 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
             if not os.path.isdir(tf_path):
                 os.mkdir(tf_path)
             tf.saved_model.save(model, tf_model_save)
+
+            onnx_model_save = base_path + "{}/onnx_model/".format(batch+1)
+            if not os.path.isdir(tf_path):
+                os.mkdir(onnx_model_save)
+            
+            #utils.convert_to_onnx(tf_model_save, onnx_model_save)
 
     new_dict = dict()
     for k in u_tr_y_labels_dict:
