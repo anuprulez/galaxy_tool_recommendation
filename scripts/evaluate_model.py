@@ -53,8 +53,8 @@ fig_size = (15, 15)
 font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
-batch_size = 10
-test_batches = 10
+batch_size = 100
+test_batches = 1
 n_topk = 1
 max_seq_len = 25
 
@@ -80,7 +80,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 760
+model_number = 3000
 #onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
@@ -440,13 +440,14 @@ def predict_seq():
         #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
         #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
         te_x_mask = utils.create_attention_mask(te_x_batch)
-        print(te_x_batch.shape, te_x_mask.shape)
+        te_x_batch = tf.cast(te_x_batch, dtype=tf.float32, name="input_2")
+        print(te_x_batch, te_x_mask.shape)
         #model([x_train, att_mask], training=True)
         pred_s_time = time.time()
+        
         if predict_rnn is True:
             te_prediction = tf_loaded_model([te_x_batch], training=False)
         else:
-            te_x_batch = tf.cast(te_x_batch, dtype=tf.float32)
             te_x_mask = tf.cast(te_x_mask, dtype=tf.float32)
             te_prediction, att_weights = tf_loaded_model([te_x_batch, te_x_mask], training=False)
             print("att_weights", att_weights.shape)
@@ -536,6 +537,7 @@ def predict_seq():
     low_te_data = test_input[lowest_t_ids]
     low_te_labels = test_target[lowest_t_ids]
     low_te_data_mask = utils.create_attention_mask(low_te_data)
+    low_te_data = tf.cast(low_te_data, dtype=tf.float32)
     #print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
     #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
     low_topk = 20
@@ -544,9 +546,10 @@ def predict_seq():
 
     pred_s_time = time.time()
     if predict_rnn is True:
-        low_prediction = tf_loaded_model([low_te_data, low_te_data_mask], training=False)
+        bat_low_prediction = tf_loaded_model(low_te_data, training=False)
     else:
-        low_prediction, att_weights = tf_loaded_model([low_inp], training=False)
+        low_te_data_mask = tf.cast(low_te_data_mask, dtype=tf.float32)
+        bat_low_prediction, att_weights = tf_loaded_model([low_te_data, low_te_data_mask], training=False)
     pred_e_time = time.time()
     low_diff_pred_t = pred_e_time - pred_s_time
     low_te_pred_time.append(low_diff_pred_t)
@@ -563,20 +566,24 @@ def predict_seq():
         low_diff_pred_t = pred_e_time - pred_s_time
         low_te_pred_time.append(low_diff_pred_t)
         print("Time taken to predict tools: {} seconds".format(low_diff_pred_t))'''
+        low_prediction = bat_low_prediction[i]
+        low_tar = low_te_labels[i]
         low_label_pos = np.where(low_tar > 0)[0]
+
         low_topk = len(low_label_pos)
         low_topk_pred = tf.math.top_k(low_prediction, k=low_topk, sorted=True)
-        low_topk_pred = low_topk_pred.indices.numpy()[0]
+        low_topk_pred = low_topk_pred.indices.numpy()
         
-        low_label_pos_tools = [r_dict[str(item)] for item in low_label_pos if item not in [0, "0"]]
-        low_pred_label_pos_tools = [r_dict[str(item)] for item in low_topk_pred if item not in [0, "0"]]
+        low_label_pos_tools = [r_dict[str(int(item))] for item in low_label_pos if item not in [0, "0"]]
+        low_pred_label_pos_tools = [r_dict[str(int(item))] for item in low_topk_pred if item not in [0, "0"]]
 
         low_intersection = list(set(low_label_pos_tools).intersection(set(low_pred_label_pos_tools)))
         low_pred_precision = float(len(low_intersection)) / len(low_label_pos)
         low_te_precision.append(low_pred_precision)
 
         low_inp_pos = np.where(low_inp > 0)[0]
-
+        low_inp = low_inp.numpy()
+        print(low_inp, low_inp_pos)
         print("{}, Low: test tool sequence: {}".format(i, [r_dict[str(int(item))] for item in low_inp[low_inp_pos]]))
         print()
         print("{},Low: True labels: {}".format(i, low_label_pos_tools))
@@ -630,13 +637,14 @@ def predict_seq():
     last_tool_name = "heinz"
     
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
+    t_ip = tf.cast(t_ip, dtype=tf.float32)
     
     pred_s_time = time.time()
     if predict_rnn is True:
         prediction = tf_loaded_model([t_ip], training=False)
     else:
-        #t_ip_mask = utils.create_attention_mask(t_ip)
-        prediction, att_weights = tf_loaded_model([t_ip], training=False)
+        t_ip_mask = utils.create_attention_mask(t_ip)
+        prediction, att_weights = tf_loaded_model([t_ip, t_ip_mask], training=False)
     pred_e_time = time.time()
     print("Time taken to predict tools: {} seconds".format(pred_e_time - pred_s_time))
     prediction_cwts = tf.math.multiply(c_weights, prediction)
@@ -647,11 +655,11 @@ def predict_seq():
     t_ip = t_ip.numpy()
     label_pos = np.where(t_ip > 0)[0]
 
-    i_names = ",".join([r_dict[str(item)] for item in t_ip[label_pos]  if item not in [0, "0"]])
-    
-    pred_tools = [r_dict[str(item)] for item in top_k.indices.numpy()[0]  if item not in [0, "0"]]
-    pred_tools_wts = [r_dict[str(item)] for item in top_k_wts.indices.numpy()[0]  if item not in [0, "0"]]
-   
+    i_names = ",".join([r_dict[str(int(item))] for item in t_ip[label_pos] if item not in [0, "0"]])
+
+    pred_tools = [r_dict[str(int(item))] for item in top_k.indices.numpy() if item not in [0, "0"]]
+    pred_tools_wts = [r_dict[str(int(item))] for item in top_k_wts.indices.numpy() if item not in [0, "0"]]
+
     c_tools = []
     if str(f_dict[last_tool_name]) in compatible_tools:
         c_tools = [r_dict[str(item)] for item in compatible_tools[str(f_dict[last_tool_name])]]

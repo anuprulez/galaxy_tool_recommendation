@@ -290,8 +290,8 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq,
 
 def compute_loss(y_true, y_pred, class_weights=None):
     y_true = tf.cast(y_true, dtype=tf.float32)
-    #loss = binary_ce(y_true, y_pred)
-    loss = binary_fce(y_true, y_pred)
+    loss = binary_ce(y_true, y_pred)
+    #loss = binary_fce(y_true, y_pred)
     categorical_loss = categorical_ce(y_true, y_pred)
 
     if class_weights is None:
