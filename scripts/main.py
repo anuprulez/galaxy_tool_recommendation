@@ -24,7 +24,7 @@ from scripts import extract_workflow_connections
 from scripts import prepare_data
 from scripts import optimise_hyperparameters
 from scripts import utils
-#import create_transformer
+import create_transformer
 import transformer_encoder
 import create_rnn
 
@@ -189,13 +189,14 @@ if __name__ == "__main__":
         r_dict = utils.read_file(base_path + "data/rev_dict.txt")
         f_dict = utils.read_file(base_path + "data/f_dict.txt")
         c_wts = utils.read_file(base_path + "data/class_weights.txt")
-        train_tool_freq = utils.read_file(base_path + "data/train_tool_freq.txt")
+        tr_tool_freq = utils.read_file(base_path + "data/train_tool_freq.txt")
         print("True size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         print(len(r_dict), len(f_dict))
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, train_tool_freq)
-        #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, train_tool_freq)
+        create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
 
     else:
         print("Preprocessing workflows...")
@@ -209,8 +210,9 @@ if __name__ == "__main__":
         train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        # inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict
+        create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
         #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
 
     end_time = time.time()

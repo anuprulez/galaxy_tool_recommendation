@@ -53,7 +53,7 @@ fig_size = (15, 15)
 font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
-batch_size = 128
+batch_size = 100
 test_batches = 10
 n_topk = 1
 max_seq_len = 25
@@ -64,7 +64,7 @@ predict_rnn = False
 if predict_rnn is True:
     base_path = "log_08_08_22_rnn/"
 else:
-    base_path = "log/"
+    base_path = "log_15_08_22_2/"
 
 #"log_08_08_22_2/"  log_12_08_22_2 log_local_11_08_22_1 log_local_11_08_22_2 log_local_11_08_22_3
 
@@ -80,7 +80,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 10000
+model_number = 40000
 #onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
@@ -377,7 +377,7 @@ def verify_tool_in_tr(r_dict):
 
 def predict_seq():
 
-    visualize_loss_acc()
+    #visualize_loss_acc()
 
     #plot_model_usage_time()
 
@@ -440,8 +440,7 @@ def predict_seq():
         y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
         te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)'''
         te_x_mask = utils.create_attention_mask(te_x_batch)
-        te_x_batch = tf.cast(te_x_batch, dtype=tf.int64, name="input_2")
-        #TensorSpec(shape=(None, 25), dtype=tf.int64, name='input_1')
+        te_x_batch = tf.cast(te_x_batch, dtype=tf.float32, name="input_2")
         print(te_x_batch, te_x_mask.shape)
         #model([x_train, att_mask], training=True)
         pred_s_time = time.time()
