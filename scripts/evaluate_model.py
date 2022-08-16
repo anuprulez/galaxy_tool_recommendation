@@ -80,7 +80,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 4000
+model_number = 1500
 #onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
@@ -452,10 +452,10 @@ def predict_seq():
     batch_pred_time = list()
     for j in range(test_batches):
 
-        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        #te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
         #print(j * batch_size, j * batch_size + batch_size)
-        #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
+        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
         #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
         te_x_mask = utils.create_padding_mask(te_x_batch)
         #te_x_batch = tf.cast(te_x_batch, dtype=tf.int64, name="input_2")
@@ -732,13 +732,13 @@ def plot_attention_head(in_tokens, out_tokens, attention):
   #print(attention)
   ax = plt.gca()
   ax.matshow(attention[:len(in_tokens), :len(out_tokens)])
+  #ax.imshow(attention[:len(in_tokens), :len(out_tokens)], origin="upper")
   #ax.matshow(attention)
 
   ax.set_xticks(range(len(in_tokens)))
-  ax.set_yticks(range(len(out_tokens)))
-
   ax.set_xticklabels(in_tokens, rotation=90)
 
+  ax.set_yticks(range(len(out_tokens)))
   #ax.set_yticklabels(out_tokens[::-1])
   ax.set_yticklabels(out_tokens)
 

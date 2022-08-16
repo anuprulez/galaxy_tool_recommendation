@@ -17,79 +17,11 @@ from tensorflow.keras.models import Sequential, Model
 
 import utils
 
-'''
-
-Best model Transformer
-
-embed_dim = 128 # Embedding size for each token d_model
-num_heads = 4 # Number of attention heads
-ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
-#d_dim = 512
-dropout = 0.1
-n_train_batches = 40000
-batch_size = 512
-test_logging_step = 20
-train_logging_step = 1000
-te_batch_size = batch_size
-learning_rate = 1e-3 #2e-5 #1e-3
-
-class TransformerBlock(Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
-        super(TransformerBlock, self).__init__()
-        self.att = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim, dropout=dropout)
-        # TODO: Add kernel_regularizer='l2', activity_regularizer='l2' to MHA
-        self.ffn = Sequential(
-            [Dense(ff_dim, activation="relu"),
-             #Dense(ff_dim, activation="relu"),
-             Dense(embed_dim),]
-        )
-        self.layernorm1 = LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = LayerNormalization(epsilon=1e-6)
-        self.dropout1 = Dropout(rate)
-        self.dropout2 = Dropout(rate)
-
-    def call(self, inputs, training):
-        attn_output, attention_scores = self.att(inputs, inputs, return_attention_scores=True, training=training)
-        attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(inputs + attn_output)
-        ffn_output = self.ffn(out1)
-        ffn_output = self.dropout2(ffn_output, training=training)
-        return self.layernorm2(out1 + ffn_output), attention_scores
-
-
-class TokenAndPositionEmbedding(Layer):
-    def __init__(self, maxlen, vocab_size, embed_dim):
-        super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
-
-    def call(self, x):
-        maxlen = tf.shape(x)[-1]
-        positions = tf.range(start=0, limit=maxlen, delta=1)
-        positions = self.pos_emb(positions)
-        x = self.token_emb(x)
-        return x + positions
-
-
-def create_model(maxlen, vocab_size):
-    inputs = Input(shape=(maxlen,))
-    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
-    x = embedding_layer(inputs)
-    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
-    x, weights = transformer_block(x)
-    x = GlobalAveragePooling1D()(x)
-    x = Dropout(dropout)(x)
-    x = Dense(ff_dim, activation="relu")(x)
-    x = Dropout(dropout)(x)
-    outputs = Dense(vocab_size, activation="sigmoid")(x)
-    return Model(inputs=inputs, outputs=[outputs, weights])
-
-'''
 
 
 embed_dim = 128 # Embedding size for each token d_model
 num_heads = 4 # Number of attention heads
-ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
+ff_dim = 512 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
 n_train_batches = 40000
@@ -120,7 +52,13 @@ categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 class TransformerBlock(Layer):
     def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
         super(TransformerBlock, self).__init__()
-        self.att = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim, dropout=dropout)
+        self.att = MultiHeadAttention(num_heads=num_heads,
+            key_dim=embed_dim,
+            dropout=0.5 * dropout,
+            kernel_regularizer='l1_l2',
+            bias_regularizer='l1_l2',
+            activity_regularizer='l1_l2'
+        )
         # TODO: Add kernel_regularizer='l2', activity_regularizer='l2' to MHA
         self.ffn = Sequential(
             [Dense(ff_dim, activation="relu"),
@@ -427,7 +365,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         #att_mask = utils.create_attention_mask(x_train)
 
         print("Batch train data size: ", x_train.shape, y_train.shape)
-        print("att_mask", att_mask.shape)
+        
         all_sel_tool_ids.extend(sel_tools)
 
         with tf.GradientTape() as model_tape:
@@ -479,3 +417,75 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     utils.write_file("log/data/all_sel_tool_ids.txt", ",".join([str(item) for item in all_sel_tool_ids]))
     utils.write_file("log/data/epo_low_te_precision.txt", ",".join([str(item) for item in epo_low_te_precision]))
     utils.write_file("log/data/u_tr_y_labels_dict.txt", new_dict)  
+
+
+
+'''
+
+Best model Transformer
+
+embed_dim = 128 # Embedding size for each token d_model
+num_heads = 4 # Number of attention heads
+ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
+#d_dim = 512
+dropout = 0.1
+n_train_batches = 40000
+batch_size = 512
+test_logging_step = 20
+train_logging_step = 1000
+te_batch_size = batch_size
+learning_rate = 1e-3 #2e-5 #1e-3
+
+class TransformerBlock(Layer):
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
+        super(TransformerBlock, self).__init__()
+        self.att = MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim, dropout=dropout)
+        # TODO: Add kernel_regularizer='l2', activity_regularizer='l2' to MHA
+        self.ffn = Sequential(
+            [Dense(ff_dim, activation="relu"),
+             #Dense(ff_dim, activation="relu"),
+             Dense(embed_dim),]
+        )
+        self.layernorm1 = LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = LayerNormalization(epsilon=1e-6)
+        self.dropout1 = Dropout(rate)
+        self.dropout2 = Dropout(rate)
+
+    def call(self, inputs, training):
+        attn_output, attention_scores = self.att(inputs, inputs, return_attention_scores=True, training=training)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(out1 + ffn_output), attention_scores
+
+
+class TokenAndPositionEmbedding(Layer):
+    def __init__(self, maxlen, vocab_size, embed_dim):
+        super(TokenAndPositionEmbedding, self).__init__()
+        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
+        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
+
+    def call(self, x):
+        maxlen = tf.shape(x)[-1]
+        positions = tf.range(start=0, limit=maxlen, delta=1)
+        positions = self.pos_emb(positions)
+        x = self.token_emb(x)
+        return x + positions
+
+
+def create_model(maxlen, vocab_size):
+    inputs = Input(shape=(maxlen,))
+    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+    x = embedding_layer(inputs)
+    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
+    x, weights = transformer_block(x)
+    x = GlobalAveragePooling1D()(x)
+    x = Dropout(dropout)(x)
+    x = Dense(ff_dim, activation="relu")(x)
+    x = Dropout(dropout)(x)
+    outputs = Dense(vocab_size, activation="sigmoid")(x)
+    return Model(inputs=inputs, outputs=[outputs, weights])
+
+'''
+

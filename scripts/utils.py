@@ -53,6 +53,7 @@ def load_onnx_model(model_path):
 
 
 def create_padding_mask(seq):
+    # https://github.com/tensorflow/tensorflow/issues/49237
     att_mask = []
     seq_length = seq.shape[1]
     #for i in range(seq.shape[0]):
@@ -339,7 +340,7 @@ def compute_precision(model, x, y, reverse_data_dictionary, usage_scores, actual
     return mean_usage, top_precision, pub_precision, lowest_pub_prec, lowest_norm_prec
 
 
-def get_lowest_tools(l_tool_freq, fraction=0.75):
+def get_lowest_tools(l_tool_freq, fraction=0.25):
     l_tool_freq = dict(sorted(l_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
     tool_ids = list(l_tool_freq.keys())
     lowest_ids = tool_ids[-int(len(tool_ids) * fraction):]
