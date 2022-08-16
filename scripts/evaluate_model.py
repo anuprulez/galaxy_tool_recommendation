@@ -64,7 +64,7 @@ predict_rnn = False
 if predict_rnn is True:
     base_path = "log_08_08_22_rnn/"
 else:
-    base_path = "log/"
+    base_path = "log/" #"log_local_16_08_22_0/"
 
 #"log_08_08_22_2/"  log_12_08_22_2 log_local_11_08_22_1 log_local_11_08_22_2 log_local_11_08_22_3
 
@@ -80,7 +80,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 10000
+model_number = 4000
 #onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 
@@ -88,6 +88,24 @@ model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
  ['dropletutils_read_10x', 'scmap_preprocess_sce']
 ['msnbase-read-msms', 'map-msms2camera', 'msms2metfrag-multiple', 'metfrag-cli-batch-multiple', 'passatutto']
 '''
+
+def create_attention_mask(seq):
+    mask = tf.math.logical_not(tf.cast(tf.math.equal(seq, 0), tf.bool))
+    mask = tf.cast(tf.math.equal(mask, True), tf.int64)
+
+    #mask = tf.cast(tf.math.equal(seq, 0), tf.float32)    
+    mask = mask[:, tf.newaxis, :]
+    #return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, seq_len)
+    #print(seq.shape, seq[:, tf.newaxis, :])
+    #s_t = tf.concat([seq, seq], axis=-1)
+    
+    #print("s_t.shape", s_t.shape)
+    #mask = np.ones((512, 25, 25))
+    
+
+    #mask[seq[:512,:,0]==0] = 0
+    #print(mask)
+    return mask
 
 
 def verify_training_sampling(sampled_tool_ids, rev_dict):
@@ -377,7 +395,7 @@ def verify_tool_in_tr(r_dict):
 
 def predict_seq():
 
-    visualize_loss_acc()
+    #visualize_loss_acc()
 
     #plot_model_usage_time()
 
@@ -436,12 +454,13 @@ def predict_seq():
 
         te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
         #print(j * batch_size, j * batch_size + batch_size)
-        '''te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
-        te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)'''
-        te_x_mask = utils.create_attention_mask(te_x_batch)
-        te_x_batch = tf.cast(te_x_batch, dtype=tf.int64, name="input_2")
-        #TensorSpec(shape=(None, 25), dtype=tf.int64, name='input_1')
+        #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
+        #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
+        te_x_mask = utils.create_padding_mask(te_x_batch)
+        #te_x_batch = tf.cast(te_x_batch, dtype=tf.int64, name="input_2")
+        te_x_batch = tf.cast(te_x_batch, dtype=tf.float32, name="input_2")
+        
         print(te_x_batch, te_x_mask.shape)
         #model([x_train, att_mask], training=True)
         pred_s_time = time.time()
@@ -450,7 +469,7 @@ def predict_seq():
             te_prediction = tf_loaded_model([te_x_batch], training=False)
         else:
             te_x_mask = tf.cast(te_x_mask, dtype=tf.float32)
-            te_prediction, att_weights = tf_loaded_model(te_x_batch, training=False)
+            te_prediction, att_weights = tf_loaded_model([te_x_batch, te_x_mask], training=False)
             print("att_weights", att_weights.shape)
         pred_e_time = time.time()
         diff_time = pred_e_time - pred_s_time
@@ -537,7 +556,7 @@ def predict_seq():
     
     low_te_data = test_input[lowest_t_ids]
     low_te_labels = test_target[lowest_t_ids]
-    low_te_data_mask = utils.create_attention_mask(low_te_data)
+    low_te_data_mask = utils.create_padding_mask(low_te_data)
     low_te_data = tf.cast(low_te_data, dtype=tf.float32)
     #print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
     #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
@@ -650,7 +669,7 @@ def predict_seq():
     if predict_rnn is True:
         prediction = tf_loaded_model([t_ip], training=False)
     else:
-        t_ip_mask = utils.create_attention_mask(t_ip)
+        t_ip_mask = utils.create_padding_mask(t_ip)
         prediction, att_weights = tf_loaded_model([t_ip, t_ip_mask], training=False)
     pred_e_time = time.time()
     print("Time taken to predict tools: {} seconds".format(pred_e_time - pred_s_time))

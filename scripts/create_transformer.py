@@ -62,18 +62,27 @@ n_train_batches = 50000
 n_test_batches = 10
 
 
+=========
+https://www.tensorflow.org/text/tutorials/transformer
+
+num_layers = 4
+d_model = 128
+dff = 512
+num_heads = 8
+dropout_rate = 0.1
+
 
 '''
 
 # TODO: Try out only encoder and sequence classification: https://arxiv.org/pdf/2104.05448.pdf
 
-batch_size = 128
-num_layers = 2
+batch_size = 512
+num_layers = 1
 d_model = 128
 dff = 128
 num_heads = 4
 #n_train_batches = 40000
-dropout_rate = 0.2
+dropout_rate = 0.1
 
 max_seq_len = 25
 index_start_token = 2
@@ -282,7 +291,7 @@ class Encoder(tf.keras.layers.Layer):
     self.d_model = d_model
     self.num_layers = num_layers
     # Embedding(input_dim=vocab_size, output_dim=embed_dim)
-    self.embedding = tf.keras.layers.Embedding(input_dim=input_vocab_size, output_dim=d_model)
+    self.embedding = tf.keras.layers.Embedding(input_dim=input_vocab_size, output_dim=d_model, mask_zero=True)
     self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
     self.enc_layers = [
@@ -319,17 +328,20 @@ class Transformer(tf.keras.Model):
                            num_heads=num_heads, dff=dff,
                            input_vocab_size=input_vocab_size, rate=rate)
 
-    '''self.decoder = Decoder(num_layers=num_layers, d_model=d_model,
-                           num_heads=num_heads, dff=dff,
-                           target_vocab_size=target_vocab_size, rate=rate)'''
-
     self.final_layer = tf.keras.layers.Dense(input_vocab_size)
 
 
   def call(self, inputs, training):
     # Keras models prefer if you pass all your inputs in the first argument
 
-    padding_mask = self.create_masks(inputs)
+    padding_mask = tf.cast(tf.math.logical_not(tf.math.equal(inputs, 0)), dtype=tf.float32) #self.create_masks(inputs)
+    padding_mask = padding_mask[:, tf.newaxis, tf.newaxis, :]
+    #padding_mask = self.create_masks(inputs)
+    '''print(inputs)
+    print()
+    print(padding_mask)
+    print()
+    print(tf.math.logical_not(tf.math.equal(inputs, 0)))'''
     enc_output, enc_attention = self.encoder(inputs, training, padding_mask)  # (batch_size, inp_seq_len, d_model)
 
     # dec_output.shape == (batch_size, tar_seq_len, d_model)
@@ -575,9 +587,9 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
 
 
 def create_train_model(inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict, c_wts, tr_t_freq):
-    #learning_rate = CustomSchedule(d_model)
+    #learning_rate = CustomSchedule(d_model, 1000)
     #enc_optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-    enc_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    enc_optimizer = tf.keras.optimizers.Adam()
     print(inp_seqs.shape, tar_seqs.shape, te_input_seqs.shape, te_tar_seqs.shape)
     all_sel_tool_ids = list()
 

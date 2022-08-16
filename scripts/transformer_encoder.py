@@ -95,7 +95,7 @@ dropout = 0.1
 n_train_batches = 40000
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 1000
+train_logging_step = 500
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
 
@@ -156,7 +156,7 @@ class TokenAndPositionEmbedding(Layer):
 
 def create_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
-    a_mask = Input(shape=(1, maxlen))
+    a_mask = Input(shape=(maxlen, maxlen))
     embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
     transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
@@ -314,7 +314,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
     #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
     print("Total test data size: ", te_x.shape, te_y.shape)
     te_x_batch, y_train_batch, _ = sample_balanced_te_y(te_x, te_y, ulabels_te_dict, te_batch_size)
-    te_mask = utils.create_attention_mask(te_x_batch)
+    te_mask = utils.create_padding_mask(te_x_batch)
     print("Batch test data size: ", te_x_batch.shape, y_train_batch.shape)
     te_pred_batch, att_weights = model([te_x_batch, te_mask], training=False)
     test_acc = tf.reduce_mean(compute_acc(y_train_batch, te_pred_batch))
@@ -350,7 +350,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
     print("Test lowest ids", len(lowest_t_ids))
     low_te_data = te_x[lowest_t_ids]
     low_te_labels = te_y[lowest_t_ids]
-    low_att_mask = utils.create_attention_mask(low_te_data)
+    low_att_mask = utils.create_padding_mask(low_te_data)
     low_te_pred_batch, low_att_weights = model([low_te_data, low_att_mask], training=False)
     low_test_err, low_test_categorical_loss = compute_loss(low_te_labels, low_te_pred_batch)
 
@@ -421,7 +421,10 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         #x_train, y_train = sample_test_x_y(train_data, train_labels)
         #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
         x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq, sel_tools)
-        att_mask = utils.create_attention_mask(x_train)
+
+        att_mask = utils.create_padding_mask(x_train)
+        #sys.exit()
+        #att_mask = utils.create_attention_mask(x_train)
 
         print("Batch train data size: ", x_train.shape, y_train.shape)
         print("att_mask", att_mask.shape)

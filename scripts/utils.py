@@ -4,6 +4,7 @@ import json
 import h5py
 import random
 import subprocess
+import tqdm
 from numpy.random import choice
 import matplotlib.pyplot as plt
 
@@ -49,12 +50,50 @@ def load_onnx_model(model_path):
     return tf_loaded_model
     #prediction = tf_loaded_model.run(item, training=False)
     #print("Prediction using loaded model...")
+
+
+def create_padding_mask(seq):
+    att_mask = []
+    seq_length = seq.shape[1]
+    #for i in range(seq.shape[0]):
+    masks = tf.cast(tf.math.equal(seq, 0), tf.float32)
+    #pbar.update(1)
+
+    masks = 1 - masks
+    '''print(masks[0])
+    print()
+    print(masks[1])'''
+    #sys.exit()
+    for m in masks:
+        am = np.ones((seq_length, seq_length))
+
+        m1 = np.expand_dims(m, axis=0)
+        m2 = np.expand_dims(m, axis=1)
+
+        am = am*m1
+        am = am*m2
+        att_mask.append(am)
+
+        #print(am)
+        #print()
+        #break
+    #print()
+    att_mask = np.array(att_mask)
+
+    '''print(att_mask[0, :, :], att_mask[0, :, :].shape)
+    print()
+    print(att_mask[1, :, :], att_mask[1, :, :].shape)
+    print()'''
+    return att_mask  # (batch_size, seq_len, seq_len)
     
 
 def create_attention_mask(seq):
-    mask = tf.math.logical_not(tf.cast(tf.math.equal(seq, 0), tf.bool))
-    mask = tf.cast(tf.math.equal(mask, True), tf.int64)
+    '''mask = tf.math.logical_not(tf.cast(tf.math.equal(seq, 0), tf.bool))
+    mask = tf.cast(tf.math.equal(mask, True), tf.int64)'''
+
+    mask = tf.cast(tf.math.equal(seq, 0), tf.float32)    
     mask = mask[:, tf.newaxis, :]
+    #return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, seq_len)
     #print(seq.shape, seq[:, tf.newaxis, :])
     #s_t = tf.concat([seq, seq], axis=-1)
     
