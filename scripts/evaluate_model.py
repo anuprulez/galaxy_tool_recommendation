@@ -14,8 +14,11 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, GRU, Dropout, Embedding, SpatialDropout1D
-#from tensorflow.keras.layers.embeddings import 
-#from keras.layers.core import 
+from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Dropout, Layer
+from tensorflow.keras import backend as K
+
+from tensorflow.keras.layers import Embedding, Input, GlobalAveragePooling1D, Dense
+from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.callbacks import EarlyStopping
 
@@ -53,10 +56,22 @@ fig_size = (15, 15)
 font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
-batch_size = 128
-test_batches = 10
+batch_size = 16
+test_batches = 1
 n_topk = 1
 max_seq_len = 25
+
+embed_dim = 128 # Embedding size for each token d_model
+num_heads = 4 # Number of attention heads
+ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
+#d_dim = 512
+dropout = 0.1
+n_train_batches = 20000
+batch_size = 512
+test_logging_step = 10
+train_logging_step = 5
+te_batch_size = batch_size
+learning_rate = 1e-3 #2e-5 #1e-3
 
 
 predict_rnn = False
@@ -80,14 +95,117 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 1500
+model_number = 100
 #onnx_model_path = base_path + "saved_model/"
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
+model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
 '''
  ['dropletutils_read_10x', 'scmap_preprocess_sce']
 ['msnbase-read-msms', 'map-msms2camera', 'msms2metfrag-multiple', 'metfrag-cli-batch-multiple', 'passatutto']
 '''
+
+class TransformerBlock(Layer):
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
+        super(TransformerBlock, self).__init__()
+        self.att = MultiHeadAttention(num_heads=num_heads,
+            key_dim=embed_dim,
+            dropout=rate,
+            kernel_regularizer='l1_l2',
+            bias_regularizer='l1_l2',
+            activity_regularizer='l1_l2'
+        )
+        self.ffn = Sequential(
+            [Dense(ff_dim, activation="relu"),
+             Dense(embed_dim),]
+        )
+        self.layernorm1 = LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = LayerNormalization(epsilon=1e-6)
+        self.dropout1 = Dropout(rate)
+        self.dropout2 = Dropout(rate)
+
+        self.embed_dim = embed_dim
+        self.num_heads = embed_dim
+        self.ff_dim = ff_dim
+        #self.rate = rate
+
+    def call(self, inputs, a_mask, training):
+        attn_output, attention_scores = self.att(inputs, inputs, inputs, attention_mask=a_mask, return_attention_scores=True, training=training)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(out1 + ffn_output), attention_scores
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    def get_config(self):
+        '''config = super().get_config()
+        config.update({
+            "embed_dim": self.embed_dim,
+            "num_heads": self.num_heads,
+            "ff_dim": self.ff_dim,
+        })
+        return config'''
+        return {
+            "embed_dim": self.embed_dim,
+            "num_heads": self.num_heads,
+            "ff_dim": self.ff_dim,
+        }
+
+
+class TokenAndPositionEmbedding(Layer):
+    def __init__(self, maxlen, vocab_size, embed_dim):
+        super(TokenAndPositionEmbedding, self).__init__()
+        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
+        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
+        self.maxlen = maxlen
+        self.vocab_size = vocab_size
+        self.embed_dim = embed_dim
+
+    def call(self, x):
+        maxlen = tf.shape(x)[-1]
+        positions = tf.range(start=0, limit=maxlen, delta=1)
+        positions = self.pos_emb(positions)
+        x = self.token_emb(x)
+        return x + positions
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    def get_config(self):
+        '''config = super().get_config()
+        config.update({
+            "maxlen": self.maxlen,
+            "vocab_size": self.vocab_size,
+            "embed_dim": self.embed_dim,
+        })'''
+        return {
+            "maxlen": self.maxlen,
+            "vocab_size": self.vocab_size,
+            "embed_dim": self.embed_dim,
+        }
+
+
+def create_model(maxlen, vocab_size):
+    inputs = Input(shape=(maxlen,))
+    a_mask = Input(shape=(maxlen, maxlen))
+    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+    x = embedding_layer(inputs)
+    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
+    x, weights = transformer_block(x, a_mask)
+    x = GlobalAveragePooling1D()(x)
+    x = Dropout(dropout)(x)
+    x = Dense(ff_dim, activation="relu")(x)
+    x = Dropout(dropout)(x)
+    outputs = Dense(vocab_size, activation="sigmoid")(x)
+
+    model = Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
+
+    return model
 
 def create_attention_mask(seq):
     mask = tf.math.logical_not(tf.cast(tf.math.equal(seq, 0), tf.bool))
@@ -435,8 +553,35 @@ def predict_seq():
     m_load_s_time = time.time()
     print(model_path)
     tf_loaded_model = tf.saved_model.load(model_path)
+
+    custom_objects={
+        "TokenAndPositionEmbedding": TokenAndPositionEmbedding, 
+        "TransformerBlock": TransformerBlock
+    }
+
+    json_config = utils.read_file(model_path_h5 + "model_config.json")
+    tf_loaded_model = create_model(25, len(r_dict) + 1) #tf.keras.models.model_from_json(json_config, custom_objects=custom_objects)
+    tf_loaded_model.summary()
+    print(dir(tf_loaded_model))
+    h5_path = model_path_h5 + "model.h5"
+    model_h5 = h5py.File(h5_path, 'r')
+    print(model_h5.keys())
+    for item in model_h5.keys():
+        print(item, model_h5[item].keys())
+
+    tf_loaded_model.load_weights(model_path_h5 + "model.h5")
+
+    '''tf_loaded_model = tf.keras.models.load_model(model_path_h5 + "model.h5",
+        custom_objects={
+            "TokenAndPositionEmbedding": TokenAndPositionEmbedding, 
+            "TransformerBlock": TransformerBlock
+        })'''
+
+    #tf_loaded_model.load_weights(model_path_h5 + "model.h5")
     m_load_e_time = time.time()
+
     model_loading_time = m_load_e_time - m_load_s_time
+
 
     '''print("Saving as ONNX model...")
     onnx_model_save_path = onnx_model_path + "{}/onnx_model/".format(model_number)
@@ -547,7 +692,7 @@ def predict_seq():
                     #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
-                generated_attention(att_weights[i], i_names, f_dict, r_dict)
+                #generated_attention(att_weights[i], i_names, f_dict, r_dict)
                 #plot_attention_head_axes(att_weights)
                 print("Batch {} prediction finished ...".format(j+1))
 
@@ -612,6 +757,9 @@ def predict_seq():
        
         print("-----------------")
         print()
+        '''if predict_rnn is False:
+            i_names = ",".join([r_dict[str(int(item))] for item in low_inp[low_inp_pos]])
+            generated_attention(att_weights[i], i_names, f_dict, r_dict)'''
 
     if test_batches > 0:
         print("Batch Precision@{}: {}".format(n_topk, np.mean(precision)))
@@ -670,7 +818,9 @@ def predict_seq():
         prediction = tf_loaded_model([t_ip], training=False)
     else:
         t_ip_mask = utils.create_padding_mask(t_ip)
+        t_ip_mask = tf.cast(t_ip_mask, dtype=tf.float32)
         prediction, att_weights = tf_loaded_model([t_ip, t_ip_mask], training=False)
+        print(att_weights.shape)
     pred_e_time = time.time()
     print("Time taken to predict tools: {} seconds".format(pred_e_time - pred_s_time))
     prediction_cwts = tf.math.multiply(c_weights, prediction)
@@ -706,12 +856,15 @@ def predict_seq():
     print()
     print("Predicted top {} tools with weights: {}".format(n_topk_ind, pred_tools_wts))
     print()
-    if predict_rnn is False:
-        generated_attention(att_weights, i_names, f_dict, r_dict)
+    '''if predict_rnn is False:
+        generated_attention(att_weights, i_names, f_dict, r_dict)'''
 
 
 def generated_attention(attention_weights, i_names, f_dict, r_dict):
-    attention_heads = attention_weights #tf.squeeze(attention_weights, 0)
+    try:
+        attention_heads = tf.squeeze(attention_weights, 0)
+    except:
+        attention_heads = attention_weights
     n_heads = attention_heads.shape[1]
     i_names = i_names.split(",")
     in_tokens = i_names

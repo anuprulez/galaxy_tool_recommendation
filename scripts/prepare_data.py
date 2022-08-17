@@ -103,6 +103,50 @@ class PrepareData:
         return sub_paths_pos
 
 
+    def prepare_input_one_target_paths(self, dictionary, reverse_dictionary, paths):
+        input_target_paths = dict()
+        compatible_tools = dict()
+        d_size = 0
+        for i, item in enumerate(paths):
+            input_tools = item.split(",")
+            #print(input_tools)
+            #ctr = 0
+            #for ctr in range(len(input_tools) - 1):
+                # uncomment this for one token target idea
+            #print(item)
+            tool_seq = input_tools #input_tools[0: ctr+2]
+            i_tools = ",".join(tool_seq[0:-1])
+            
+            last_i_tool = i_tools.split(",")[-1]
+
+            if last_i_tool not in compatible_tools:
+                compatible_tools[last_i_tool] = list()
+
+            t_tools = tool_seq[-1]
+            if t_tools not in compatible_tools[last_i_tool]:
+                compatible_tools[last_i_tool].append(t_tools)
+
+            if i_tools not in input_target_paths:
+                input_target_paths[i_tools] = list()
+
+            if t_tools not in input_target_paths[i_tools]:
+                input_target_paths[i_tools].append(t_tools)
+
+            if i_tools not in input_target_paths:
+                input_target_paths[i_tools] = list()
+            if t_tools not in input_target_paths[i_tools]:
+                input_target_paths[i_tools].append(t_tools)
+
+            '''if i == 10:
+                break'''
+        #print(input_target_paths)
+        for item in input_target_paths:
+            d_size += len(input_target_paths[item])
+        print("Dataset size:", d_size)
+        #sys.exit()
+        return input_target_paths, compatible_tools, d_size
+
+
     def prepare_input_target_paths(self, dictionary, reverse_dictionary, paths):
         input_target_paths = dict()
         compatible_tools = dict()
@@ -308,6 +352,7 @@ class PrepareData:
 
         print("Creating dictionaries...")
         multilabels_paths, compatible_tools, d_size = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
+        #multilabels_paths, compatible_tools, d_size = self.prepare_input_one_target_paths(dictionary, rev_dict, all_unique_paths)
 
         print("Complete data: %d" % d_size)
 
