@@ -35,12 +35,15 @@ learning_rate = 1e-3'''
 embed_dim = 128 # Embedding size for each token d_model
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 dropout = 0.1
-n_train_batches = 20000
-batch_size = 1024
+n_train_batches = 50
+batch_size = 512
 test_logging_step = 10
-train_logging_step = 1000
+train_logging_step = 10
 te_batch_size = batch_size
 learning_rate = 1e-3
+
+base_path = "log/"
+model_path = base_path + "saved_model/"
 
 # Readings
 # https://keras.io/examples/nlp/text_classification_with_transformer/
@@ -52,12 +55,8 @@ learning_rate = 1e-3
 
 binary_ce = tf.keras.losses.BinaryCrossentropy()
 binary_acc = tf.keras.metrics.BinaryAccuracy()
-
-cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
-categorical_acc = tf.keras.metrics.CategoricalAccuracy()
 
 def create_model(seq_len, vocab_size):
 
@@ -90,14 +89,19 @@ def get_u_labels(y_train):
     ulabels_dict = dict()
     for item in range(y_train.shape[0]):
         arr_seq = y_train[item]
+        #print(arr_seq)
         label_pos = np.where(arr_seq > 0)[0]
+        #print(label_pos, arr_seq)
         last_tool = str(int(arr_seq[label_pos[-1]]))
         if last_tool not in ulabels_dict:
             ulabels_dict[last_tool] = list()
         ulabels_dict[last_tool].append(item)
         seq = ",".join([str(int(a)) for a in arr_seq[0:label_pos[-1] + 1]])
+        #print(seq, last_tool)
         last_tools.append(last_tool)
+        #print()
     u_labels = list(set(last_tools))
+    #print(len(last_tools), len(u_labels))
     random.shuffle(u_labels)
     return u_labels, ulabels_dict
 
@@ -126,6 +130,25 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
     unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
     return unrolled_x, unrolled_y
+
+
+def get_u_tr_path(x_tr):
+    tools = list()
+    tools_pos_dict = dict()
+    for i, item in enumerate(x_tr):
+        tool_pos = np.where(item > 0)[0]
+        tool_pos = item[tool_pos]
+        tools.extend(tool_pos)
+        for t in tool_pos:
+            if t not in tools_pos_dict:
+                tools_pos_dict[t] = list()
+            tools_pos_dict[t].append(i)
+
+    u_tools = list(set(tools))
+    
+    for item in tools_pos_dict:
+        tools_pos_dict[item] = list(set(tools_pos_dict[item]))
+    return u_tools, tools_pos_dict
 
 
 def get_u_tr_labels(y_tr):
@@ -188,7 +211,6 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq,
         rand_s_index = np.random.randint(0, len(seq_indices), 1)[0]
         rand_sample = seq_indices[rand_s_index]
         sel_tools.append(l_tool)
-        #if rand_sample not in rand_batch_indices:
         rand_batch_indices.append(rand_sample)
         label_tools.append(l_tool)
 
@@ -217,22 +239,6 @@ def compute_acc(y_true, y_pred):
 def compute_topk_acc(y_true, y_pred, k):
     topk_acc = tf.keras.metrics.TopKCategoricalAccuracy(k=k)
     return topk_acc
-
-
-def circular_sampling(x_seqs, y_labels, ulabels_tr_y_dict, b_size, prev_tool_selection):
-    batch_y_tools = list(ulabels_tr_y_dict.keys())
-    random.shuffle(batch_y_tools)
-    rand_batch_indices = list()
-    sel_tools = list()
-
-    unselected_tools = list(set(prev_tool_selection).difference(set(batch_y_tools)))
-
-    x_batch_train = x_seqs[rand_batch_indices]
-    y_batch_train = y_labels[rand_batch_indices]
-
-    unrolled_x = tf.convert_to_tensor(x_batch_train, dtype=tf.int64)
-    unrolled_y = tf.convert_to_tensor(y_batch_train, dtype=tf.int64)
-    return unrolled_x, unrolled_y, sel_tools
 
 
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels, lowest_t_ids):
@@ -325,7 +331,6 @@ def create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_
 
     trained_on_labels = [int(item) for item in list(u_tr_y_labels_dict.keys())]
 
-
     epo_tr_batch_loss = list()
     epo_tr_batch_acc = list()
     epo_tr_batch_categorical_loss = list()
@@ -339,26 +344,22 @@ def create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_
 
     te_lowest_t_ids = utils.get_low_freq_te_samples(test_data, test_labels, tr_t_freq)
     utils.write_file("log/data/te_lowest_t_ids.txt", ",".join([str(item) for item in te_lowest_t_ids]))
+    compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
+    published_connections = utils.read_file(base_path + "data/published_connections.txt")
 
-    #sys.exit()
     sel_tools = list()
     for batch in range(n_train_batches):
         
         print("Total train data size: ", train_data.shape, train_labels.shape)
         
-        #x_train, y_train = sample_test_x_y(train_data, train_labels)
-        #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
-        #print("Selected tool ids: ", sel_tools)
         x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq, sel_tools)
-        #x_train, y_train, sel_tools = circular_sampling(train_data, train_labels, u_tr_y_labels_dict, batch_size)
+
         print("Batch train data size: ", x_train.shape, y_train.shape)
-        #print("Batch total test data size: ", x_train.shape, test_labels.shape)
         all_sel_tool_ids.extend(sel_tools)
-        #utils.verify_oversampling_freq(x_train, r_dict)
-        #sys.exit()
+
         with tf.GradientTape() as model_tape:
             prediction = model([x_train], training=True)
-            tr_loss, tr_cat_loss = compute_loss(y_train, prediction) #c_weights
+            tr_loss, tr_cat_loss = compute_loss(y_train, prediction)
             tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables
         model_gradients = model_tape.gradient(tr_loss, trainable_vars)
@@ -378,16 +379,31 @@ def create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_
         print()
         if (batch+1) % train_logging_step == 0:
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
-            base_path = "log/saved_model/"
-            tf_path = base_path + "{}/".format(batch+1)
-            tf_model_save = base_path + "{}/tf_model/".format(batch+1)
+            tf_path = model_path + "{}/".format(batch+1)
+            tf_model_save = model_path + "{}/tf_model/".format(batch+1)
+            tf_model_save_h5 = model_path + "{}/tf_model_h5/".format(batch+1)
             if not os.path.isdir(tf_path):
                 os.mkdir(tf_path)
+                os.mkdir(tf_model_save)
+                os.mkdir(tf_model_save_h5)
+
             tf.saved_model.save(model, tf_model_save)
+            utils.save_model_file(tf_model_save_h5, model, r_dict, c_wts, compatible_tools, published_connections)
     
     new_dict = dict()
     for k in u_tr_y_labels_dict:
         new_dict[str(k)] = ",".join([str(item) for item in u_tr_y_labels_dict[k]])
+
+    '''utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
+    utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
+    utils.write_file("log/data/epo_te_batch_loss.txt", ",".join([str(item) for item in epo_te_batch_loss]))
+    utils.write_file("log/data/epo_te_batch_acc.txt", ",".join([str(item) for item in epo_te_batch_acc]))
+    utils.write_file("log/data/epo_tr_batch_categorical_loss.txt", ",".join([str(item) for item in epo_tr_batch_categorical_loss]))
+    utils.write_file("log/data/epo_te_batch_categorical_loss.txt", ",".join([str(item) for item in epo_te_batch_categorical_loss]))
+    utils.write_file("log/data/epo_te_precision.txt", ",".join([str(item) for item in epo_te_precision]))
+    utils.write_file("log/data/all_sel_tool_ids.txt", ",".join([str(item) for item in all_sel_tool_ids]))
+    utils.write_file("log/data/epo_low_te_precision.txt", ",".join([str(item) for item in epo_low_te_precision]))
+    utils.write_file("log/data/u_tr_y_labels_dict.txt", new_dict)'''
 
     utils.write_file("log/data/epo_tr_batch_loss.txt", ",".join([str(item) for item in epo_tr_batch_loss]))
     utils.write_file("log/data/epo_tr_batch_acc.txt", ",".join([str(item) for item in epo_tr_batch_acc]))
@@ -398,5 +414,5 @@ def create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_
     utils.write_file("log/data/epo_te_precision.txt", ",".join([str(item) for item in epo_te_precision]))
     utils.write_file("log/data/all_sel_tool_ids.txt", ",".join([str(item) for item in all_sel_tool_ids]))
     utils.write_file("log/data/epo_low_te_precision.txt", ",".join([str(item) for item in epo_low_te_precision]))
-    utils.write_file("log/data/u_tr_y_labels_dict.txt", new_dict)
+    utils.write_file("log/data/u_tr_y_labels_dict.txt", new_dict)  
     

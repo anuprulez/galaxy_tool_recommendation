@@ -50,7 +50,7 @@ seq_len = 25
 predict_rnn = False
 
 if predict_rnn is True:
-    base_path = "log_08_08_22_rnn/"
+    base_path = "log/" #"log_08_08_22_rnn/"
 else:
     base_path = "log/" #"log_local_16_08_22_0/"
 
@@ -68,7 +68,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 2000
+model_number = 50
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
@@ -77,7 +77,34 @@ model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 ['msnbase-read-msms', 'map-msms2camera', 'msms2metfrag-multiple', 'metfrag-cli-batch-multiple', 'passatutto']
 '''
 
-def create_model(maxlen, vocab_size):
+def create_rnn_model(seq_len, vocab_size):
+
+    seq_inputs = tf.keras.Input(batch_shape=(None, seq_len))
+
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embed_dim, mask_zero=True)
+    in_gru = tf.keras.layers.GRU(ff_dim, return_sequences=True, return_state=False)
+    out_gru = tf.keras.layers.GRU(ff_dim, return_sequences=False, return_state=True)
+    enc_fc = tf.keras.layers.Dense(vocab_size, activation='sigmoid', kernel_regularizer="l2")
+
+    embed = gen_embedding(seq_inputs)
+
+    embed = tf.keras.layers.Dropout(dropout)(embed)
+
+    gru_output = in_gru(embed)
+
+    gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+
+    gru_output, hidden_state = out_gru(gru_output)
+
+    gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+
+    fc_output = enc_fc(gru_output)
+
+    return Model(inputs=[seq_inputs], outputs=[fc_output])
+
+
+
+def create_transformer_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
     a_mask = Input(shape=(maxlen, maxlen))
     embedding_layer = transformer_network.TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
@@ -382,9 +409,9 @@ def read_h5_model():
     model_h5 = h5py.File(h5_path, 'r')
 
     r_dict = json.loads(model_h5["reverse_dict"][()].decode("utf-8"))
-
+    print(r_dict)
     m_load_s_time = time.time()
-    tf_loaded_model = create_model(seq_len, len(r_dict) + 1)
+    tf_loaded_model = create_transformer_model(seq_len, len(r_dict) + 1)
     tf_loaded_model.load_weights(h5_path)
     m_load_e_time = time.time()
     model_loading_time = m_load_e_time - m_load_s_time
@@ -405,7 +432,6 @@ def read_model():
     tf_loaded_model = tf.saved_model.load(model_path)
     m_load_e_time = time.time()
     m_l_time = m_load_e_time - m_load_s_time
-
     r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
     c_weights = utils.read_file(base_path + "data/class_weights.txt")
@@ -423,20 +449,30 @@ def predict_seq():
 
     #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
     #verify_training_sampling(tool_tr_freq, r_dict)  
-    
+
     path_test_data = base_path + "saved_data/test.h5"
 
     file_obj = h5py.File(path_test_data, 'r')
-    
+
     #test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
     test_input = np.array(file_obj["input"])
     test_target = np.array(file_obj["target"])
 
     print(test_input.shape, test_target.shape)
 
-    #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
-
-    tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
+    if predict_rnn is True:
+        m_load_s_time = time.time()
+        tf_loaded_model = tf.saved_model.load(model_path)
+        m_load_e_time = time.time()
+        model_loading_time = m_load_e_time - m_load_s_time
+        r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+        f_dict = utils.read_file(base_path + "data/f_dict.txt")
+        class_weights = utils.read_file(base_path + "data/class_weights.txt")
+        compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
+        published_connections = utils.read_file(base_path + "data/published_connections.txt")
+    else:
+        #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
+        tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
 
     '''all_tr_label_tools = verify_tool_in_tr(r_dict)
     all_tr_label_tools_ids = list(all_tr_label_tools.keys())

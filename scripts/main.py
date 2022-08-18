@@ -194,7 +194,6 @@ if __name__ == "__main__":
         print(len(r_dict), len(f_dict))
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        #create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
         transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
         #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
 
@@ -210,8 +209,6 @@ if __name__ == "__main__":
         train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        # inp_seqs, tar_seqs, te_input_seqs, te_tar_seqs, f_dict, rev_dict
-        #create_transformer.create_train_model(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
         transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
         #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
 

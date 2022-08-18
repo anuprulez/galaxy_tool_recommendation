@@ -57,15 +57,9 @@ def create_padding_mask(seq):
     # https://github.com/tensorflow/tensorflow/issues/49237
     att_mask = []
     seq_length = seq.shape[1]
-    #for i in range(seq.shape[0]):
     masks = tf.cast(tf.math.equal(seq, 0), tf.float32)
-    #pbar.update(1)
-
     masks = 1 - masks
-    '''print(masks[0])
-    print()
-    print(masks[1])'''
-    #sys.exit()
+
     for m in masks:
         am = np.ones((seq_length, seq_length))
 
@@ -76,17 +70,8 @@ def create_padding_mask(seq):
         am = am*m2
         att_mask.append(am)
 
-        #print(am)
-        #print()
-        #break
-    #print()
     att_mask = np.array(att_mask)
-
-    '''print(att_mask[0, :, :], att_mask[0, :, :].shape)
-    print()
-    print(att_mask[1, :, :], att_mask[1, :, :].shape)
-    print()'''
-    return att_mask  # (batch_size, seq_len, seq_len)
+    return att_mask
     
 
 def create_attention_mask(seq):
@@ -162,7 +147,6 @@ def save_model_file(model_path, model, r_dict, c_wts, c_tools, s_conn, f_name="m
 
     for k in model_values:
         hf_file.create_dataset(k, data=json.dumps(model_values[k]))
-    print(hf_file.keys())
     hf_file.close()
 
 

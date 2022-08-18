@@ -22,12 +22,12 @@ num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 2000
+n_train_batches = 50
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 500
+train_logging_step = 10
 te_batch_size = batch_size
-learning_rate = 1e-3 #2e-5 #1e-3
+learning_rate = 1e-3
 
 base_path = "log/"
 model_path = base_path + "saved_model/"
@@ -342,15 +342,10 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     for batch in range(n_train_batches):
         
         print("Total train data size: ", train_data.shape, train_labels.shape)
-        #x_train, y_train = sample_test_x_y(train_data, train_labels)
-        #x_train, y_train = sample_balanced(train_data, train_labels, ulabels_tr_dict)
+
         x_train, y_train, sel_tools = sample_balanced_tr_y(train_data, train_labels, u_tr_y_labels_dict, batch_size, tr_t_freq, sel_tools)
-        sel_tools = []
-        #print(sel_tools)
 
         att_mask = utils.create_padding_mask(x_train)
-        #sys.exit()
-        #att_mask = utils.create_attention_mask(x_train)
 
         print("Batch train data size: ", x_train.shape, y_train.shape)
         
