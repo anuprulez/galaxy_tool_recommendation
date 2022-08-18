@@ -43,6 +43,7 @@ def convert_to_onnx(tf_model_save, onnx_model_save):
     # convert tf/keras model to ONNX and save it to output file
     subprocess.run(python_shell_script, shell=True, check=True)
 
+
 def load_onnx_model(model_path):
     #print("Loading ONNX model...")
     loaded_model = onnx.load(model_path)
@@ -142,6 +143,27 @@ def format_tool_id(tool_link):
     tool_id_split = tool_link.split("/")
     tool_id = tool_id_split[-2] if len(tool_id_split) > 1 else tool_link
     return tool_id
+
+
+def save_model_file(model_path, model, r_dict, c_wts, c_tools, s_conn, f_name="model.h5"):
+    if not os.path.isdir(model_path):
+        os.mkdir(model_path)
+
+    model_file = model_path + f_name
+    model.save_weights(model_file)
+    hf_file = h5py.File(model_file, 'r+')
+
+    model_values = {
+        "reverse_dict": r_dict,
+        "class_weights": c_wts,
+        "compatible_tools": c_tools,
+        "standard_connections": s_conn
+    }
+
+    for k in model_values:
+        hf_file.create_dataset(k, data=json.dumps(model_values[k]))
+    print(hf_file.keys())
+    hf_file.close()
 
 
 def set_trained_model(dump_file, model_values):

@@ -9,6 +9,7 @@ import h5py
 import matplotlib.pyplot as plt
 import sys
 import random
+import json
 
 import tensorflow as tf
 from tensorflow import keras
@@ -28,35 +29,14 @@ from onnx_tf.backend import prepare
 
 import predict_sequences
 import utils
+import transformer_network
 
-
-'''BATCH_SIZE = 64
-num_layers = 4
-d_model = 128
-dff = 512
-num_heads = 8
-dropout_rate = 0.1
-EPOCHS = 20
-max_seq_len = 25
-index_start_token = 2'''
-
-'''embed_dim = 128 # Embedding size for each token
-num_heads = 8 # Number of attention heads
-ff_dim = 128 # Hidden layer size in feed forward network inside transformer
-d_dim = 128
-dropout = 0.1
-n_train_batches = 1000000
-
-test_logging_step = 100
-train_logging_step = 2000
-n_test_seqs = batch_size
-learning_rate = 1e-2'''
 
 fig_size = (15, 15)
 font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
-batch_size = 16
+batch_size = 512
 test_batches = 1
 n_topk = 1
 max_seq_len = 25
@@ -64,15 +44,8 @@ max_seq_len = 25
 embed_dim = 128 # Embedding size for each token d_model
 num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
-#d_dim = 512
 dropout = 0.1
-n_train_batches = 20000
-batch_size = 512
-test_logging_step = 10
-train_logging_step = 5
-te_batch_size = batch_size
-learning_rate = 1e-3 #2e-5 #1e-3
-
+seq_len = 25
 
 predict_rnn = False
 
@@ -95,8 +68,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 100
-#onnx_model_path = base_path + "saved_model/"
+model_number = 2000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
@@ -105,125 +77,19 @@ model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 ['msnbase-read-msms', 'map-msms2camera', 'msms2metfrag-multiple', 'metfrag-cli-batch-multiple', 'passatutto']
 '''
 
-class TransformerBlock(Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
-        super(TransformerBlock, self).__init__()
-        self.att = MultiHeadAttention(num_heads=num_heads,
-            key_dim=embed_dim,
-            dropout=rate,
-            kernel_regularizer='l1_l2',
-            bias_regularizer='l1_l2',
-            activity_regularizer='l1_l2'
-        )
-        self.ffn = Sequential(
-            [Dense(ff_dim, activation="relu"),
-             Dense(embed_dim),]
-        )
-        self.layernorm1 = LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = LayerNormalization(epsilon=1e-6)
-        self.dropout1 = Dropout(rate)
-        self.dropout2 = Dropout(rate)
-
-        self.embed_dim = embed_dim
-        self.num_heads = embed_dim
-        self.ff_dim = ff_dim
-        #self.rate = rate
-
-    def call(self, inputs, a_mask, training):
-        attn_output, attention_scores = self.att(inputs, inputs, inputs, attention_mask=a_mask, return_attention_scores=True, training=training)
-        attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(inputs + attn_output)
-        ffn_output = self.ffn(out1)
-        ffn_output = self.dropout2(ffn_output, training=training)
-        return self.layernorm2(out1 + ffn_output), attention_scores
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    def get_config(self):
-        '''config = super().get_config()
-        config.update({
-            "embed_dim": self.embed_dim,
-            "num_heads": self.num_heads,
-            "ff_dim": self.ff_dim,
-        })
-        return config'''
-        return {
-            "embed_dim": self.embed_dim,
-            "num_heads": self.num_heads,
-            "ff_dim": self.ff_dim,
-        }
-
-
-class TokenAndPositionEmbedding(Layer):
-    def __init__(self, maxlen, vocab_size, embed_dim):
-        super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
-        self.maxlen = maxlen
-        self.vocab_size = vocab_size
-        self.embed_dim = embed_dim
-
-    def call(self, x):
-        maxlen = tf.shape(x)[-1]
-        positions = tf.range(start=0, limit=maxlen, delta=1)
-        positions = self.pos_emb(positions)
-        x = self.token_emb(x)
-        return x + positions
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    def get_config(self):
-        '''config = super().get_config()
-        config.update({
-            "maxlen": self.maxlen,
-            "vocab_size": self.vocab_size,
-            "embed_dim": self.embed_dim,
-        })'''
-        return {
-            "maxlen": self.maxlen,
-            "vocab_size": self.vocab_size,
-            "embed_dim": self.embed_dim,
-        }
-
-
 def create_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
     a_mask = Input(shape=(maxlen, maxlen))
-    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+    embedding_layer = transformer_network.TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
-    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
+    transformer_block = transformer_network.TransformerBlock(embed_dim, num_heads, ff_dim)
     x, weights = transformer_block(x, a_mask)
     x = GlobalAveragePooling1D()(x)
     x = Dropout(dropout)(x)
     x = Dense(ff_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
     outputs = Dense(vocab_size, activation="sigmoid")(x)
-
-    model = Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
-
-    return model
-
-def create_attention_mask(seq):
-    mask = tf.math.logical_not(tf.cast(tf.math.equal(seq, 0), tf.bool))
-    mask = tf.cast(tf.math.equal(mask, True), tf.int64)
-
-    #mask = tf.cast(tf.math.equal(seq, 0), tf.float32)    
-    mask = mask[:, tf.newaxis, :]
-    #return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, seq_len)
-    #print(seq.shape, seq[:, tf.newaxis, :])
-    #s_t = tf.concat([seq, seq], axis=-1)
-    
-    #print("s_t.shape", s_t.shape)
-    #mask = np.ones((512, 25, 25))
-    
-
-    #mask[seq[:512,:,0]==0] = 0
-    #print(mask)
-    return mask
+    return Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
 
 
 def verify_training_sampling(sampled_tool_ids, rev_dict):
@@ -368,7 +234,6 @@ def visualize_loss_acc():
     epo_te_low_batch_acc = [np.round(float(item), 4) for item in epo_te_low_batch_acc]
 
     plot_low_te_prec(epo_te_low_batch_acc, "Low test")
-    
     #plot_rnn_transformer(epo_tr_batch_loss, epo_te_batch_loss)
 
 
@@ -511,81 +376,75 @@ def verify_tool_in_tr(r_dict):
     return s_freq
 
 
+def read_h5_model():
+    print(model_path_h5)
+    h5_path = model_path_h5 + "model.h5"
+    model_h5 = h5py.File(h5_path, 'r')
+
+    r_dict = json.loads(model_h5["reverse_dict"][()].decode("utf-8"))
+
+    m_load_s_time = time.time()
+    tf_loaded_model = create_model(seq_len, len(r_dict) + 1)
+    tf_loaded_model.load_weights(h5_path)
+    m_load_e_time = time.time()
+    model_loading_time = m_load_e_time - m_load_s_time
+
+    f_dict = dict((v, k) for k, v in r_dict.items())
+    c_weights = json.loads(model_h5["class_weights"][()].decode("utf-8"))
+    c_tools = json.loads(model_h5["compatible_tools"][()].decode("utf-8"))
+    s_conn = json.loads(model_h5["standard_connections"][()].decode("utf-8"))
+
+    model_h5.close()
+
+    return tf_loaded_model, f_dict, r_dict, c_weights, c_tools, s_conn, model_loading_time
+
+
+def read_model():
+    print(model_path)
+    m_load_s_time = time.time()
+    tf_loaded_model = tf.saved_model.load(model_path)
+    m_load_e_time = time.time()
+    m_l_time = m_load_e_time - m_load_s_time
+
+    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
+    f_dict = utils.read_file(base_path + "data/f_dict.txt")
+    c_weights = utils.read_file(base_path + "data/class_weights.txt")
+    c_tools = utils.read_file(base_path + "data/compatible_tools.txt")
+    s_conn = utils.read_file(base_path + "data/published_connections.txt")
+
+    return tf_loaded_model, f_dict, r_dict, c_weights, c_tools, s_conn, m_l_time
+    
+
 def predict_seq():
 
     #visualize_loss_acc()
 
     #plot_model_usage_time()
 
-    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
     #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
-    
-    #verify_training_sampling(tool_tr_freq, r_dict)
-    
-    #all_tr_label_tools = verify_tool_in_tr(r_dict)
-
-    #all_tr_label_tools_ids = list(all_tr_label_tools.keys())
-    #all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
+    #verify_training_sampling(tool_tr_freq, r_dict)  
     
     path_test_data = base_path + "saved_data/test.h5"
-
 
     file_obj = h5py.File(path_test_data, 'r')
     
     #test_target = tf.convert_to_tensor(np.array(file_obj["target"]), dtype=tf.int64)
     test_input = np.array(file_obj["input"])
     test_target = np.array(file_obj["target"])
+
     print(test_input.shape, test_target.shape)
-    
-    r_dict = utils.read_file(base_path + "data/rev_dict.txt")
-    f_dict = utils.read_file(base_path + "data/f_dict.txt")
 
-    class_weights = utils.read_file(base_path + "data/class_weights.txt")
-    compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
+    #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
 
-    #tool_freq = utils.read_file(base_path + "data/freq_dict_names.txt")
-    published_connections = utils.read_file(base_path + "data/published_connections.txt")
+    tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
+
+    '''all_tr_label_tools = verify_tool_in_tr(r_dict)
+    all_tr_label_tools_ids = list(all_tr_label_tools.keys())
+    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]'''
 
     c_weights = list(class_weights.values())
 
     c_weights = tf.convert_to_tensor(c_weights, dtype=tf.float32)
-
-    m_load_s_time = time.time()
-    print(model_path)
-    tf_loaded_model = tf.saved_model.load(model_path)
-
-    custom_objects={
-        "TokenAndPositionEmbedding": TokenAndPositionEmbedding, 
-        "TransformerBlock": TransformerBlock
-    }
-
-    json_config = utils.read_file(model_path_h5 + "model_config.json")
-    tf_loaded_model = create_model(25, len(r_dict) + 1) #tf.keras.models.model_from_json(json_config, custom_objects=custom_objects)
-    tf_loaded_model.summary()
-    print(dir(tf_loaded_model))
-    h5_path = model_path_h5 + "model.h5"
-    model_h5 = h5py.File(h5_path, 'r')
-    print(model_h5.keys())
-    for item in model_h5.keys():
-        print(item, model_h5[item].keys())
-
-    tf_loaded_model.load_weights(model_path_h5 + "model.h5")
-
-    '''tf_loaded_model = tf.keras.models.load_model(model_path_h5 + "model.h5",
-        custom_objects={
-            "TokenAndPositionEmbedding": TokenAndPositionEmbedding, 
-            "TransformerBlock": TransformerBlock
-        })'''
-
-    #tf_loaded_model.load_weights(model_path_h5 + "model.h5")
-    m_load_e_time = time.time()
-
-    model_loading_time = m_load_e_time - m_load_s_time
-
-
-    '''print("Saving as ONNX model...")
-    onnx_model_save_path = onnx_model_path + "{}/onnx_model/".format(model_number)
-    utils.convert_to_onnx(model_path, onnx_model_save_path)'''
 
     u_te_y_labels, u_te_y_labels_dict = get_u_tr_labels(test_target)
 
@@ -597,10 +456,10 @@ def predict_seq():
     batch_pred_time = list()
     for j in range(test_batches):
 
-        #te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
         #print(j * batch_size, j * batch_size + batch_size)
-        te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
+        #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
         #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
         te_x_mask = utils.create_padding_mask(te_x_batch)
         #te_x_batch = tf.cast(te_x_batch, dtype=tf.int64, name="input_2")
@@ -611,13 +470,13 @@ def predict_seq():
         pred_s_time = time.time()
         
         if predict_rnn is True:
-            te_prediction = tf_loaded_model([te_x_batch], training=False)
+            te_prediction = tf_loaded_model(te_x_batch, training=False)
         else:
             te_x_mask = tf.cast(te_x_mask, dtype=tf.float32)
             te_prediction, att_weights = tf_loaded_model([te_x_batch, te_x_mask], training=False)
-            print("att_weights", att_weights.shape)
+            #print("att_weights", att_weights.shape)
         pred_e_time = time.time()
-        diff_time = pred_e_time - pred_s_time
+        diff_time = (pred_e_time - pred_s_time) / float(batch_size)
         batch_pred_time.append(diff_time)
         
         for i, (inp, tar) in enumerate(zip(te_x_batch, y_train_batch)):
@@ -716,7 +575,7 @@ def predict_seq():
         low_te_data_mask = tf.cast(low_te_data_mask, dtype=tf.float32)
         bat_low_prediction, att_weights = tf_loaded_model([low_te_data, low_te_data_mask], training=False)
     pred_e_time = time.time()
-    low_diff_pred_t = pred_e_time - pred_s_time
+    low_diff_pred_t = (pred_e_time - pred_s_time) / float(len(lowest_t_ids))
     low_te_pred_time.append(low_diff_pred_t)
     print("Time taken to predict tools: {} seconds".format(low_diff_pred_t))
 
@@ -815,7 +674,7 @@ def predict_seq():
     
     pred_s_time = time.time()
     if predict_rnn is True:
-        prediction = tf_loaded_model([t_ip], training=False)
+        prediction = tf_loaded_model(t_ip, training=False)
     else:
         t_ip_mask = utils.create_padding_mask(t_ip)
         t_ip_mask = tf.cast(t_ip_mask, dtype=tf.float32)

@@ -10,12 +10,11 @@ import tensorflow as tf
 #import tensorflow_addons as tfa
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Dropout, Layer
-from tensorflow.keras.layers import Embedding, Input, GlobalAveragePooling1D, Dense
-from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Dropout, Layer, Input, GlobalAveragePooling1D, Dense
+from tensorflow.keras.models import Model
 
 import utils
-
+import transformer_network
 
 
 embed_dim = 128 # Embedding size for each token d_model
@@ -23,12 +22,15 @@ num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 20000
+n_train_batches = 2000
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 100
+train_logging_step = 500
 te_batch_size = batch_size
 learning_rate = 1e-3 #2e-5 #1e-3
+
+base_path = "log/"
+model_path = base_path + "saved_model/"
 
 # Readings
 # https://keras.io/examples/nlp/text_classification_with_transformer/
@@ -48,95 +50,12 @@ binary_acc = tf.keras.metrics.BinaryAccuracy()
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
 
-class TransformerBlock(Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
-        super(TransformerBlock, self).__init__()
-        self.att = MultiHeadAttention(num_heads=num_heads,
-            key_dim=embed_dim,
-            dropout=rate,
-            kernel_regularizer='l1_l2',
-            bias_regularizer='l1_l2',
-            activity_regularizer='l1_l2'
-        )
-        self.ffn = Sequential(
-            [Dense(ff_dim, activation="relu"),
-             Dense(embed_dim),]
-        )
-        self.layernorm1 = LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = LayerNormalization(epsilon=1e-6)
-        self.dropout1 = Dropout(rate)
-        self.dropout2 = Dropout(rate)
-
-        self.embed_dim = embed_dim
-        self.num_heads = embed_dim
-        self.ff_dim = ff_dim
-
-    def call(self, inputs, a_mask, training):
-        attn_output, attention_scores = self.att(inputs, inputs, inputs, attention_mask=a_mask, return_attention_scores=True, training=training)
-        attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(inputs + attn_output)
-        ffn_output = self.ffn(out1)
-        ffn_output = self.dropout2(ffn_output, training=training)
-        return self.layernorm2(out1 + ffn_output), attention_scores
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    def get_config(self):
-        '''config = super().get_config()
-        config.update({
-            "embed_dim": self.embed_dim,
-            "num_heads": self.num_heads,
-            "ff_dim": self.ff_dim,
-        })
-        return config'''
-        return {
-            "embed_dim": self.embed_dim,
-            "num_heads": self.num_heads,
-            "ff_dim": self.ff_dim,
-        }
-
-
-class TokenAndPositionEmbedding(Layer):
-    def __init__(self, maxlen, vocab_size, embed_dim):
-        super(TokenAndPositionEmbedding, self).__init__()
-        self.token_emb = Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=True)
-        self.pos_emb = Embedding(input_dim=maxlen, output_dim=embed_dim, mask_zero=True)
-        self.maxlen = maxlen
-        self.vocab_size = vocab_size
-        self.embed_dim = embed_dim
-
-    def call(self, x):
-        maxlen = tf.shape(x)[-1]
-        positions = tf.range(start=0, limit=maxlen, delta=1)
-        positions = self.pos_emb(positions)
-        x = self.token_emb(x)
-        return x + positions
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    def get_config(self):
-        '''config = super().get_config()
-        config.update({
-            "maxlen": self.maxlen,
-            "vocab_size": self.vocab_size,
-            "embed_dim": self.embed_dim,
-        })'''
-        return {
-            "maxlen": self.maxlen,
-            "vocab_size": self.vocab_size,
-            "embed_dim": self.embed_dim,
-        }
-
 def create_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
     a_mask = Input(shape=(maxlen, maxlen))
-    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+    embedding_layer = transformer_network.TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
-    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
+    transformer_block = transformer_network.TransformerBlock(embed_dim, num_heads, ff_dim)
     x, weights = transformer_block(x, a_mask)
     x = GlobalAveragePooling1D()(x)
     x = Dropout(dropout)(x)
@@ -144,10 +63,7 @@ def create_model(maxlen, vocab_size):
     x = Dropout(dropout)(x)
     outputs = Dense(vocab_size, activation="sigmoid")(x)
 
-    model = Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
-    #model.compile(optimizer= tf.keras.optimizers.Adam(learning_rate=learning_rate), loss=custom_loss)
-    #print(model.summary())
-    return model
+    return Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
 
 
 def get_u_labels(y_train):
@@ -418,7 +334,9 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
     c_weights = tf.convert_to_tensor(list(c_wts.values()), dtype=tf.float32)
 
     te_lowest_t_ids = utils.get_low_freq_te_samples(test_data, test_labels, tr_t_freq)
-    utils.write_file("log/data/te_lowest_t_ids.txt", ",".join([str(item) for item in te_lowest_t_ids]))
+    utils.write_file(base_path + "data/te_lowest_t_ids.txt", ",".join([str(item) for item in te_lowest_t_ids]))
+    compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
+    published_connections = utils.read_file(base_path + "data/published_connections.txt")
 
     sel_tools = list()
     for batch in range(n_train_batches):
@@ -461,28 +379,16 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         if (batch+1) % train_logging_step == 0:
             print("Saving model at training step {}/{}".format(batch + 1, n_train_batches))
 
-            base_path = "log/saved_model/"
-            tf_path = base_path + "{}/".format(batch+1)
-            tf_model_save = base_path + "{}/tf_model/".format(batch+1)
-            tf_model_save_h5 = base_path + "{}/tf_model_h5/".format(batch+1)
+            tf_path = model_path + "{}/".format(batch+1)
+            tf_model_save = model_path + "{}/tf_model/".format(batch+1)
+            tf_model_save_h5 = model_path + "{}/tf_model_h5/".format(batch+1)
             if not os.path.isdir(tf_path):
                 os.mkdir(tf_path)
+                os.mkdir(tf_model_save)
                 os.mkdir(tf_model_save_h5)
 
             tf.saved_model.save(model, tf_model_save)
-
-            utils.write_file(tf_model_save_h5 + "model_config.json", model.to_json()) #model.get_config()
-            model.save_weights(tf_model_save_h5 + "model.h5")
-            #model.save(tf_model_save_h5 + "model.h5")
-
-
-            
-
-            '''onnx_model_save = base_path + "{}/onnx_model/".format(batch+1)
-            if not os.path.isdir(tf_path):
-                os.mkdir(onnx_model_save)'''
-            
-            #utils.convert_to_onnx(tf_model_save, onnx_model_save)
+            utils.save_model_file(tf_model_save_h5, model, r_dict, c_wts, compatible_tools, published_connections)
 
     new_dict = dict()
     for k in u_tr_y_labels_dict:
