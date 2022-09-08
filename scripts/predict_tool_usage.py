@@ -24,30 +24,29 @@ class ToolPopularity:
     def __init__(self):
         """ Init method. """
 
-    def extract_tool_usage(self, tool_usage_file, cutoff_date, dictionary):
+    def extract_tool_usage(self, tool_usage_df, cutoff_date, dictionary):
         """
         Extract the tool usage over time for each tool
         """
         tool_usage_dict = dict()
         all_dates = list()
         all_tool_list = list(dictionary.keys())
-        with open(tool_usage_file, 'rt') as usage_file:
-            tool_usage = csv.reader(usage_file, delimiter=',')
-            for index, row in enumerate(tool_usage):
-                if (str(row[1]).strip() > cutoff_date) is True:
-                    tool_id = utils.format_tool_id(row[0])
-                    if tool_id in all_tool_list:
-                        all_dates.append(row[1])
-                        if tool_id not in tool_usage_dict:
-                            tool_usage_dict[tool_id] = dict()
-                            tool_usage_dict[tool_id][row[1]] = int(row[2])
+        for index, row in tool_usage_df.iterrows():
+            row = row.tolist()
+            if (str(row[1]).strip() > cutoff_date) is True:
+                tool_id = utils.format_tool_id(row[0])
+                if tool_id in all_tool_list:
+                    all_dates.append(row[1])
+                    if tool_id not in tool_usage_dict:
+                        tool_usage_dict[tool_id] = dict()
+                        tool_usage_dict[tool_id][row[1]] = int(row[2])
+                    else:
+                        curr_date = row[1]
+                        # merge the usage of different version of tools into one
+                        if curr_date in tool_usage_dict[tool_id]:
+                            tool_usage_dict[tool_id][curr_date] += int(row[2])
                         else:
-                            curr_date = row[1]
-                            # merge the usage of different version of tools into one
-                            if curr_date in tool_usage_dict[tool_id]:
-                                tool_usage_dict[tool_id][curr_date] += int(row[2])
-                            else:
-                                tool_usage_dict[tool_id][curr_date] = int(row[2])
+                            tool_usage_dict[tool_id][curr_date] = int(row[2])
         # get unique dates
         unique_dates = list(set(all_dates))
         for tool in tool_usage_dict:

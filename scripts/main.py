@@ -202,13 +202,13 @@ if __name__ == "__main__":
         # Extract and process workflows
         connections = extract_workflow_connections.ExtractWorkflowConnections()
         # Process raw workflow file
-        connections.process_raw_files(workflows_path, tool_usage_path, config)
-        workflow_paths, standard_connections = connections.read_tabular_file(workflows_path, config)
+        wf_dataframe, usage_df = connections.process_raw_files(workflows_path, tool_usage_path, config)
+        workflow_paths, standard_connections = connections.read_tabular_file(wf_dataframe, config)
 
         # Process the paths from workflows
         print("Dividing data...")
         data = prepare_data.PrepareData(maximum_path_length, test_share)
-        train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq = data.get_data_labels_matrices(workflow_paths, tool_usage_path, cutoff_date, standard_connections)
+        train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq = data.get_data_labels_matrices(workflow_paths, usage_df, cutoff_date, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
         transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)

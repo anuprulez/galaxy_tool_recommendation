@@ -90,16 +90,12 @@ class PrepareData:
             if len_tools > max_len:
                 max_len = len_tools
             if len_tools < self.max_tool_sequence_len:
-                #for window in range(1, len_tools):
-                #sequence = tools[0: window + 1]
                 sequence = tools[0: len_tools]
                 tools_pos = [str(dictionary[str(tool_item)]) for tool_item in sequence]
                 if len(tools_pos) > 1:
                     sub_paths_pos.append(",".join(tools_pos))
-        #print(len(sub_paths_pos))
         sub_paths_pos = list(set(sub_paths_pos))
         print("Max length of tools: ", max_len)
-        #print(len(sub_paths_pos))
         return sub_paths_pos
 
 
@@ -109,12 +105,8 @@ class PrepareData:
         d_size = 0
         for i, item in enumerate(paths):
             input_tools = item.split(",")
-            #print(input_tools)
-            #ctr = 0
-            #for ctr in range(len(input_tools) - 1):
-                # uncomment this for one token target idea
-            #print(item)
-            tool_seq = input_tools #input_tools[0: ctr+2]
+
+            tool_seq = input_tools
             i_tools = ",".join(tool_seq[0:-1])
             
             last_i_tool = i_tools.split(",")[-1]
@@ -137,13 +129,9 @@ class PrepareData:
             if t_tools not in input_target_paths[i_tools]:
                 input_target_paths[i_tools].append(t_tools)
 
-            '''if i == 10:
-                break'''
-        #print(input_target_paths)
         for item in input_target_paths:
             d_size += len(input_target_paths[item])
         print("Dataset size:", d_size)
-        #sys.exit()
         return input_target_paths, compatible_tools, d_size
 
 
@@ -272,7 +260,7 @@ class PrepareData:
         freq_dict_names = dict()
         for path in train_paths:
             tools_pos = np.where(path > 0)[0]
-            path_pos = tools_pos #path[tools_pos]
+            path_pos = tools_pos
             path_pos = [str(int(item)) for item in path_pos]
 
             for tool_pos in path_pos:
@@ -283,8 +271,6 @@ class PrepareData:
                 freq_dict_names[reverse_dictionary[int(tool_pos)]] += 1
         
         sorted_dict = dict(sorted(last_tool_freq.items(), key=lambda kv: kv[1], reverse=True))
-        print(sorted_dict)
-        print()
         utils.write_file("log/data/train_tool_freq.txt", sorted_dict)
         return sorted_dict
 
@@ -324,30 +310,23 @@ class PrepareData:
         return l_tool_tr_samples
 
 
-    def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, standard_connections, old_data_dictionary={}):
+    def get_data_labels_matrices(self, workflow_paths, usage_df, cutoff_date, standard_connections, old_data_dictionary={}):
         """
         Convert the training and test paths into corresponding numpy matrices
         """
         processed_data, raw_paths = self.process_workflow_paths(workflow_paths)
         dictionary, rev_dict = self.create_data_dictionary(processed_data, old_data_dictionary)
 
-        print(dictionary)
-        print()
-        print(rev_dict)
-
         num_classes = len(dictionary)
 
         print("Raw paths: %d" % len(raw_paths))
         random.shuffle(raw_paths)
-
-        #raw_paths = raw_paths[:100000]
 
         print("Decomposing paths...")
         all_unique_paths = self.decompose_paths(raw_paths, dictionary)
         random.shuffle(all_unique_paths)
 
         all_paths = ",".join(all_unique_paths)
-        utils.write_file("log/data/all_paths.txt", all_paths)
 
         print("Creating dictionaries...")
         multilabels_paths, compatible_tools, d_size = self.prepare_input_target_paths(dictionary, rev_dict, all_unique_paths)
@@ -363,14 +342,6 @@ class PrepareData:
         print()
         print(train_labels[0:5])
 
-        print("Saving datasets...")
-        utils.write_file("log/data/rev_dict.txt", rev_dict)
-        utils.write_file("log/data/f_dict.txt", dictionary)
-        utils.write_file("log/data/compatible_tools.txt", compatible_tools)
-        utils.write_file("log/data/published_connections.txt", standard_connections)
-        utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")
-        utils.save_h5_data(test_data, test_labels, "log/saved_data/test.h5")
-
         print("Train data: ", train_data.shape)
         print("Test data: ", test_data.shape)
         
@@ -378,15 +349,23 @@ class PrepareData:
         tr_tool_last_freq = self.get_train_last_tool_freq(train_data, rev_dict)
         tr_tool_freq = self.get_train_tool_labels_freq(train_labels, rev_dict)
 
-        print(tr_tool_freq, len(tr_tool_freq))
-
         # Predict tools usage
         print("Predicting tools' usage...")
         usage_pred = predict_tool_usage.ToolPopularity()
-        usage = usage_pred.extract_tool_usage(tool_usage_path, cutoff_date, dictionary)
+        usage = usage_pred.extract_tool_usage(usage_df, cutoff_date, dictionary)
         tool_usage_prediction = usage_pred.get_pupularity_prediction(usage)
         t_pred_usage = self.get_predicted_usage(dictionary, tool_usage_prediction)
         # get class weights using the predicted usage for each tool
         class_weights = self.assign_class_weights(num_classes, t_pred_usage)
+
+        print("Saving datasets...")
+        utils.write_file("log/data/rev_dict.txt", rev_dict)
+        utils.write_file("log/data/f_dict.txt", dictionary)
+        utils.write_file("log/data/compatible_tools.txt", compatible_tools)
+        utils.write_file("log/data/published_connections.txt", standard_connections)
+        utils.save_h5_data(train_data, train_labels, "log/saved_data/train.h5")
+        utils.save_h5_data(test_data, test_labels, "log/saved_data/test.h5")
+        utils.write_file("log/data/all_paths.txt", all_paths)
         utils.write_file("log/data/class_weights.txt", class_weights)
+
         return train_data, train_labels, test_data, test_labels, dictionary, rev_dict, class_weights, tr_tool_freq

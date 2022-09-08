@@ -22,10 +22,10 @@ num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 20000
+n_train_batches = 200
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 1000
+train_logging_step = 100
 te_batch_size = batch_size
 learning_rate = 1e-3
 
