@@ -6,6 +6,8 @@ input and output tools
 import csv
 import random
 
+import utils
+
 from scripts.utils import format_tool_id
 
 
@@ -13,6 +15,18 @@ class ExtractWorkflowConnections:
 
     def __init__(self):
         """ Init method. """
+
+    def process_raw_files(self, wf_path, tool_popu_path, config):
+        """
+        Remove pipe from workflows and popularity tabular files
+        """
+        wf_frame = utils.remove_pipe(wf_path)
+        tool_popu_frame = utils.remove_pipe(tool_popu_path)
+
+        print("Saving preprocess files without pipe...")
+        wf_frame.to_csv(wf_path, index=None, header=None)
+        tool_popu_frame.to_csv(tool_popu_path, index=None, header=None)
+
 
     def read_tabular_file(self, raw_file_path, config):
         """
@@ -81,9 +95,7 @@ class ExtractWorkflowConnections:
         random.shuffle(unique_paths)
         no_dup_paths = list(set(unique_paths))
 
-        print("Finding compatible next tools...")
-        compatible_next_tools = [] #self.__set_compatible_next_tools(no_dup_paths)
-        return unique_paths, compatible_next_tools, standard_connections
+        return unique_paths, standard_connections
 
     def __collect_standard_connections(self, row):
         published = row[8].strip()

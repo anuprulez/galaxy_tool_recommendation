@@ -21,9 +21,9 @@ class TransformerBlock(Layer):
         self.att = MultiHeadAttention(num_heads=num_heads,
             key_dim=embed_dim,
             dropout=rate,
-            kernel_regularizer='l1_l2',
-            bias_regularizer='l1_l2',
-            activity_regularizer='l1_l2'
+            #kernel_regularizer='l1_l2',
+            #bias_regularizer='l1_l2',
+            #activity_regularizer='l1_l2'
         )
         self.ffn = Sequential(
             [Dense(ff_dim, activation="relu"),
@@ -35,8 +35,8 @@ class TransformerBlock(Layer):
         self.dropout2 = Dropout(rate)
 
 
-    def call(self, inputs, a_mask, training):
-        attn_output, attention_scores = self.att(inputs, inputs, inputs, attention_mask=a_mask, return_attention_scores=True, training=training)
+    def call(self, inputs, training):
+        attn_output, attention_scores = self.att(inputs, inputs, inputs, return_attention_scores=True, training=training)
         attn_output = self.dropout1(attn_output, training=training)
         out1 = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(out1)

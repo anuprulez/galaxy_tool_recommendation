@@ -50,9 +50,12 @@ seq_len = 25
 predict_rnn = False
 
 if predict_rnn is True:
-    base_path = "log/" #"log_08_08_22_rnn/"
+    base_path = "log_22_08_22_rnn/" #"log_08_08_22_rnn/"
 else:
-    base_path = "log/" #"log_local_16_08_22_0/"
+    base_path = "log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/" 
+
+# "log_22_08_22_rnn/"
+#"log_local_16_08_22_0/"
 
 #"log_08_08_22_2/"  log_12_08_22_2 log_local_11_08_22_1 log_local_11_08_22_2 log_local_11_08_22_3
 
@@ -68,7 +71,7 @@ else:
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 50
+model_number = 40000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
@@ -461,6 +464,7 @@ def predict_seq():
     print(test_input.shape, test_target.shape)
 
     if predict_rnn is True:
+        print(model_path)
         m_load_s_time = time.time()
         tf_loaded_model = tf.saved_model.load(model_path)
         m_load_e_time = time.time()
@@ -471,8 +475,8 @@ def predict_seq():
         compatible_tools = utils.read_file(base_path + "data/compatible_tools.txt")
         published_connections = utils.read_file(base_path + "data/published_connections.txt")
     else:
-        #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
-        tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
+        tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
+        #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
 
     '''all_tr_label_tools = verify_tool_in_tr(r_dict)
     all_tr_label_tools_ids = list(all_tr_label_tools.keys())
@@ -493,9 +497,11 @@ def predict_seq():
     for j in range(test_batches):
 
         te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+
         #print(j * batch_size, j * batch_size + batch_size)
         #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
         #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+
         #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
         te_x_mask = utils.create_padding_mask(te_x_batch)
         #te_x_batch = tf.cast(te_x_batch, dtype=tf.int64, name="input_2")
@@ -509,8 +515,9 @@ def predict_seq():
             te_prediction = tf_loaded_model(te_x_batch, training=False)
         else:
             te_x_mask = tf.cast(te_x_mask, dtype=tf.float32)
-            te_prediction, att_weights = tf_loaded_model([te_x_batch, te_x_mask], training=False)
-            #print("att_weights", att_weights.shape)
+            #te_prediction, att_weights = tf_loaded_model([te_x_batch, te_x_mask], training=False)
+            te_prediction, att_weights = tf_loaded_model(te_x_batch, training=False)
+           
         pred_e_time = time.time()
         diff_time = (pred_e_time - pred_s_time) / float(batch_size)
         batch_pred_time.append(diff_time)
@@ -587,7 +594,7 @@ def predict_seq():
                     #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
-                #generated_attention(att_weights[i], i_names, f_dict, r_dict)
+                generated_attention(att_weights[i], i_names, f_dict, r_dict)
                 #plot_attention_head_axes(att_weights)
                 print("Batch {} prediction finished ...".format(j+1))
 
@@ -609,7 +616,8 @@ def predict_seq():
         bat_low_prediction = tf_loaded_model(low_te_data, training=False)
     else:
         low_te_data_mask = tf.cast(low_te_data_mask, dtype=tf.float32)
-        bat_low_prediction, att_weights = tf_loaded_model([low_te_data, low_te_data_mask], training=False)
+        #bat_low_prediction, att_weights = tf_loaded_model([low_te_data, low_te_data_mask], training=False)
+        bat_low_prediction, att_weights = tf_loaded_model(low_te_data, training=False)
     pred_e_time = time.time()
     low_diff_pred_t = (pred_e_time - pred_s_time) / float(len(lowest_t_ids))
     low_te_pred_time.append(low_diff_pred_t)
@@ -714,7 +722,8 @@ def predict_seq():
     else:
         t_ip_mask = utils.create_padding_mask(t_ip)
         t_ip_mask = tf.cast(t_ip_mask, dtype=tf.float32)
-        prediction, att_weights = tf_loaded_model([t_ip, t_ip_mask], training=False)
+        #prediction, att_weights = tf_loaded_model([t_ip, t_ip_mask], training=False)
+        prediction, att_weights = tf_loaded_model(t_ip, training=False)
         print(att_weights.shape)
     pred_e_time = time.time()
     print("Time taken to predict tools: {} seconds".format(pred_e_time - pred_s_time))

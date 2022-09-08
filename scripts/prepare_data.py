@@ -153,7 +153,6 @@ class PrepareData:
         d_size = 0
         for i, item in enumerate(paths):
             input_tools = item.split(",")
-            #print(input_tools)
             ctr = 0
             for ctr in range(len(input_tools) - 1):
                 # uncomment this for one token target idea
@@ -325,7 +324,7 @@ class PrepareData:
         return l_tool_tr_samples
 
 
-    def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, compatible_next_tools, standard_connections, old_data_dictionary={}):
+    def get_data_labels_matrices(self, workflow_paths, tool_usage_path, cutoff_date, standard_connections, old_data_dictionary={}):
         """
         Convert the training and test paths into corresponding numpy matrices
         """

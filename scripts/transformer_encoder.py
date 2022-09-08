@@ -22,10 +22,10 @@ num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
 dropout = 0.1
-n_train_batches = 50
+n_train_batches = 20000
 batch_size = 512
 test_logging_step = 10
-train_logging_step = 10
+train_logging_step = 1000
 te_batch_size = batch_size
 learning_rate = 1e-3
 
@@ -52,18 +52,18 @@ categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
 def create_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
-    a_mask = Input(shape=(maxlen, maxlen))
+    #a_mask = Input(shape=(maxlen, maxlen))
     embedding_layer = transformer_network.TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
     transformer_block = transformer_network.TransformerBlock(embed_dim, num_heads, ff_dim)
-    x, weights = transformer_block(x, a_mask)
+    x, weights = transformer_block(x)
     x = GlobalAveragePooling1D()(x)
     x = Dropout(dropout)(x)
     x = Dense(ff_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
     outputs = Dense(vocab_size, activation="sigmoid")(x)
 
-    return Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
+    return Model(inputs=inputs, outputs=[outputs, weights])
 
 
 def get_u_labels(y_train):
@@ -215,12 +215,6 @@ def compute_loss(y_true, y_pred, class_weights=None):
     return tf.tensordot(loss, class_weights, axes=1), categorical_loss
 
 
-def custom_loss(y_true, y_pred):
-    y_true = tf.cast(y_true, dtype=tf.float32)
-    loss = binary_ce(y_true, y_pred)
-    return loss
-
-
 def compute_acc(y_true, y_pred):
     return binary_acc(y_true, y_pred)
 
@@ -230,7 +224,6 @@ def compute_topk_acc(y_true, y_pred, k):
     return topk_acc
 
 
-
 def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels, lowest_t_ids):
     #te_x_batch, y_train_batch = sample_test_x_y(te_x, te_y)
     #te_x_batch, y_train_batch = sample_balanced(te_x, te_y, ulabels_te_dict)
@@ -238,7 +231,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
     te_x_batch, y_train_batch, _ = sample_balanced_te_y(te_x, te_y, ulabels_te_dict, te_batch_size)
     te_mask = utils.create_padding_mask(te_x_batch)
     print("Batch test data size: ", te_x_batch.shape, y_train_batch.shape)
-    te_pred_batch, att_weights = model([te_x_batch, te_mask], training=False)
+    te_pred_batch, att_weights = model(te_x_batch, training=False)
     test_acc = tf.reduce_mean(compute_acc(y_train_batch, te_pred_batch))
     test_err, test_categorical_loss = compute_loss(y_train_batch, te_pred_batch)
 
@@ -273,7 +266,7 @@ def validate_model(te_x, te_y, model, f_dict, r_dict, ulabels_te_dict, tr_labels
     low_te_data = te_x[lowest_t_ids]
     low_te_labels = te_y[lowest_t_ids]
     low_att_mask = utils.create_padding_mask(low_te_data)
-    low_te_pred_batch, low_att_weights = model([low_te_data, low_att_mask], training=False)
+    low_te_pred_batch, low_att_weights = model(low_te_data, training=False)
     low_test_err, low_test_categorical_loss = compute_loss(low_te_labels, low_te_pred_batch)
 
     low_te_precision = list()
@@ -352,7 +345,7 @@ def create_enc_transformer(train_data, train_labels, test_data, test_labels, f_d
         all_sel_tool_ids.extend(sel_tools)
 
         with tf.GradientTape() as model_tape:
-            prediction, att_weights = model([x_train, att_mask], training=True)
+            prediction, att_weights = model(x_train, training=True)
             tr_loss, tr_cat_loss = compute_loss(y_train, prediction)
             tr_acc = tf.reduce_mean(compute_acc(y_train, prediction))
         trainable_vars = model.trainable_variables

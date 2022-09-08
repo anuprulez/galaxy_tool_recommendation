@@ -2,6 +2,7 @@ import os
 import numpy as np
 import json
 import h5py
+import pandas as pd
 import random
 import subprocess
 import tqdm
@@ -351,6 +352,12 @@ def get_lowest_tools(l_tool_freq, fraction=0.25):
     tool_ids = list(l_tool_freq.keys())
     lowest_ids = tool_ids[-int(len(tool_ids) * fraction):]
     return lowest_ids
+
+
+def remove_pipe(file_path):
+    dataframe = pd.read_csv(file_path, sep="|", header=None)
+    dataframe = dataframe[1:len(dataframe.index)-1]
+    return dataframe[1:]
 
 
 def verify_model(model, x, y, reverse_data_dictionary, usage_scores, standard_conn, lowest_tool_ids, topk_list=[1, 2, 3]):
