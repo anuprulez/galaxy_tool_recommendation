@@ -7,7 +7,6 @@ import sys
 import json
 
 import tensorflow as tf
-#import tensorflow_addons as tfa
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Dropout, Layer, Input, GlobalAveragePooling1D, Dense

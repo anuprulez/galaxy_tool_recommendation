@@ -24,8 +24,8 @@ from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.callbacks import EarlyStopping
 
 
-import onnx
-from onnx_tf.backend import prepare
+#import onnx
+#from onnx_tf.backend import prepare
 
 import predict_sequences
 import utils
@@ -36,8 +36,8 @@ fig_size = (15, 15)
 font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
-batch_size = 512
-test_batches = 1
+batch_size = 100
+test_batches = 1000
 n_topk = 1
 max_seq_len = 25
 
@@ -52,7 +52,7 @@ predict_rnn = False
 if predict_rnn is True:
     base_path = "log_22_08_22_rnn/" #"log_08_08_22_rnn/"
 else:
-    base_path = "log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/" 
+    base_path = "log_09_09_22_0/" #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/" 
 
 # "log_22_08_22_rnn/"
 #"log_local_16_08_22_0/"
@@ -65,13 +65,21 @@ else:
 #predict_rnn = False # set to True for RNN model
 
 # log_08_08_22_2 (finish time: 40,000 steps in 158683.60082054138 seconds)
-# log_08_08_22_rnn (finish time: 40,000 steps in 173480.83078551292 seconds)
+# log_08_08_22_rnn (finish time: 40,000 steps in 193863.47694134712 seconds)
+
+## Transformer
+## GPU: 40,000 steps, batch size: 512 - 125628.12883853912 seconds
+## CPU: 40 steps, batch size: 512 - 158683 seconds
+
+## RNN
+## GPU: 40,000 steps, batch size: 512 - 125628.12883853912 seconds
+## CPU: 40 steps, batch size: 512 - 193863 seconds
 
 #"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 40000
+model_number = 20000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
@@ -109,17 +117,17 @@ def create_rnn_model(seq_len, vocab_size):
 
 def create_transformer_model(maxlen, vocab_size):
     inputs = Input(shape=(maxlen,))
-    a_mask = Input(shape=(maxlen, maxlen))
+    #a_mask = Input(shape=(maxlen, maxlen))
     embedding_layer = transformer_network.TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
     x = embedding_layer(inputs)
     transformer_block = transformer_network.TransformerBlock(embed_dim, num_heads, ff_dim)
-    x, weights = transformer_block(x, a_mask)
+    x, weights = transformer_block(x)
     x = GlobalAveragePooling1D()(x)
     x = Dropout(dropout)(x)
     x = Dense(ff_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
     outputs = Dense(vocab_size, activation="sigmoid")(x)
-    return Model(inputs=[inputs, a_mask], outputs=[outputs, weights])
+    return Model(inputs=inputs, outputs=[outputs, weights])
 
 
 def verify_training_sampling(sampled_tool_ids, rev_dict):
@@ -446,7 +454,7 @@ def read_model():
 
 def predict_seq():
 
-    #visualize_loss_acc()
+    visualize_loss_acc()
 
     #plot_model_usage_time()
 
@@ -478,9 +486,9 @@ def predict_seq():
         tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
         #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
 
-    '''all_tr_label_tools = verify_tool_in_tr(r_dict)
+    all_tr_label_tools = verify_tool_in_tr(r_dict)
     all_tr_label_tools_ids = list(all_tr_label_tools.keys())
-    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]'''
+    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
 
     c_weights = list(class_weights.values())
 
@@ -496,11 +504,11 @@ def predict_seq():
     batch_pred_time = list()
     for j in range(test_batches):
 
-        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        #te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
 
-        #print(j * batch_size, j * batch_size + batch_size)
-        #te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        #y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        print(j * batch_size, j * batch_size + batch_size)
+        te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
+        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
 
         #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
         te_x_mask = utils.create_padding_mask(te_x_batch)
@@ -530,7 +538,7 @@ def predict_seq():
             if len(np.where(inp > 0)[0]) <= max_seq_len:
                
                 real_prediction = np.where(tar > 0)[0]
-                target_pos = real_prediction #list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
+                target_pos = list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
 
                 prediction_wts = tf.math.multiply(c_weights, prediction)
 
@@ -594,7 +602,7 @@ def predict_seq():
                     #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
-                generated_attention(att_weights[i], i_names, f_dict, r_dict)
+                #generated_attention(att_weights[i], i_names, f_dict, r_dict)
                 #plot_attention_head_axes(att_weights)
                 print("Batch {} prediction finished ...".format(j+1))
 

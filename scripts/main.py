@@ -17,14 +17,15 @@ sys.path.append(os.getcwd())
 
 # machine learning library
 import tensorflow as tf
+# comment this if running on GPU
+tf.config.set_visible_devices([], 'GPU')
+
 from tensorflow.keras import backend as K
 import tensorflow.keras.callbacks as callbacks
 
 from scripts import extract_workflow_connections
 from scripts import prepare_data
-from scripts import optimise_hyperparameters
 from scripts import utils
-import create_transformer
 import transformer_encoder
 import create_rnn
 

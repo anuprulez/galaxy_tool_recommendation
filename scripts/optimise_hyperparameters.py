@@ -14,7 +14,7 @@ from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.callbacks import EarlyStopping
 
 from scripts import utils
-import create_transformer
+#import create_transformer
 
 
 class HyperparameterOptimisation:
