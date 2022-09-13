@@ -6,12 +6,8 @@ import subprocess
 import sys
 
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
-from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Dropout, Layer
-from tensorflow.keras.layers import Embedding, Input, GlobalAveragePooling1D, Dense
-from tensorflow.keras.datasets import imdb
-from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dropout, Embedding, Input, Dense
+from tensorflow.keras.models import Model
 
 import utils
 
@@ -36,7 +32,7 @@ embed_dim = 128 # Embedding size for each token d_model
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 dropout = 0.1
 n_train_batches = 50
-batch_size = 512
+batch_size = 128
 test_logging_step = 10
 train_logging_step = 10
 te_batch_size = batch_size
@@ -60,28 +56,28 @@ categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
 def create_model(seq_len, vocab_size):
 
-    seq_inputs = tf.keras.Input(batch_shape=(None, seq_len))
+    seq_inputs = Input(batch_shape=(None, seq_len))
 
-    gen_embedding = tf.keras.layers.Embedding(vocab_size, embed_dim, mask_zero=True)
-    in_gru = tf.keras.layers.GRU(ff_dim, return_sequences=True, return_state=False)
-    out_gru = tf.keras.layers.GRU(ff_dim, return_sequences=False, return_state=True)
-    enc_fc = tf.keras.layers.Dense(vocab_size, activation='sigmoid', kernel_regularizer="l2")
+    gen_embedding = Embedding(vocab_size, embed_dim, mask_zero=True)
+    in_gru = GRU(ff_dim, return_sequences=True, return_state=False)
+    out_gru = GRU(ff_dim, return_sequences=False, return_state=True)
+    enc_fc = Dense(vocab_size, activation='sigmoid', kernel_regularizer="l2")
 
     embed = gen_embedding(seq_inputs)
 
-    embed = tf.keras.layers.Dropout(dropout)(embed)
+    embed = Dropout(dropout)(embed)
 
     gru_output = in_gru(embed)
 
-    gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+    gru_output = Dropout(dropout)(gru_output)
 
     gru_output, hidden_state = out_gru(gru_output)
 
-    gru_output = tf.keras.layers.Dropout(dropout)(gru_output)
+    gru_output = Dropout(dropout)(gru_output)
 
     fc_output = enc_fc(gru_output)
 
-    return Model(inputs=[seq_inputs], outputs=[fc_output])
+    return Model(inputs=seq_inputs, outputs=[fc_output])
 
 
 def get_u_labels(y_train):

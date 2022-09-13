@@ -20,9 +20,6 @@ import tensorflow as tf
 # comment this if running on GPU
 tf.config.set_visible_devices([], 'GPU')
 
-from tensorflow.keras import backend as K
-import tensorflow.keras.callbacks as callbacks
-
 from scripts import extract_workflow_connections
 from scripts import prepare_data
 from scripts import utils
@@ -195,8 +192,8 @@ if __name__ == "__main__":
         print(len(r_dict), len(f_dict))
 
         print("Extracted size: ", train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
-        #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
 
     else:
         print("Preprocessing workflows...")
@@ -212,8 +209,8 @@ if __name__ == "__main__":
         train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq = data.get_data_labels_matrices(workflow_paths, usage_df, cutoff_date, standard_connections)
 
         print(train_data.shape, train_labels.shape, test_data.shape, test_labels.shape)
-        transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
-        #create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        #transformer_encoder.create_enc_transformer(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
+        create_rnn.create_rnn_architecture(train_data, train_labels, test_data, test_labels, f_dict, r_dict, c_wts, tr_tool_freq)
 
     end_time = time.time()
     print()

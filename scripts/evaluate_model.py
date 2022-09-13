@@ -52,7 +52,7 @@ predict_rnn = False
 if predict_rnn is True:
     base_path = "log_22_08_22_rnn/" #"log_08_08_22_rnn/"
 else:
-    base_path = "log_09_09_22_0/" #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/" 
+    base_path = "log_12_09_22_GPU/" #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/" 
 
 # "log_22_08_22_rnn/"
 #"log_local_16_08_22_0/"
@@ -64,22 +64,22 @@ else:
 #base_path = "log_08_08_22_2/"
 #predict_rnn = False # set to True for RNN model
 
-# log_08_08_22_2 (finish time: 40,000 steps in 158683.60082054138 seconds)
-# log_08_08_22_rnn (finish time: 40,000 steps in 193863.47694134712 seconds)
+# log_08_08_22_2 (finish time: 40,000 steps in 158683 seconds)
+# log_08_08_22_rnn (finish time: 40,000 steps in 193863 seconds)
 
 ## Transformer
-## GPU: 40,000 steps, batch size: 512 - 125628.12883853912 seconds
+## GPU: 40,000 steps, batch size: 512 - 125628 seconds
 ## CPU: 40 steps, batch size: 512 - 158683 seconds
 
 ## RNN
-## GPU: 40,000 steps, batch size: 512 - 125628.12883853912 seconds
+## GPU: 40,000 steps, batch size: 512 -  seconds
 ## CPU: 40 steps, batch size: 512 - 193863 seconds
 
 #"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
 
-model_number = 20000
+model_number = 40000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
@@ -455,6 +455,8 @@ def read_model():
 def predict_seq():
 
     visualize_loss_acc()
+
+    sys.exit()
 
     #plot_model_usage_time()
 

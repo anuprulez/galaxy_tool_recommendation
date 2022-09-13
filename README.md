@@ -22,6 +22,23 @@ iPython notebook: https://github.com/anuprulez/galaxy_tool_recommendation/blob/m
 
 Other requirements: python=3.6, tensorflow=1.13.1, keras=2.3.0, scikit-learn=0.21.3, numpy=1.17.2, h5py=2.9.0, csvkit=1.0.4, hyperopt=0.1.2, matplotlib=3.1.1
 
+Nvidia-GPU: conda install -c anaconda tensorflow-gpu  v:v2.4.1
+https://anaconda.org/anaconda/tensorflow-gpu
+
+### GPU Conda env
+conda create --name tool_prediction_rnn_4 python=3.9
+conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/' > $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+
+pip install --upgrade pip
+pip install tensorflow-gpu
+
+pip install pandas tqdm scikit-learn
+
+-------------
+
 Training script: https://github.com/anuprulez/galaxy_tool_recommendation/blob/master/train.sh
 
 License: MIT License
