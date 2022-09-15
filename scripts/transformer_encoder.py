@@ -14,7 +14,7 @@ import utils
 import transformer_network
 
 
-embed_dim = 128 # Embedding size for each token d_model
+embed_dim = 128 # Embedding size for each token d_mode
 num_heads = 4 # Number of attention heads
 ff_dim = 128 # Hidden layer size in feed forward network inside transformer # dff
 #d_dim = 512
@@ -42,7 +42,6 @@ model_path = base_path + "saved_model/"
 #Test data:  (103739, 25)
 
 binary_ce = tf.keras.losses.BinaryCrossentropy()
-binary_fce = tf.keras.losses.BinaryFocalCrossentropy(gamma=5)
 binary_acc = tf.keras.metrics.BinaryAccuracy()
 categorical_ce = tf.keras.metrics.CategoricalCrossentropy(from_logits=True)
 
@@ -204,7 +203,6 @@ def sample_balanced_tr_y(x_seqs, y_labels, ulabels_tr_y_dict, b_size, tr_t_freq,
 def compute_loss(y_true, y_pred, class_weights=None):
     y_true = tf.cast(y_true, dtype=tf.float32)
     loss = binary_ce(y_true, y_pred)
-    #loss = binary_fce(y_true, y_pred)
     categorical_loss = categorical_ce(y_true, y_pred)
 
     if class_weights is None:

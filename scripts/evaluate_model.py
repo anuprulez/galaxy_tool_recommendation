@@ -47,12 +47,15 @@ ff_dim = 128 # Hidden layer size in feed forward network inside transformer # df
 dropout = 0.1
 seq_len = 25
 
-predict_rnn = False
+predict_rnn = True
 
 if predict_rnn is True:
-    base_path = "log_22_08_22_rnn/" #"log_08_08_22_rnn/"
+    base_path = "log_14_09_22_GPU_RNN/" #"log_22_08_22_rnn/" #"log_08_08_22_rnn/"
 else:
-    base_path = "log_12_09_22_GPU/" #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/" 
+    base_path = "log_12_09_22_GPU/" 
+
+#"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/"
+# log_12_09_22_GPU 
 
 # "log_22_08_22_rnn/"
 #"log_local_16_08_22_0/"
@@ -72,12 +75,14 @@ else:
 ## CPU: 40 steps, batch size: 512 - 158683 seconds
 
 ## RNN
-## GPU: 40,000 steps, batch size: 512 -  seconds
+## GPU: 40,000 steps, batch size: 512 - 129000 seconds
 ## CPU: 40 steps, batch size: 512 - 193863 seconds
 
 #"log_03_08_22_1/" Balanced data with really selection of low freq tools - random choice
 # RNN: log_01_08_22_3_rnn
 # Transformer: log_01_08_22_0
+
+#tr_pos_plot = [1000, 5000, 10000, 20000, 30000, 40000]
 
 model_number = 40000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
@@ -153,25 +158,38 @@ def plot_model_usage_time():
     steps = [1, 5, 10, 15, 20]
 
     rnn_time = [9.10, 8.229, 14.79, 10.39, 13.96]
-    transformer_time = [0.92, 2.96, 0.97, 2.02, 1.68] 
+    transformer_time = [0.92, 2.96, 0.97, 2.02, 1.68]
+
+    rnn_time_seq_len = [11.30, 9.83, 8.85, 8.25, 8.14]
+    transformer_time_seq_len = [1.112, 1.277, 1.273, 1.195, 1.175]
 
     x_val = np.arange(len(steps))
-    plt.plot(x_val, rnn_time)
-    plt.plot(x_val, transformer_time)
+
+    plt.plot(x_val, rnn_time, "o-", color='green')
+    plt.plot(x_val, rnn_time_seq_len, "^-", color='green')
+    plt.plot(x_val, transformer_time, "o-", color='red')
+    plt.plot(x_val, transformer_time_seq_len, "^-", color='red')
+
+    ''' 
+    plt.plot(x_val, rnn_te_prec, "o-", color='green')
+    plt.plot(x_val, rnn_te_prec_low, "^-",  color='green')
+    plt.plot(x_val, transformer_te_prec, "*-", color='red')
+    plt.plot(x_val, transformer_te_prec_low, "^-", color='red')
+    '''
     plt.ylabel("Model usage (load + prediction) time (seconds)")
-    #plt.ylim((0.00, 0.07))
-    plt.xlabel("Top K predictions")
+
+    plt.xlabel("Seq length and topK - 1, 5, 10, 15, 20")
     plt.xticks(x_val, [str(item) for item in steps])
-    plt.legend(["RNN (GRU)", "Transformer"])
+    plt.legend(["Topk: RNN (GRU)", "Seq len: RNN (GRU)", "Topk: Transformer", "Seq len: Transformer"])
     plt.grid(True)
-    plt.title("Model usage time comparison between RNN and Transformer".format())
-    plt.savefig(base_path + "data/model_usage_time_rnn_transformer.png", dpi=150)
+    plt.title("Model usage (load + prediction) time comparison between RNN (GRU) and Transformer")
+    plt.savefig(base_path + "data/model_usage_time_rnn_transformer.png", dpi=300)
     plt.show()
 
 
 def plot_rnn_transformer(tr_loss, te_loss):
     # plot training loss
-    tr_pos_plot = [5000, 10000, 20000, 30000, 40000, 75000, 100000]
+    '''tr_pos_plot = [5000, 10000, 20000, 30000, 40000, 75000, 100000]
     te_pos_plot = [50, 100, 200, 300, 400, 750, 1000]
 
     print(len(tr_loss), len(te_loss))
@@ -193,59 +211,82 @@ def plot_rnn_transformer(tr_loss, te_loss):
     plt.grid(True)
     plt.title("Transformer training and test loss".format())
     plt.savefig(base_path + "data/{}_loss.png".format("transformer_tr_te_loss"), dpi=150)
-    plt.show()
+    plt.show()'''
 
-    # tr_pos_plot = [5000, 10000, 20000, 30000, 40000, 75000, 100000]
-    rnn_te_prec = [0.22, 0.42, 0.68, 0.84, 0.89, 0.95, 0.9579]
-    transformer_te_prec = [0.79, 0.90, 0.93, 0.94, 0.948, 0.953, 0.950]
+    #tr_pos_plot = [5000, 10000, 20000, 30000, 40000, 75000, 100000]
+    #rnn_te_prec = [0.22, 0.42, 0.68, 0.84, 0.89, 0.95, 0.9579]
+    #transformer_te_prec = plot_rnn_transformer[0.79, 0.90, 0.93, 0.94, 0.948, 0.953, 0.950]
+
+    # 15.09.22
+    tr_pos_plot = [1000, 5000, 10000, 20000, 40000]
+
+    rnn_te_prec = [0.3389, 0.6239, 0.8869, 0.9841, 0.9941]
+    rnn_te_prec_low = [0.0161, 0.0570, 0.7262, 0.8966, 0.9045]
+
+    transformer_te_prec = [0.6795, 0.9404, 0.9821, 0.9890, 0.9904]
+    transformer_te_prec_low = [0.1819, 0.8509, 0.8757, 0.8980, 0.8966]
 
     # plot topk precision for RNN and Transformer
-    '''x_val = np.arange(len(rnn_te_prec))
-    #x_val = np.arange(n_epo)
-    plt.plot(x_val, rnn_te_prec)
-    plt.plot(x_val, transformer_te_prec)
+    x_val = np.arange(len(rnn_te_prec))
+    plt.plot(x_val, rnn_te_prec, "o-", color='green')
+    plt.plot(x_val, rnn_te_prec_low, "^-",  color='green')
+    plt.plot(x_val, transformer_te_prec, "o-", color='red')
+    plt.plot(x_val, transformer_te_prec_low, "^-", color='red')
     plt.ylabel("Precision@k")
     plt.xlabel("Training steps")
     plt.xticks(x_val, [str(item) for item in tr_pos_plot])
-    plt.legend(["RNN (GRU)", "Transformer"])
+    plt.legend(["RNN (GRU)", "Lowest 25% tools: RNN (GRU)", "Transformer", "Lowest 25% tools: Transformer"])
     plt.grid(True)
-    plt.title("(Test) Precision@k for RNN (GRU) (~20 hrs) and Transformer (~ 12 hrs)")
-    plt.savefig(base_path + "data/precision_k_rnn_vs_transformer.png", dpi=150)
-    plt.show()'''
+    plt.title("(Test) Precision@k for RNN (GRU) and Transformer")
+    plt.savefig(base_path + "data/precision_k_rnn_vs_transformer.png", dpi=300)
+    plt.show()
 
 
-def plot_loss_acc(loss, acc, t_value):
+def plot_loss_acc(loss, acc, t_value, low_acc, low_t_value):
     # plot training loss
     x_val = np.arange(len(loss))
-    '''if t_value == "test":
-        x_val = 20 * x_val'''
+    if t_value == "Test":
+        x_val = 10 * x_val
+    #x_val = 10 * x_val
     plt.plot(x_val, loss)
-    plt.ylabel("Loss".format(t_value))
+    plt.ylabel("Loss")
     plt.xlabel("Training steps")
     plt.grid(True)
-    plt.title("{} vs loss".format(t_value))
-    plt.savefig(base_path + "/data/{}_loss.pdf".format(t_value), dpi=200)
+    if predict_rnn is True:
+        plt.title("{} {} loss".format("RNN (GRU):", t_value))
+    else:
+        plt.title("{} {} loss".format("Transformer:", t_value))
+    plt.savefig(base_path + "/data/{}_loss.pdf".format(t_value), dpi=300)
     plt.show()
 
     # plot driver gene precision vs epochs
     x_val_acc = np.arange(len(acc))
+    if t_value == "Test":
+        x_val_acc = 10 * x_val_acc
     #x_val = np.arange(n_epo)
     plt.plot(x_val_acc, acc)
-    plt.ylabel("Accuracy".format(t_value))
+    plt.plot(x_val_acc, low_acc)
+    plt.ylabel("Precision@k")
     plt.xlabel("Training steps")
     plt.grid(True)
-    plt.title("{} steps vs accuracy".format(t_value))
-    plt.savefig(base_path + "/data/{}_acc.pdf".format(t_value), dpi=200)
+    plt.legend([t_value, low_t_value])
+    #plt.title("{} precision@k".format(t_value))
+    if predict_rnn is True:
+        plt.title("{} {} precision@k".format("RNN (GRU):", t_value))
+    else:
+        plt.title("{} {} precision@k".format("Transformer:", t_value))
+    plt.savefig(base_path + "/data/{}_acc_low_acc.pdf".format(t_value), dpi=300)
     plt.show()
 
 
 def plot_low_te_prec(prec, t_value):
     x_val_acc = np.arange(len(prec))
+    x_val_acc = 10 * x_val_acc
     plt.plot(x_val_acc, prec)
-    plt.ylabel("Precision@k".format(t_value))
+    plt.ylabel("Precision@k")
     plt.xlabel("Training steps")
     plt.grid(True)
-    plt.title("{} steps vs accuracy".format(t_value))
+    plt.title("{} precision@k".format(t_value))
     plt.savefig(base_path + "/data/{}_low_acc.pdf".format(t_value), dpi=200)
     plt.show()
 
@@ -265,14 +306,16 @@ def visualize_loss_acc():
     epo_te_batch_acc = utils.read_file(base_path + "data/epo_te_precision.txt").split(",")
     epo_te_batch_acc = [np.round(float(item), 4) for item in epo_te_batch_acc]
 
-    plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "training")
-    plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "test")
+    #plot_loss_acc(epo_tr_batch_loss, epo_tr_batch_acc, "Training")
+    #plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "Test")
 
     epo_te_low_batch_acc = utils.read_file(base_path + "data/epo_low_te_precision.txt").split(",")
     epo_te_low_batch_acc = [np.round(float(item), 4) for item in epo_te_low_batch_acc]
 
-    plot_low_te_prec(epo_te_low_batch_acc, "Low test")
-    #plot_rnn_transformer(epo_tr_batch_loss, epo_te_batch_loss)
+    plot_loss_acc(epo_te_batch_loss, epo_te_batch_acc, "Test", epo_te_low_batch_acc, "Lowest 25% tools")
+
+    #plot_low_te_prec(epo_te_low_batch_acc, "Lowest 25% samples in test")
+    plot_rnn_transformer(epo_tr_batch_loss, epo_te_batch_loss)
 
 
 def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
@@ -281,7 +324,7 @@ def sample_balanced(x_seqs, y_labels, ulabels_tr_dict):
     last_tools = batch_tools[:batch_size]
     rand_batch_indices = list()
     for l_tool in last_tools:
-        seq_indices = ulabels_tr_dict[l_tool]
+        seq_indices = ulabels_tr_depo_tr_batch_lossict[l_tool]
         random.shuffle(seq_indices)
         rand_batch_indices.append(seq_indices[0])
 
@@ -349,7 +392,7 @@ def get_u_tr_labels(x_tr, y_tr):
         all_pos.extend(label_pos)
         all_pos.extend(data_pos)
         #print(i, item_x, data_pos, label_pos)
-        #print()
+        #print()plot_model_usage_time
         for label in all_pos:
             if label not in labels_pos_dict:
                 labels_pos_dict[label] = list()
@@ -447,7 +490,7 @@ def read_model():
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
     c_weights = utils.read_file(base_path + "data/class_weights.txt")
     c_tools = utils.read_file(base_path + "data/compatible_tools.txt")
-    s_conn = utils.read_file(base_path + "data/published_connections.txt")
+    s_conn = utiplot_model_usage_timels.read_file(base_path + "data/published_connections.txt")
 
     return tf_loaded_model, f_dict, r_dict, c_weights, c_tools, s_conn, m_l_time
     
@@ -456,9 +499,9 @@ def predict_seq():
 
     visualize_loss_acc()
 
-    sys.exit()
+    plot_model_usage_time()
 
-    #plot_model_usage_time()
+    sys.exit()
 
     #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
     #verify_training_sampling(tool_tr_freq, r_dict)  
