@@ -58,7 +58,7 @@ def create_model(maxlen, vocab_size):
     x = Dense(ff_dim, activation="relu")(x)
     x = Dropout(dropout)(x)
     outputs = Dense(vocab_size, activation="sigmoid")(x)
-
+ 
     return Model(inputs=inputs, outputs=[outputs, weights])
 
 

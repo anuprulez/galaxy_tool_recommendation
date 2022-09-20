@@ -18,9 +18,6 @@ class TransformerBlock(Layer):
         self.att = MultiHeadAttention(num_heads=num_heads,
             key_dim=embed_dim,
             dropout=rate,
-            #kernel_regularizer='l1_l2',
-            #bias_regularizer='l1_l2',
-            #activity_regularizer='l1_l2'
         )
         self.ffn = Sequential(
             [Dense(ff_dim, activation="relu"),

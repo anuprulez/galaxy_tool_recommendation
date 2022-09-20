@@ -37,7 +37,7 @@ font = {'family': 'serif', 'size': 8}
 plt.rc('font', **font)
 
 batch_size = 100
-test_batches = 1000
+test_batches = 0
 n_topk = 1
 max_seq_len = 25
 
@@ -47,12 +47,12 @@ ff_dim = 128 # Hidden layer size in feed forward network inside transformer # df
 dropout = 0.1
 seq_len = 25
 
-predict_rnn = True
+predict_rnn = False
 
 if predict_rnn is True:
-    base_path = "log_14_09_22_GPU_RNN/" #"log_22_08_22_rnn/" #"log_08_08_22_rnn/"
+    base_path = "log_19_09_22_GPU_RNN_full_data/" #"log_22_08_22_rnn/" #"log_08_08_22_rnn/"
 else:
-    base_path = "log_12_09_22_GPU/" 
+    base_path = "log_19_09_22_GPU_transformer_full_data/" #"log_12_09_22_GPU/" #"log_19_09_22_GPU_transformer_full_data/" 
 
 #"log_22_08_22_no_att_mask_no_regu/" #"log_22_08_22_att_mask_regu/"
 # log_12_09_22_GPU 
@@ -71,8 +71,8 @@ else:
 # log_08_08_22_rnn (finish time: 40,000 steps in 193863 seconds)
 
 ## Transformer
-## GPU: 40,000 steps, batch size: 512 - 125628 seconds
-## CPU: 40 steps, batch size: 512 - 158683 seconds
+## GPU: 40,000 steps, batch size: 512 - 132505.20160245895 seconds
+## CPU: 40 steps, batch  size: 512 - 158683 seconds
 
 ## RNN
 ## GPU: 40,000 steps, batch size: 512 - 129000 seconds
@@ -84,7 +84,7 @@ else:
 
 #tr_pos_plot = [1000, 5000, 10000, 20000, 30000, 40000]
 
-model_number = 40000
+model_number = 25000
 model_path = base_path + "saved_model/" + str(model_number) + "/tf_model/"
 model_path_h5 = base_path + "saved_model/" + str(model_number) + "/tf_model_h5/"
 
@@ -257,6 +257,7 @@ def plot_loss_acc(loss, acc, t_value, low_acc, low_t_value):
     else:
         plt.title("{} {} loss".format("Transformer:", t_value))
     plt.savefig(base_path + "/data/{}_loss.pdf".format(t_value), dpi=300)
+    plt.savefig(base_path + "/data/{}_loss.png".format(t_value), dpi=300)
     plt.show()
 
     # plot driver gene precision vs epochs
@@ -276,6 +277,7 @@ def plot_loss_acc(loss, acc, t_value, low_acc, low_t_value):
     else:
         plt.title("{} {} precision@k".format("Transformer:", t_value))
     plt.savefig(base_path + "/data/{}_acc_low_acc.pdf".format(t_value), dpi=300)
+    plt.savefig(base_path + "/data/{}_acc_low_acc.png".format(t_value), dpi=300)
     plt.show()
 
 
@@ -287,7 +289,8 @@ def plot_low_te_prec(prec, t_value):
     plt.xlabel("Training steps")
     plt.grid(True)
     plt.title("{} precision@k".format(t_value))
-    plt.savefig(base_path + "/data/{}_low_acc.pdf".format(t_value), dpi=200)
+    plt.savefig(base_path + "/data/{}_low_acc.pdf".format(t_value), dpi=300)
+    plt.savefig(base_path + "/data/{}_low_acc.png".format(t_value), dpi=300)
     plt.show()
 
 
@@ -490,18 +493,18 @@ def read_model():
     f_dict = utils.read_file(base_path + "data/f_dict.txt")
     c_weights = utils.read_file(base_path + "data/class_weights.txt")
     c_tools = utils.read_file(base_path + "data/compatible_tools.txt")
-    s_conn = utiplot_model_usage_timels.read_file(base_path + "data/published_connections.txt")
+    s_conn = utils.read_file(base_path + "data/published_connections.txt")
 
     return tf_loaded_model, f_dict, r_dict, c_weights, c_tools, s_conn, m_l_time
     
 
 def predict_seq():
 
-    visualize_loss_acc()
+    '''visualize_loss_acc()
 
     plot_model_usage_time()
 
-    sys.exit()
+    sys.exit()'''
 
     #tool_tr_freq = utils.read_file(base_path + "data/all_sel_tool_ids.txt")
     #verify_training_sampling(tool_tr_freq, r_dict)  
@@ -531,9 +534,9 @@ def predict_seq():
         tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_model()
         #tf_loaded_model, f_dict, r_dict, class_weights, compatible_tools, published_connections, model_loading_time = read_h5_model()
 
-    all_tr_label_tools = verify_tool_in_tr(r_dict)
+    '''all_tr_label_tools = verify_tool_in_tr(r_dict)
     all_tr_label_tools_ids = list(all_tr_label_tools.keys())
-    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]
+    all_tr_label_tools_ids = [int(t) for t in all_tr_label_tools_ids]'''
 
     c_weights = list(class_weights.values())
 
@@ -549,11 +552,11 @@ def predict_seq():
     batch_pred_time = list()
     for j in range(test_batches):
 
-        #te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
+        te_x_batch, y_train_batch, selected_label_tools, bat_ind = sample_balanced_tr_y(test_input, test_target, u_te_y_labels_dict)
 
-        print(j * batch_size, j * batch_size + batch_size)
+        '''print(j * batch_size, j * batch_size + batch_size)
         te_x_batch = test_input[j * batch_size : j * batch_size + batch_size, :]
-        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]
+        y_train_batch = test_target[j * batch_size : j * batch_size + batch_size, :]'''
 
         #te_x_batch = tf.convert_to_tensor(te_x_batch, dtype=tf.int64)
         te_x_mask = utils.create_padding_mask(te_x_batch)
@@ -583,7 +586,7 @@ def predict_seq():
             if len(np.where(inp > 0)[0]) <= max_seq_len:
                
                 real_prediction = np.where(tar > 0)[0]
-                target_pos = list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
+                target_pos = real_prediction #list(set(all_tr_label_tools_ids).intersection(set(real_prediction)))
 
                 prediction_wts = tf.math.multiply(c_weights, prediction)
 
@@ -647,18 +650,19 @@ def predict_seq():
                     #error_label_tools.append(select_tools[i])
                     print("=========================")
                 print("--------------------------")
-                #generated_attention(att_weights[i], i_names, f_dict, r_dict)
+                generated_attention(att_weights[i], i_names, f_dict, r_dict)
                 #plot_attention_head_axes(att_weights)
                 print("Batch {} prediction finished ...".format(j+1))
 
     te_lowest_t_ids = utils.read_file(base_path + "data/te_lowest_t_ids.txt")
     lowest_t_ids = [int(item) for item in te_lowest_t_ids.split(",")]
+    lowest_t_ids = lowest_t_ids[:5]
     
     low_te_data = test_input[lowest_t_ids]
     low_te_labels = test_target[lowest_t_ids]
     low_te_data_mask = utils.create_padding_mask(low_te_data)
     low_te_data = tf.cast(low_te_data, dtype=tf.float32)
-    #print("Test lowest ids", low_te_data.shape, low_te_labels.shape)
+    #print("Test lowest ids", low_te_data.shape, lowest_t_idslow_te_labels.shape)
     #low_te_pred_batch, low_att_weights = tf_loaded_model([low_te_data], training=False)
     low_topk = 20
     low_te_precision = list()
@@ -753,18 +757,18 @@ def predict_seq():
     t_ip[2] = int(f_dict["hicexplorer_hicfindtads"])
     t_ip[3] = int(f_dict["hicexplorer_hicpca"])'''
 
-    t_ip[0, 0] = int(f_dict["deseq2"])
-    t_ip[0, 1] = int(f_dict["tp_cut_tool"])
-    t_ip[0, 2] = int(f_dict["heinz_scoring"])
-    t_ip[0, 3] = int(f_dict["heinz"])
+    t_ip[0, 0] = int(f_dict["cutadapt"]) #ivar_covid_aries_consensus
+    t_ip[0, 1] = int(f_dict["rna_star"])
+    #t_ip[0, 2] = int(f_dict["heinz_scoring"])
+    #t_ip[0, 3] = int(f_dict["heinz"])
 
     #t_ip[4] = int(f_dict["prokka"])
     #t_ip[5] = int(f_dict["roary"]) 
     #t_ip[6] = int(f_dict["Cut1"])
     #t_ip[7] = int(f_dict["cat1"])
     #t_ip[8] = int(f_dict["anndata_manipulate"])
-    # 'snpEff_build_gb', 'bwa_mem', 'samtools_view',
-    last_tool_name = "heinz"
+    # 'snpEff_build_gb', 'bwa_mem', 'samtools_view', snpeff_sars_cov_2
+    last_tool_name = "rna_star"
     
     t_ip = tf.convert_to_tensor(t_ip, dtype=tf.int64)
     t_ip = tf.cast(t_ip, dtype=tf.float32)
@@ -897,7 +901,7 @@ Tool seqs for good attention plots:
     # 'Remove beginning1', 'Cut1', 'param_value_from_file', 'kc-align', 'sarscov2formatter', 'hyphy_fel'
     # abims_CAMERA_annotateDiffreport
     # cooler_csort_pairix
-    # mycrobiota-split-multi-otutable
+    # mycrobiota-split-multi-otutable_ensembl_gtf2gene_list
     # XY_Plot_1
     # mycrobiota-qc-report
     # 1_create_conf
@@ -907,7 +911,7 @@ Tool seqs for good attention plots:
 
     Incorrect predictions
     # scpipe, 
-    # 'delly_call', 'delly_merge'
+    # 'delly_call', 'delly_merge'ivar_covid_aries_consensus
     # 'gmap_build', 'gsnap', 'sam_to_bam', 'filter', 'assign', 'polyA'
     # 'bioext_bealign', 'tn93_filter', 'hyphy_cfel'
     # sklearn_build_pipeline
@@ -921,7 +925,7 @@ Tool seqs for good attention plots:
     # cooler_makebins
     # 'PeakPickerHiRes', 'FileFilter', 'xcms-find-peaks', 'xcms-collect-peaks'
     # 'TrimPrimer', 'Flash', 'Btrim64'
-    # cryptotyper
+    # cryptotyperanndata_import
     # ip_spot_detection_2d
     # 'picard_FastqToSam', 'TagBamWithReadSequenceExtended', 'FilterBAM', 'BAMTagHistogram'
     # 'basic_illumination', 'ashlar'
@@ -999,7 +1003,7 @@ def generated_attention(trained_model, f_dict, r_dict):
         output = tf.transpose(np_output_array.stack())
         print("decoder input: ", n_input, output, output.shape)
         orig_predictions, _ = trained_model([n_input, output], training=False)
-        #print(orig_predictions.shape)
+        #print(orig_predictions.shape)trimmomatic
         #print("true target seq real: ", te_tar_real)
         #print("Pred seq argmax: ", tf.argmax(orig_predictions, axis=-1))
         predictions = orig_predictions[:, -1:, :]
@@ -1018,7 +1022,7 @@ def generated_attention(trained_model, f_dict, r_dict):
     print(pred_attention)
 
     #print(attention_weights)
-    in_tokens = [r_dict[str(int(item))] for item in a_input[0] if item > 0]
+    in_tokens = [r_dict[str(int(item))] for itscanpy_read_10xem in a_input[0] if item > 0]
     out_tokens = [r_dict[str(int(item))] for item in output.numpy()[0]]
     out_tokens = out_tokens[1:]
     print(in_tokens)
@@ -1027,9 +1031,9 @@ def generated_attention(trained_model, f_dict, r_dict):
     print(pred_attention)
     plot_attention_head(in_tokens, out_tokens, pred_attention)
 
-
+scanpy_read_10x
 def plot_attention_head(in_tokens, out_tokens, attention):
-  # The plot is of the attention when a token was generated.
+  # The plot is of the attention when a token walog_19_09_22_GPU_transformer_full_datas generated.
   # The model didn't generate `<START>` in the output. Skip it.
 
   fig = plt.figure()

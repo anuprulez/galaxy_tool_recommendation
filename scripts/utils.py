@@ -10,12 +10,8 @@ from numpy.random import choice
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-
-#from tensorflow.compat.v2 import backend as K
 from tensorflow.keras import backend
-#crossentropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-#import onnx
-#from onnx_tf.backend import prepare
+
 
 
 def read_file(file_path):
